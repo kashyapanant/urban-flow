@@ -23,58 +23,58 @@ class Metrics:
     @property
     def normal_avg_ticks(self) -> float:
         """Average travel time for normal vehicles.
-
+        
         Returns:
             Average ticks to destination for normal vehicles
         """
-        pass
+        raise NotImplementedError("Metrics.normal_avg_ticks calculation not yet implemented")
 
     @property
     def emergency_avg_ticks(self) -> float:
         """Average travel time for emergency vehicles.
-
+        
         Returns:
             Average ticks to destination for emergency vehicles
         """
-        pass
+        raise NotImplementedError("Metrics.emergency_avg_ticks calculation not yet implemented")
 
     @property
     def improvement(self) -> float:
         """Percentage improvement in travel time for emergency vehicles.
-
+        
         Returns:
             Percentage fewer ticks for emergency vs normal vehicles
             Positive values indicate emergency vehicles are faster
         """
-        pass
+        raise NotImplementedError("Metrics.improvement calculation not yet implemented")
 
     def record_arrival(self, vehicle: Vehicle) -> None:
         """Record the arrival of a vehicle for metrics calculation.
-
+        
         Args:
             vehicle: Vehicle that completed its journey
         """
-        pass
+        raise NotImplementedError("Metrics.record_arrival() arrival recording not yet implemented")
 
     def record_multiple_arrivals(self, vehicles: list[Vehicle]) -> None:
         """Record arrivals for multiple vehicles.
-
+        
         Args:
             vehicles: List of vehicles that completed their journeys
         """
-        pass
+        raise NotImplementedError("Metrics.record_multiple_arrivals() batch arrival recording not yet implemented")
 
     def reset(self) -> None:
         """Reset all metrics to initial state.
-
+        
         Useful for restarting simulations or clearing data.
         """
-        pass
+        raise NotImplementedError("Metrics.reset() state reset not yet implemented")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary for serialization.
-
+        
         Returns:
             Dictionary representation for API responses and frontend
         """
-        pass
+        raise NotImplementedError("Metrics.to_dict() serialization not yet implemented")

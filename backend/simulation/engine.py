@@ -38,64 +38,64 @@ class SimulationEngine:
 
     def __init__(self, config: SimulationConfig | None = None):
         """Initialize the simulation engine.
-
+        
         Args:
             config: Simulation configuration (uses defaults if None)
         """
-        pass
+        raise NotImplementedError("SimulationEngine.__init__() engine initialization not yet implemented")
 
     async def start(self) -> None:
         """Start the simulation tick loop."""
-        pass
+        raise NotImplementedError("SimulationEngine.start() tick loop startup not yet implemented")
 
     async def stop(self) -> None:
         """Stop the simulation and clean up."""
-        pass
+        raise NotImplementedError("SimulationEngine.stop() simulation shutdown not yet implemented")
 
     def pause(self) -> None:
         """Pause the simulation (can be resumed)."""
-        pass
+        raise NotImplementedError("SimulationEngine.pause() simulation pausing not yet implemented")
 
     def resume(self) -> None:
         """Resume a paused simulation."""
-        pass
+        raise NotImplementedError("SimulationEngine.resume() simulation resuming not yet implemented")
 
     def set_tick_speed(self, speed: int) -> None:
         """Set simulation tick speed (takes effect next tick).
-
+        
         Args:
             speed: Ticks per second (1-10)
         """
-        pass
+        raise NotImplementedError("SimulationEngine.set_tick_speed() speed configuration not yet implemented")
 
     def set_spawn_rate(self, rate: float) -> None:
         """Set vehicle spawn rate (takes effect next tick).
-
+        
         Args:
             rate: Probability per edge cell per tick (0.0-1.0)
         """
-        pass
+        raise NotImplementedError("SimulationEngine.set_spawn_rate() spawn rate configuration not yet implemented")
 
     def set_phase_duration(self, duration: int) -> None:
         """Set traffic light phase duration (takes effect next tick).
-
+        
         Args:
             duration: Ticks per phase (1-20)
         """
-        pass
+        raise NotImplementedError("SimulationEngine.set_phase_duration() phase duration configuration not yet implemented")
 
     def snapshot(self) -> SimulationSnapshot:
         """Create a complete state snapshot for frontend consumption.
-
+        
         Returns:
             Complete simulation state snapshot
         """
-        pass
+        raise NotImplementedError("SimulationEngine.snapshot() state snapshot creation not yet implemented")
 
     def get_metrics(self) -> Metrics:
         """Get current simulation metrics.
-
+        
         Returns:
             Current metrics object
         """
-        pass
+        raise NotImplementedError("SimulationEngine.get_metrics() metrics access not yet implemented")

@@ -25,71 +25,71 @@ engine: SimulationEngine | None = None
 
 def set_engine(simulation_engine: SimulationEngine) -> None:
     """Set the global simulation engine instance.
-
+    
     Args:
         simulation_engine: The engine instance to use
     """
-    pass
+    raise NotImplementedError("set_engine() engine injection not yet implemented")
 
 
 @router.post("/start")
 async def start_simulation() -> dict[str, str]:
     """Initialize and start (or reset) the simulation.
-
+    
     Returns:
         Status message
     """
-    pass
+    raise NotImplementedError("start_simulation() endpoint not yet implemented")
 
 
 @router.post("/pause")
 def pause_simulation() -> dict[str, str]:
     """Pause the tick loop.
-
+    
     Returns:
         Status message
     """
-    pass
+    raise NotImplementedError("pause_simulation() endpoint not yet implemented")
 
 
 @router.post("/resume")
 def resume_simulation() -> dict[str, str]:
     """Resume the tick loop.
-
+    
     Returns:
         Status message
     """
-    pass
+    raise NotImplementedError("resume_simulation() endpoint not yet implemented")
 
 
 @router.put("/config")
 def update_config(config: ConfigUpdateRequest) -> dict[str, str]:
     """Update runtime configuration.
-
+    
     Args:
         config: Configuration updates
-
+        
     Returns:
         Status message
     """
-    pass
+    raise NotImplementedError("update_config() endpoint not yet implemented")
 
 
 @router.get("/state")
 def get_state() -> dict[str, Any]:
     """Return current state snapshot (polling fallback).
-
+    
     Returns:
         Current simulation state
     """
-    pass
+    raise NotImplementedError("get_state() endpoint not yet implemented")
 
 
 @router.get("/metrics")
 def get_metrics() -> dict[str, Any]:
     """Return current metrics.
-
+    
     Returns:
         Current simulation metrics
     """
-    pass
+    raise NotImplementedError("get_metrics() endpoint not yet implemented")

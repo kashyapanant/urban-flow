@@ -27,11 +27,11 @@ class PathNode:
     @property
     def f_cost(self) -> float:
         """Total cost (g + h) for A* priority."""
-        pass
+        raise NotImplementedError("PathNode.f_cost calculation not yet implemented")
 
     def __lt__(self, other: PathNode) -> bool:
         """Comparison for priority queue (lower f_cost = higher priority)."""
-        pass
+        raise NotImplementedError("PathNode.__lt__ comparison not yet implemented")
 
 
 class Pathfinder:
@@ -50,15 +50,15 @@ class Pathfinder:
         traffic_light_manager: TrafficLightManager | None = None,
     ) -> list[tuple[int, int]] | None:
         """Find optimal path from start to goal using A*.
-
+        
         Args:
             grid: The simulation grid
             start: Starting position (x, y)
             goal: Goal position (x, y)
             vehicle_type: Type of vehicle for cost calculation
             traffic_light_manager: For emergency vehicle traffic light costs
-
+            
         Returns:
             List of positions forming the path, or None if no path exists
         """
-        pass
+        raise NotImplementedError("Pathfinder.find_path() A* algorithm not yet implemented")
