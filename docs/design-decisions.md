@@ -147,3 +147,16 @@ This document records design decisions made during the implementation of the bac
 - Simple dictionary-based approach is easy to understand
 - Changes take effect on next tick as specified
 - Thread-safe in single-threaded simulation model
+
+---
+
+## Decision: API Input Validation for ConfigUpdateRequest
+
+**Date:** 2026-03-05
+**Context:** ConfigUpdateRequest model lacked validation constraints, creating security/robustness gap where invalid data could reach simulation engine.
+**Decision:** Add Pydantic Field validation to match SimulationConfig constraints exactly.
+**Rationale:**
+- Prevents invalid configuration values from reaching simulation engine
+- Provides clear error messages with 422 HTTP responses for invalid input
+- Maintains consistency between API and core config validation
+- Follows FastAPI/Pydantic best practices for input validation
