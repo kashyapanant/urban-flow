@@ -79,9 +79,6 @@ This document tracks development tasks, issues, and improvements for the Urban F
 ### Testing Tasks  
 *Tasks for writing comprehensive tests*
 
-### Testing Tasks  
-*Tasks for writing comprehensive tests*
-
 ### Performance Tasks
 *Tasks for optimization and performance improvements*
 
