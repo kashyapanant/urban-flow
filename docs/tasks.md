@@ -10,16 +10,75 @@ This document tracks development tasks, issues, and improvements for the Urban F
 
 ---
 
+## Phase 1: Core Simulation Engine - Development Plan
+
+### Implementation Order (Foundation-First Approach)
+
+#### 1. Grid Class (Foundation)
+- [ ] `Grid.__init__()` - Initialize grid with city blocks layout
+- [ ] `Cell.is_traversable()` - Check if cell allows vehicle movement
+- [ ] `Cell.is_occupied()` - Check if cell contains vehicle
+- [ ] `Grid.get_cell()` - Get cell at coordinates
+- [ ] `Grid.get_neighbors()` - Get traversable neighboring cells
+- [ ] `Grid.place_vehicle()` - Place vehicle in cell
+- [ ] `Grid.remove_vehicle()` - Remove vehicle from cell
+- [ ] `Grid.get_edge_cells()` - Get spawn-eligible edge cells
+- [ ] `Grid.get_intersection_cells()` - Get intersection positions
+- [ ] `Grid.snapshot()` - Create serializable state
+
+#### 2. Pathfinder Class (Depends: Grid)
+- [ ] `PathNode.f_cost` - A* total cost calculation
+- [ ] `PathNode.__lt__()` - Priority queue comparison
+- [ ] `Pathfinder.find_path()` - A* pathfinding algorithm
+
+#### 3. Vehicle Classes (Depends: Grid, Pathfinder)
+- [ ] `Vehicle.get_next_position()` - Get next path position
+- [ ] `Vehicle.advance_path()` - Move to next position
+- [ ] `Vehicle.get_remaining_distance()` - Calculate remaining cells
+- [ ] `VehicleManager.__init__()` - Initialize manager
+- [ ] `VehicleManager.spawn_vehicles()` - Spawn at grid edges
+- [ ] `VehicleManager.move_vehicles()` - Priority-based movement
+- [ ] `VehicleManager.collect_arrived()` - Remove completed vehicles
+
+#### 4. TrafficLight Classes (Depends: Vehicle)
+- [ ] `TrafficLight.tick()` - Advance phase timing
+- [ ] `TrafficLight.can_enter()` - Check movement permission
+- [ ] `TrafficLight.request_preemption()` - Emergency preemption
+- [ ] `TrafficLight.release_preemption()` - Resume normal cycling
+- [ ] `TrafficLightManager.__init__()` - Initialize all lights
+- [ ] `TrafficLightManager.tick()` - Update all lights
+
+#### 5. Metrics Class (Depends: Vehicle)
+- [ ] `Metrics.normal_avg_ticks` - Calculate normal vehicle average
+- [ ] `Metrics.emergency_avg_ticks` - Calculate emergency average
+- [ ] `Metrics.improvement` - Calculate percentage improvement
+- [ ] `Metrics.record_arrival()` - Record vehicle completion
+
+#### 6. SimulationEngine (Orchestrates All)
+- [ ] `SimulationEngine.__init__()` - Initialize all components
+- [ ] `SimulationEngine.start()` - Begin tick loop
+- [ ] `SimulationEngine.tick()` - Execute single simulation step
+- [ ] `SimulationEngine.snapshot()` - Create complete state
+
+---
+
+## Active Issues & Bugs
+
+*Space for logging bugs found during implementation*
+
+---
+
 ## Phase 1: Core Simulation Engine - Pending Tasks
 
-*No pending tasks currently*
+**Current Status:** Implementation in progress following foundation-first approach.
+
+**Active Work:** See "Development Plan" section above for detailed task breakdown and progress tracking.
+
+**Next Task:** `Grid.__init__()` - Initialize grid with city blocks layout (pending clarification questions)
 
 ---
 
 ## Future Task Categories
-
-### Implementation Tasks
-*Tasks for implementing the skeleton methods with actual logic*
 
 ### Testing Tasks  
 *Tasks for writing comprehensive tests*
