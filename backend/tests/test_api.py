@@ -110,7 +110,9 @@ class TestConfigUpdateRequest:
         # Arrange & Act - Send request with all fields invalid
         with pytest.raises(ValidationError) as exc_info:
             ConfigUpdateRequest(
-                tick_speed=15, spawn_rate=-0.5, phase_duration=25  # > 10  # < 0  # > 20
+                tick_speed=15,
+                spawn_rate=-0.5,
+                phase_duration=25,  # > 10  # < 0  # > 20
             )
 
         # Assert - All validation errors should be reported, not just the first one
