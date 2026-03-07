@@ -14,15 +14,11 @@ run:
 
 lint:
 	$(UV) ruff check .
-	# This command checks if all Python files are formatted according to Ruff's style rules and Black's formatting rules, without making changes.
 	$(UV) ruff format --check .
-	# This command formats all Python files according to Ruff's style rules and Black's formatting rules.
 
 format:
-	# This command checks if all Python files are formatted according to Ruff's style rules and Black's formatting rules, and makes changes to the files to fix any issues.
 	$(UV) ruff check --fix .
-	# This command formats all Python files according to Ruff's style rules and Black's formatting rules.
-	$(UV) black .
+	$(UV) ruff format .
 
 test:
 	$(UV) pytest
