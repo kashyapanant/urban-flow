@@ -26,11 +26,12 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle
+    "E",   # pycodestyle errors
     "F",   # pyflakes
     "I",   # import sorting
     "B",   # bugbear
     "UP",  # pyupgrade
+    "W292",  # no newline at end of file
 ]
 
 [tool.ruff.format]
