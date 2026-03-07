@@ -3,13 +3,15 @@
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..simulation.engine import SimulationEngine
 
 
 class ConfigUpdateRequest(BaseModel):
     """Request model for updating simulation configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     tick_speed: int | None = Field(None, ge=1, le=10, description="Ticks per second")
     spawn_rate: float | None = Field(

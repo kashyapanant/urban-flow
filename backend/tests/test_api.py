@@ -147,6 +147,64 @@ class TestConfigUpdateRequest:
         expected = {"tick_speed": 3, "spawn_rate": None, "phase_duration": None}
         assert config_dict == expected
 
+    @pytest.mark.parametrize(
+        "extra_field_name,extra_field_value",
+        [
+            ("unknown_field", "should_fail"),
+            ("invalid_param", "test"),
+            ("extra_config", 123),
+            ("typo_tick_speed", 5),  # Common typo
+            ("spawn_rats", 0.5),  # Another common typo
+            ("phase_durations", 10),  # Plural typo
+        ],
+    )
+    def test_extra_fields_forbidden(self, extra_field_name, extra_field_value):
+        """Test that extra/unknown fields are rejected due to extra='forbid'."""
+        # Arrange
+        request_data = {
+            "tick_speed": 5,  # Valid field
+            extra_field_name: extra_field_value,  # Invalid extra field
+        }
+
+        # Act - This should raise ValidationError
+        with pytest.raises(ValidationError) as exc_info:
+            ConfigUpdateRequest(**request_data)
+
+        # Assert - Verify the validation error details
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert errors[0]["type"] == "extra_forbidden"
+        assert extra_field_name in str(errors[0])
+
+    def test_multiple_extra_fields_all_reported(self):
+        """Test that multiple extra fields are all reported in validation errors."""
+        # Arrange
+        request_data = {
+            "tick_speed": 5,  # Valid
+            "unknown_field1": "test",  # Invalid extra field
+            "unknown_field2": 123,  # Invalid extra field
+            "unknown_field3": True,  # Invalid extra field
+        }
+
+        # Act - This should raise ValidationError
+        with pytest.raises(ValidationError) as exc_info:
+            ConfigUpdateRequest(**request_data)
+
+        # Assert - Verify all extra fields are reported
+        errors = exc_info.value.errors()
+        assert len(errors) == 3, "All extra field errors should be reported"
+
+        # Assert - Check that all errors are about extra fields
+        for error in errors:
+            assert error["type"] == "extra_forbidden"
+
+        # Assert - Check that all extra field names are mentioned
+        error_messages = [str(error) for error in errors]
+        full_error_text = " ".join(error_messages)
+        assert "unknown_field1" in full_error_text
+        assert "unknown_field2" in full_error_text
+        assert "unknown_field3" in full_error_text
+
 
 # TODO: Add these test classes when the functionality is implemented:
 #
