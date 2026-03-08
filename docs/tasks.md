@@ -1,136 +1,186 @@
 # Urban Flow - Development Tasks
 
-This document tracks development tasks, issues, and improvements for the Urban Flow project.
+This document tracks development tasks, issues, and improvements for the Urban Flow project. Each task has a **unique ID** so it can be linked to a git branch, design decision, or PR.
 
 ## Task Status Legend
+
 - 🔴 **Critical** - Blocks core functionality or security issue
-- 🟡 **High** - Important for robustness/user experience  
+- 🟡 **High** - Important for robustness/user experience
 - 🟢 **Medium** - Nice to have, improves code quality
 - 🔵 **Low** - Future enhancement, not urgent
 
----
+## ID Format
 
-## Phase 1: Core Simulation Engine - Development Plan
+- **P1-** = Phase 1 (Core Simulation Engine)
+- **GRID** = Grid class · **PATH** = Pathfinder · **VEH** = Vehicle/VehicleManager · **TL** = TrafficLight · **MET** = Metrics · **ENG** = SimulationEngine · **API** = API layer
+- **NN** = Two-digit number (01, 02, …)
 
-### Implementation Order (Foundation-First Approach)
-
-#### 1. Grid Class (Foundation)
-- [ ] `Grid.__init__()` - Initialize grid with city blocks layout
-- [ ] `Cell.is_traversable()` - Check if cell allows vehicle movement
-- [ ] `Cell.is_occupied()` - Check if cell contains vehicle
-- [ ] `Grid.get_cell()` - Get cell at coordinates
-- [ ] `Grid.get_neighbors()` - Get traversable neighboring cells
-- [ ] `Grid.place_vehicle()` - Place vehicle in cell
-- [ ] `Grid.remove_vehicle()` - Remove vehicle from cell
-- [ ] `Grid.get_edge_cells()` - Get spawn-eligible edge cells
-- [ ] `Grid.get_intersection_cells()` - Get intersection positions
-- [ ] `Grid.snapshot()` - Create serializable state
-
-#### 2. Pathfinder Class (Depends: Grid)
-- [ ] `PathNode.f_cost` - A* total cost calculation
-- [ ] `PathNode.__lt__()` - Priority queue comparison
-- [ ] `Pathfinder.find_path()` - A* pathfinding algorithm
-
-#### 3. Vehicle Classes (Depends: Grid, Pathfinder)
-- [ ] `Vehicle.get_next_position()` - Get next path position
-- [ ] `Vehicle.advance_path()` - Move to next position
-- [ ] `Vehicle.get_remaining_distance()` - Calculate remaining cells
-- [ ] `VehicleManager.__init__()` - Initialize manager
-- [ ] `VehicleManager.spawn_vehicles()` - Spawn at grid edges
-- [ ] `VehicleManager.move_vehicles()` - Priority-based movement
-- [ ] `VehicleManager.collect_arrived()` - Remove completed vehicles
-
-#### 4. TrafficLight Classes (Depends: Vehicle)
-- [ ] `TrafficLight.tick()` - Advance phase timing
-- [ ] `TrafficLight.can_enter()` - Check movement permission
-- [ ] `TrafficLight.request_preemption()` - Emergency preemption
-- [ ] `TrafficLight.release_preemption()` - Resume normal cycling
-- [ ] `TrafficLightManager.__init__()` - Initialize all lights
-- [ ] `TrafficLightManager.tick()` - Update all lights
-
-#### 5. Metrics Class (Depends: Vehicle)
-- [ ] `Metrics.normal_avg_ticks` - Calculate normal vehicle average
-- [ ] `Metrics.emergency_avg_ticks` - Calculate emergency average
-- [ ] `Metrics.improvement` - Calculate percentage improvement
-- [ ] `Metrics.record_arrival()` - Record vehicle completion
-
-#### 6. SimulationEngine (Orchestrates All)
-- [ ] `SimulationEngine.__init__()` - Initialize all components
-- [ ] `SimulationEngine.start()` - Begin tick loop
-- [ ] `SimulationEngine.tick()` - Execute single simulation step
-- [ ] `SimulationEngine.snapshot()` - Create complete state
+Example: `P1-GRID-01` = Phase 1, Grid, first task.
 
 ---
 
-## Active Issues & Bugs
+## Phase 1: Core Simulation Engine - Implementation Order
 
-*Space for logging bugs found during implementation*
+Implementation follows a foundation-first approach. Link each task ID to a branch (e.g. `urb-01`) or design decision in the [Task registry](#task-registry) below.
+
+### 1. Grid Class (Foundation)
+
+| ID | Task | Status |
+|----|------|--------|
+| P1-GRID-01 | `Grid.__init__()` - Initialize grid with city blocks layout | ⬜ |
+| P1-GRID-02 | `Cell.is_traversable()` - Check if cell allows vehicle movement | ⬜ |
+| P1-GRID-03 | `Cell.is_occupied()` - Check if cell contains vehicle | ⬜ |
+| P1-GRID-04 | `Grid.get_cell()` - Get cell at coordinates | ⬜ |
+| P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ⬜ |
+| P1-GRID-06 | `Grid.place_vehicle()` - Place vehicle in cell | ⬜ |
+| P1-GRID-07 | `Grid.remove_vehicle()` - Remove vehicle from cell | ⬜ |
+| P1-GRID-08 | `Grid.get_edge_cells()` - Get spawn-eligible edge cells | ⬜ |
+| P1-GRID-09 | `Grid.get_intersection_cells()` - Get intersection positions | ⬜ |
+| P1-GRID-10 | `Grid.snapshot()` - Create serializable state | ⬜ |
+
+### 2. Pathfinder Class (Depends: Grid)
+
+| ID | Task | Status |
+|----|------|--------|
+| P1-PATH-01 | `PathNode.f_cost` - A* total cost calculation | ⬜ |
+| P1-PATH-02 | `PathNode.__lt__()` - Priority queue comparison | ⬜ |
+| P1-PATH-03 | `Pathfinder.find_path()` - A* pathfinding algorithm | ⬜ |
+
+### 3. Vehicle Classes (Depends: Grid, Pathfinder)
+
+| ID | Task | Status |
+|----|------|--------|
+| P1-VEH-01 | `Vehicle.get_next_position()` - Get next path position | ⬜ |
+| P1-VEH-02 | `Vehicle.advance_path()` - Move to next position | ⬜ |
+| P1-VEH-03 | `Vehicle.get_remaining_distance()` - Calculate remaining cells | ⬜ |
+| P1-VEH-04 | `VehicleManager.__init__()` - Initialize manager | ⬜ |
+| P1-VEH-05 | `VehicleManager.spawn_vehicles()` - Spawn at grid edges | ⬜ |
+| P1-VEH-06 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
+| P1-VEH-07 | `VehicleManager.collect_arrived()` - Remove completed vehicles | ⬜ |
+
+### 4. TrafficLight Classes (Depends: Vehicle)
+
+| ID | Task | Status |
+|----|------|--------|
+| P1-TL-01 | `TrafficLight.tick()` - Advance phase timing | ⬜ |
+| P1-TL-02 | `TrafficLight.can_enter()` - Check movement permission | ⬜ |
+| P1-TL-03 | `TrafficLight.request_preemption()` - Emergency preemption | ⬜ |
+| P1-TL-04 | `TrafficLight.release_preemption()` - Resume normal cycling | ⬜ |
+| P1-TL-05 | `TrafficLightManager.__init__()` - Initialize all lights | ⬜ |
+| P1-TL-06 | `TrafficLightManager.tick()` - Update all lights | ⬜ |
+
+### 5. Metrics Class (Depends: Vehicle)
+
+| ID | Task | Status |
+|----|------|--------|
+| P1-MET-01 | `Metrics.normal_avg_ticks` - Calculate normal vehicle average | ⬜ |
+| P1-MET-02 | `Metrics.emergency_avg_ticks` - Calculate emergency average | ⬜ |
+| P1-MET-03 | `Metrics.improvement` - Calculate percentage improvement | ⬜ |
+| P1-MET-04 | `Metrics.record_arrival()` - Record vehicle completion | ⬜ |
+
+### 6. SimulationEngine (Orchestrates All)
+
+| ID | Task | Status |
+|----|------|--------|
+| P1-ENG-01 | `SimulationEngine.__init__()` - Initialize all components | ⬜ |
+| P1-ENG-02 | `SimulationEngine.start()` - Begin tick loop | ⬜ |
+| P1-ENG-03 | `SimulationEngine.tick()` - Execute single simulation step | ⬜ |
+| P1-ENG-04 | `SimulationEngine.snapshot()` - Create complete state | ⬜ |
 
 ---
 
-## Phase 1: Core Simulation Engine - Pending Tasks
+## Task registry
 
-**Current Status:** Implementation in progress following foundation-first approach.
+Use this table to link each task to a **branch** and/or **design decision**. Update as you create branches or add entries to `docs/design-decisions.md`.
 
-**Active Work:** See "Development Plan" section above for detailed task breakdown and progress tracking.
-
-**Next Task:** `Grid.__init__()` - Initialize grid with city blocks layout (pending clarification questions)
+| ID | Task (short) | Status | Branch | Design decision |
+|----|--------------|--------|--------|------------------|
+| P1-GRID-01 | Grid.__init__ | ⬜ | | e.g. [Grid Layout Constants](design-decisions.md#decision-grid-layout-constants) |
+| P1-GRID-02 | Cell.is_traversable | ⬜ | | |
+| P1-GRID-03 | Cell.is_occupied | ⬜ | | |
+| P1-GRID-04 | Grid.get_cell | ⬜ | | |
+| P1-GRID-05 | Grid.get_neighbors | ⬜ | | |
+| P1-GRID-06 | Grid.place_vehicle | ⬜ | | |
+| P1-GRID-07 | Grid.remove_vehicle | ⬜ | | |
+| P1-GRID-08 | Grid.get_edge_cells | ⬜ | | |
+| P1-GRID-09 | Grid.get_intersection_cells | ⬜ | | |
+| P1-GRID-10 | Grid.snapshot | ⬜ | | |
+| P1-PATH-01 | PathNode.f_cost | ⬜ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
+| P1-PATH-02 | PathNode.__lt__ | ⬜ | | |
+| P1-PATH-03 | Pathfinder.find_path | ⬜ | | |
+| P1-VEH-01 | Vehicle.get_next_position | ⬜ | | |
+| P1-VEH-02 | Vehicle.advance_path | ⬜ | | |
+| P1-VEH-03 | Vehicle.get_remaining_distance | ⬜ | | |
+| P1-VEH-04 | VehicleManager.__init__ | ⬜ | | |
+| P1-VEH-05 | VehicleManager.spawn_vehicles | ⬜ | | |
+| P1-VEH-06 | VehicleManager.move_vehicles | ⬜ | | |
+| P1-VEH-07 | VehicleManager.collect_arrived | ⬜ | | |
+| P1-TL-01 | TrafficLight.tick | ⬜ | | |
+| P1-TL-02 | TrafficLight.can_enter | ⬜ | | |
+| P1-TL-03 | TrafficLight.request_preemption | ⬜ | | |
+| P1-TL-04 | TrafficLight.release_preemption | ⬜ | | |
+| P1-TL-05 | TrafficLightManager.__init__ | ⬜ | | |
+| P1-TL-06 | TrafficLightManager.tick | ⬜ | | |
+| P1-MET-01 | Metrics.normal_avg_ticks | ⬜ | | |
+| P1-MET-02 | Metrics.emergency_avg_ticks | ⬜ | | |
+| P1-MET-03 | Metrics.improvement | ⬜ | | |
+| P1-MET-04 | Metrics.record_arrival | ⬜ | | |
+| P1-ENG-01 | SimulationEngine.__init__ | ⬜ | | |
+| P1-ENG-02 | SimulationEngine.start | ⬜ | | |
+| P1-ENG-03 | SimulationEngine.tick | ⬜ | | |
+| P1-ENG-04 | SimulationEngine.snapshot | ⬜ | | |
+| P1-API-01 | ConfigUpdateRequest validation | ✅ | | [Config validation](design-decisions.md) |
 
 ---
 
-## Future Task Categories
+## Active issues & bugs
 
-### Testing Tasks  
-*Tasks for writing comprehensive tests*
-
-### Performance Tasks
-*Tasks for optimization and performance improvements*
-
-### Documentation Tasks
-*Tasks for improving documentation and examples*
-
-### Frontend Tasks
-*Tasks for the web frontend (Phase 1 scope)*
+*Space for logging bugs found during implementation.*
 
 ---
 
-## Completed Tasks
+## Phase 1 – Pending / next steps
 
-### ✅ API-001: Add Input Validation to ConfigUpdateRequest
+**Current status:** Implementation in progress (foundation-first).
+
+**Next task:** P1-GRID-01 – `Grid.__init__()` (or next unchecked task in registry).
+
+---
+
+## Future task categories
+
+- **Testing** – Comprehensive tests
+- **Performance** – Optimization and benchmarking
+- **Documentation** – Docs and examples
+- **Frontend** – Web UI (Phase 1 scope)
+
+---
+
+## Completed tasks
+
+### P1-API-01: Add input validation to ConfigUpdateRequest
 
 **Status:** Completed  
 **Priority:** High  
-**Component:** API Layer (`backend/api/routes.py`)  
+**Component:** API layer (`backend/api/routes.py`)  
 **Reported:** 2026-02-28  
 **Completed:** 2026-03-05  
 
-**Description:**
-The `ConfigUpdateRequest` model lacked validation constraints, allowing invalid values to pass through the API boundary. This created a security/robustness gap where invalid data could reach the simulation engine.
+**Description:**  
+`ConfigUpdateRequest` had no validation, so invalid values could pass through the API. Validation was added so invalid data does not reach the simulation engine.
 
-**Solution Implemented:**
-```python
-class ConfigUpdateRequest(BaseModel):
-    """Request model for updating simulation configuration."""
+**Solution:** Pydantic `Field` with `ge`/`le` for `tick_speed`, `spawn_rate`, `phase_duration` (aligned with `SimulationConfig`).
 
-    tick_speed: int | None = Field(None, ge=1, le=10, description="Ticks per second")
-    spawn_rate: float | None = Field(None, ge=0.0, le=1.0, description="Probability per edge cell per tick")
-    phase_duration: int | None = Field(None, ge=1, le=20, description="Ticks per traffic light phase")
-```
+**Changes:**  
+- Added Field validation to all `ConfigUpdateRequest` fields  
+- Logged decision in `docs/design-decisions.md`  
 
-**Changes Made:**
-- ✅ Added Pydantic Field validation to all ConfigUpdateRequest fields
-- ✅ Ensured validation constraints match SimulationConfig exactly
-- ✅ Added descriptive field messages for better API documentation
-- ✅ Logged implementation decision in docs/design-decisions.md
-
-**Result:** API now properly validates configuration updates and returns 422 errors for invalid values, preventing invalid data from reaching the simulation engine.
+**Result:** API returns 422 for invalid config; engine no longer receives invalid data.
 
 ---
 
 ## Notes
 
-- Tasks should be atomic and well-defined
-- Include acceptance criteria for each task
-- Reference specific files/components affected
-- Estimate effort where possible
-- Link to relevant architecture decisions or requirements
+- Each task is atomic and has a unique ID for linking (branch, design decision, PR).
+- Update the [Task registry](#task-registry) when you create a branch or document a design decision.
+- Prefer referencing tasks by ID (e.g. “Implements P1-GRID-01”) in commits and PRs.
