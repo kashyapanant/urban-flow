@@ -95,41 +95,41 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 | ID | Task (short) | Status | Branch | Design decision |
 |----|--------------|--------|--------|------------------|
-| P1-GRID-01 | Grid.__init__ | ⬜ | | e.g. [Grid Layout Constants](design-decisions.md#decision-grid-layout-constants) |
-| P1-GRID-02 | Cell.is_traversable | ⬜ | | |
-| P1-GRID-03 | Cell.is_occupied | ⬜ | | |
-| P1-GRID-04 | Grid.get_cell | ⬜ | | |
-| P1-GRID-05 | Grid.get_neighbors | ⬜ | | |
-| P1-GRID-06 | Grid.place_vehicle | ⬜ | | |
-| P1-GRID-07 | Grid.remove_vehicle | ⬜ | | |
-| P1-GRID-08 | Grid.get_edge_cells | ⬜ | | |
-| P1-GRID-09 | Grid.get_intersection_cells | ⬜ | | |
-| P1-GRID-10 | Grid.snapshot | ⬜ | | |
-| P1-PATH-01 | PathNode.f_cost | ⬜ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
-| P1-PATH-02 | PathNode.__lt__ | ⬜ | | |
-| P1-PATH-03 | Pathfinder.find_path | ⬜ | | |
-| P1-VEH-01 | Vehicle.get_next_position | ⬜ | | |
-| P1-VEH-02 | Vehicle.advance_path | ⬜ | | |
-| P1-VEH-03 | Vehicle.get_remaining_distance | ⬜ | | |
-| P1-VEH-04 | VehicleManager.__init__ | ⬜ | | |
-| P1-VEH-05 | VehicleManager.spawn_vehicles | ⬜ | | |
-| P1-VEH-06 | VehicleManager.move_vehicles | ⬜ | | |
-| P1-VEH-07 | VehicleManager.collect_arrived | ⬜ | | |
-| P1-TL-01 | TrafficLight.tick | ⬜ | | |
-| P1-TL-02 | TrafficLight.can_enter | ⬜ | | |
-| P1-TL-03 | TrafficLight.request_preemption | ⬜ | | |
-| P1-TL-04 | TrafficLight.release_preemption | ⬜ | | |
-| P1-TL-05 | TrafficLightManager.__init__ | ⬜ | | |
-| P1-TL-06 | TrafficLightManager.tick | ⬜ | | |
-| P1-MET-01 | Metrics.normal_avg_ticks | ⬜ | | |
-| P1-MET-02 | Metrics.emergency_avg_ticks | ⬜ | | |
-| P1-MET-03 | Metrics.improvement | ⬜ | | |
-| P1-MET-04 | Metrics.record_arrival | ⬜ | | |
-| P1-ENG-01 | SimulationEngine.__init__ | ⬜ | | |
-| P1-ENG-02 | SimulationEngine.start | ⬜ | | |
-| P1-ENG-03 | SimulationEngine.tick | ⬜ | | |
-| P1-ENG-04 | SimulationEngine.snapshot | ⬜ | | |
-| P1-API-01 | ConfigUpdateRequest validation | ✅ | | [Config validation](design-decisions.md) |
+| P1-GRID-01 | `Grid.__init__` | ⬜ | | e.g. [Grid Layout Constants](design-decisions.md#decision-grid-layout-constants) |
+| P1-GRID-02 | `Cell.is_traversable` | ⬜ | | |
+| P1-GRID-03 | `Cell.is_occupied` | ⬜ | | |
+| P1-GRID-04 | `Grid.get_cell` | ⬜ | | |
+| P1-GRID-05 | `Grid.get_neighbors` | ⬜ | | |
+| P1-GRID-06 | `Grid.place_vehicle` | ⬜ | | |
+| P1-GRID-07 | `Grid.remove_vehicle` | ⬜ | | |
+| P1-GRID-08 | `Grid.get_edge_cells` | ⬜ | | |
+| P1-GRID-09 | `Grid.get_intersection_cells` | ⬜ | | |
+| P1-GRID-10 | `Grid.snapshot` | ⬜ | | |
+| P1-PATH-01 | `PathNode.f_cost` | ⬜ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
+| P1-PATH-02 | `PathNode.__lt__` | ⬜ | | |
+| P1-PATH-03 | `Pathfinder.find_path` | ⬜ | | |
+| P1-VEH-01 | `Vehicle.get_next_position` | ⬜ | | |
+| P1-VEH-02 | `Vehicle.advance_path` | ⬜ | | |
+| P1-VEH-03 | `Vehicle.get_remaining_distance` | ⬜ | | |
+| P1-VEH-04 | `VehicleManager.__init__` | ⬜ | | |
+| P1-VEH-05 | `VehicleManager.spawn_vehicles` | ⬜ | | |
+| P1-VEH-06 | `VehicleManager.move_vehicles` | ⬜ | | |
+| P1-VEH-07 | `VehicleManager.collect_arrived` | ⬜ | | |
+| P1-TL-01 | `TrafficLight.tick` | ⬜ | | |
+| P1-TL-02 | `TrafficLight.can_enter` | ⬜ | | |
+| P1-TL-03 | `TrafficLight.request_preemption` | ⬜ | | |
+| P1-TL-04 | `TrafficLight.release_preemption` | ⬜ | | |
+| P1-TL-05 | `TrafficLightManager.__init__` | ⬜ | | |
+| P1-TL-06 | `TrafficLightManager.tick` | ⬜ | | |
+| P1-MET-01 | `Metrics.normal_avg_ticks` | ⬜ | | |
+| P1-MET-02 | `Metrics.emergency_avg_ticks` | ⬜ | | |
+| P1-MET-03 | `Metrics.improvement` | ⬜ | | |
+| P1-MET-04 | `Metrics.record_arrival` | ⬜ | | |
+| P1-ENG-01 | `SimulationEngine.__init__` | ⬜ | | |
+| P1-ENG-02 | `SimulationEngine.start` | ⬜ | | |
+| P1-ENG-03 | `SimulationEngine.tick` | ⬜ | | |
+| P1-ENG-04 | `SimulationEngine.snapshot` | ⬜ | | |
+| P1-API-01 | `ConfigUpdateRequest` validation | ✅ | | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
 
 ---
 
