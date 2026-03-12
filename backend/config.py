@@ -2,6 +2,18 @@
 
 from pydantic import BaseModel, Field
 
+# Grid dimension bounds — single source of truth used by both SimulationConfig
+# validation and Grid.__init__() runtime guards.
+MIN_GRID_SIZE: int = 1
+MAX_GRID_SIZE: int = 100
+
+# Street/avenue spacing for the city-blocks pattern.  Streets run every
+# STREET_SPACING rows starting at row 0; avenues every STREET_SPACING columns
+# starting at column 0.  E.g. spacing=3 on a 10×10 grid gives {0,3,6,9}.
+# Future improvement: derive spacing dynamically from grid dimensions so that
+# larger grids produce proportionally spaced street grids.
+STREET_SPACING: int = 3
+
 
 class SimulationConfig(BaseModel):
     """Configuration for the traffic simulation.
@@ -11,8 +23,8 @@ class SimulationConfig(BaseModel):
     """
 
     # Grid dimensions
-    grid_width: int = Field(default=10, ge=1, le=100)
-    grid_height: int = Field(default=10, ge=1, le=100)
+    grid_width: int = Field(default=10, ge=MIN_GRID_SIZE, le=MAX_GRID_SIZE)
+    grid_height: int = Field(default=10, ge=MIN_GRID_SIZE, le=MAX_GRID_SIZE)
 
     # Simulation timing
     tick_speed: int = Field(default=1, ge=1, le=10, description="Ticks per second")

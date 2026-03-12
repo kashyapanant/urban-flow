@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from backend.config import MAX_GRID_SIZE, MIN_GRID_SIZE, STREET_SPACING
+
 if TYPE_CHECKING:
     from .traffic_light import TrafficLight
     from .vehicle import Vehicle
+
+logger = logging.getLogger(__name__)
 
 
 class CellType(Enum):
@@ -56,11 +61,97 @@ class Grid:
     def __init__(self, width: int = 10, height: int = 10):
         """Initialize the grid with the city blocks layout.
 
+        Builds a 2D cell array (row-major: ``cells[y][x]``) where each cell
+        is classified as INTERSECTION, ROAD, or OBSTACLE based on whether it
+        sits at the crossing of an avenue column and a street row, on exactly
+        one of those axes, or on neither.
+
+        Streets run East–West at every row index that is a multiple of
+        ``STREET_SPACING`` (e.g. rows 0, 3, 6, 9 for a 10-row grid).
+        Avenues run North–South at every column index that is a multiple of
+        ``STREET_SPACING``.
+
         Args:
-            width: Number of columns (default 10)
-            height: Number of rows (default 10)
+            width: Number of columns. Must be between MIN_GRID_SIZE and
+                MAX_GRID_SIZE (inclusive).
+            height: Number of rows. Must be between MIN_GRID_SIZE and
+                MAX_GRID_SIZE (inclusive).
+
+        Raises:
+            ValueError: If ``width`` or ``height`` is outside the allowed
+                range [MIN_GRID_SIZE, MAX_GRID_SIZE].
         """
-        raise NotImplementedError("Grid.__init__(")
+        if not (MIN_GRID_SIZE <= width <= MAX_GRID_SIZE):
+            raise ValueError(
+                f"Grid width must be between {MIN_GRID_SIZE} and {MAX_GRID_SIZE}, "
+                f"got {width}."
+            )
+        if not (MIN_GRID_SIZE <= height <= MAX_GRID_SIZE):
+            raise ValueError(
+                f"Grid height must be between {MIN_GRID_SIZE} and {MAX_GRID_SIZE}, "
+                f"got {height}."
+            )
+
+        self.width: int = width
+        self.height: int = height
+
+        # Avenue columns and street rows — every STREET_SPACING-th index from 0.
+        self.avenue_cols: frozenset[int] = frozenset(range(0, width, STREET_SPACING))
+        self.street_rows: frozenset[int] = frozenset(range(0, height, STREET_SPACING))
+
+        # Build the 2D cell array row-major: cells[y][x].
+        self.cells: list[list[Cell]] = [
+            [self._make_cell(x, y) for x in range(width)] for y in range(height)
+        ]
+
+        logger.debug(
+            "Grid initialised: %dx%d, %d avenues, %d streets, "
+            "%d intersections, %d roads, %d obstacles.",
+            width,
+            height,
+            len(self.avenue_cols),
+            len(self.street_rows),
+            sum(
+                1
+                for y in range(height)
+                for x in range(width)
+                if self.cells[y][x].type is CellType.INTERSECTION
+            ),
+            sum(
+                1
+                for y in range(height)
+                for x in range(width)
+                if self.cells[y][x].type is CellType.ROAD
+            ),
+            sum(
+                1
+                for y in range(height)
+                for x in range(width)
+                if self.cells[y][x].type is CellType.OBSTACLE
+            ),
+        )
+
+    def _make_cell(self, x: int, y: int) -> Cell:
+        """Classify and construct a single cell at (x, y).
+
+        Args:
+            x: Column coordinate.
+            y: Row coordinate.
+
+        Returns:
+            A new Cell with the appropriate CellType.
+        """
+        on_avenue = x in self.avenue_cols
+        on_street = y in self.street_rows
+
+        if on_avenue and on_street:
+            cell_type = CellType.INTERSECTION
+        elif on_avenue or on_street:
+            cell_type = CellType.ROAD
+        else:
+            cell_type = CellType.OBSTACLE
+
+        return Cell(x=x, y=y, type=cell_type)
 
     def get_cell(self, x: int, y: int) -> Cell | None:
         """Get the cell at the specified coordinates.
