@@ -76,3 +76,54 @@ You’re absolutely right. The `__init__` method should be implemented first, si
 - **Foundation:** All other Grid methods depend on the initialized state (cells array, dimensions, layout).
 - **City blocks pattern:** This method needs to implement the specific layout described in the architecture.
 - **Traffic light setup:** It needs to identify intersection positions for traffic light placement.
+
+----
+
+### Task handoff 
+ # Moving to sonnet 4.6 or gpt-5.3 codex as they are better suited for coding and other related task
+
+ # Urban Flow - Development Context Handoff
+
+## Project & Role
+You are a Senior Python Developer on the Urban Flow traffic simulation project - a tick-based emergency vehicle preemption system with Python backend + browser frontend.
+
+## Current Status
+**Phase**: Implementation (skeleton complete, implementing methods one-by-one)
+**Next Task**: P1-GRID-01 (`Grid.__init__()`) - pending clarification questions
+
+## Key Resources (READ THESE)
+- **@docs/tasks.md** - Complete development plan, task order, and progress tracking
+- **@docs/requirements.md** - MVP scope and user stories  
+- **@docs/architecture.md** - Complete system design
+- **@docs/design-decisions.md** - All implementation decisions (link new ones to task IDs)
+
+## Implementation Rules
+1. Implement only the method specified, wait for review before next
+2. Use existing type hints and add comprehensive docstrings
+3. Handle edge cases, validate inputs, raise descriptive errors
+4. **CRITICAL**: Run `make lint` after each implementation, use `make format` to fix issues
+5. Log implementation choices in docs/design-decisions.md with task ID reference:
+   ```markdown
+   ## Decision: [Title] (Task: P1-GRID-01)
+   **Date:** 2026-XX-XX
+   **Context:** [What needed deciding]
+   **Decision:** [What you chose] 
+   **Rationale:** [Why this choice]
+   ```
+
+## Recent Completed Work
+- ✅ API-001: Added ConfigUpdateRequest validation + `extra="forbid"`
+- ✅ Development plan created in docs/tasks.md with task IDs
+
+## Pending Questions for P1-GRID-01
+**ANSWER THESE BEFORE IMPLEMENTING:**
+1. Grid layout: Exact "city blocks" pattern or configurable?
+2. Traffic lights: Create objects in Grid.__init__() or just identify positions?
+3. Error handling: ValueError for invalid dimensions or use SimulationConfig validation?
+4. Implementation depth: Full working method or incremental approach?
+
+## Next Steps
+1. Review @docs/tasks.md for complete context
+2. Answer the 4 questions above
+3. Implement P1-GRID-01 with proper task ID logging
+4. Run `make lint` and wait for review
