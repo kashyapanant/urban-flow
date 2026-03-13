@@ -100,10 +100,11 @@ You are a Senior Python Developer on the Urban Flow traffic simulation project -
 
 ## Implementation Rules
 1. Implement only the method specified, wait for review before next
-2. Use existing type hints and add comprehensive docstrings
-3. Handle edge cases, validate inputs, raise descriptive errors
-4. **CRITICAL**: Run `make lint` after each implementation, use `make format` to fix issues
-5. Log implementation choices in docs/design-decisions.md with task ID reference:
+2. **Do NOT write tests** (Tester handles that).
+3. Use existing type hints and add comprehensive docstrings
+4. Handle edge cases, validate inputs, raise descriptive errors
+5. **CRITICAL**: Run `make lint` after each implementation, use `make format` to fix issues
+6. Log implementation choices in docs/design-decisions.md with task ID reference:
    ```markdown
    ## Decision: [Title] (Task: P1-GRID-01)
    **Date:** 2026-XX-XX
