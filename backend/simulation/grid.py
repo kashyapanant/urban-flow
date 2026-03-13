@@ -39,8 +39,15 @@ class Cell:
     traffic_light: TrafficLight | None = None  # Forward reference
 
     def is_traversable(self) -> bool:
-        """Check if vehicles can move through this cell."""
-        raise NotImplementedError("is_traversable()")
+        """Check if vehicles can move through this cell.
+
+        A cell is traversable if its type is ROAD or INTERSECTION.
+        OBSTACLE cells (building interiors) block all movement.
+
+        Returns:
+            True if vehicles can enter and move through this cell.
+        """
+        return self.type is not CellType.OBSTACLE
 
     def is_occupied(self) -> bool:
         """Check if this cell is currently occupied by a vehicle."""
