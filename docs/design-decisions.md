@@ -150,7 +150,7 @@ This document records design decisions made during the implementation of the bac
 
 ---
 
-## Decision: API Input Validation for ConfigUpdateRequest
+## Decision: API Input Validation for ConfigUpdateRequest (Task: API-001)
 
 **Date:** 2026-03-05
 **Context:** ConfigUpdateRequest model lacked validation constraints, creating security/robustness gap where invalid data could reach simulation engine.
@@ -160,3 +160,67 @@ This document records design decisions made during the implementation of the bac
 - Provides clear error messages with 422 HTTP responses for invalid input
 - Maintains consistency between API and core config validation
 - Follows FastAPI/Pydantic best practices for input validation
+
+---
+
+## Decision: Grid Initialization — Cell Layout (Task: P1-GRID-01)
+
+**Date:** 2026-03-08
+**Context:** `Grid.__init__()` needs to build the 2D cell array and define which cells are roads, intersections, or obstacles.
+**Decision:**
+- Internal storage is row-major: `cells[y][x]`, matching how the ASCII grid is drawn (outer list = rows).
+- A cell is an intersection if both its column is in `avenue_cols` and its row is in `street_rows`.
+- A cell is a road if its column is in `avenue_cols` OR its row is in `street_rows` (but not both).
+- Everything else is an obstacle.
+
+**Rationale:**
+- Row-major indexing is consistent with the ASCII grid representation in the architecture doc.
+- The three-way classification (intersection / road / obstacle) maps directly to `CellType` and is derived purely from the street/avenue sets.
+
+---
+
+## Decision: Grid Street/Avenue Spacing (Task: P1-GRID-01)
+
+**Date:** 2026-03-08
+**Context:** Architecture specifies `{0, 3, 6, 9}` for a 10×10 grid. Implementation needs to be flexible for different grid sizes.
+**Decision:**
+- Fixed spacing of **3** between streets/avenues, always starting at index 0: `{0, 3, 6, 9, ...}` up to the grid dimension.
+- Computed as `range(0, width, 3)` for avenues and `range(0, height, 3)` for streets.
+- Stored as instance variables (`avenue_cols`, `street_rows`) on the `Grid` object.
+
+**Rationale:**
+- Spacing of 3 matches the architecture's default and keeps the city-blocks pattern consistent across sizes.
+- Starting at 0 ensures edge cells are always traversable (important for vehicle spawning).
+- Instance variables make the pattern explicit and testable.
+
+**Future note:** Spacing of 3 is a simplification. A future improvement should derive spacing dynamically from grid dimensions (e.g., `max(2, size // 4)`) so that larger grids produce proportionally spaced street grids rather than too-dense patterns.
+
+---
+
+## Decision: Grid Dimension Validation Constants (Task: P1-GRID-01)
+
+**Date:** 2026-03-08
+**Context:** `Grid.__init__()` takes raw `int` args and can be called directly, bypassing `SimulationConfig` Pydantic validation. A single source of truth is needed for min/max grid size.
+**Decision:**
+- Define `MIN_GRID_SIZE = 1` and `MAX_GRID_SIZE = 100` as constants in `backend/config.py`.
+- `SimulationConfig` Field bounds (`ge=1, le=100`) reference these same constants.
+- `Grid.__init__()` imports and validates against these constants, raising `ValueError` with a descriptive message on violation.
+
+**Rationale:**
+- Single source of truth: one place to change the limits, both Pydantic and Grid validation stay in sync.
+- Defense-in-depth: Grid rejects invalid dimensions even when called outside the API path.
+- `config.py` is the natural home since it already owns all simulation-wide limits.
+
+---
+
+## Implementation Decision Template
+
+For future implementation decisions, use this format and link to task ID from docs/tasks.md:
+
+```markdown
+## Decision: [Title] (Task: P1-GRID-01)
+**Date:** 2026-XX-XX
+**Context:** [What needed deciding]
+**Decision:** [What you chose]
+**Rationale:** [Why this choice]
+```

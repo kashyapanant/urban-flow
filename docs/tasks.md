@@ -37,6 +37,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 | P1-GRID-08 | `Grid.get_edge_cells()` - Get spawn-eligible edge cells | ⬜ |
 | P1-GRID-09 | `Grid.get_intersection_cells()` - Get intersection positions | ⬜ |
 | P1-GRID-10 | `Grid.snapshot()` - Create serializable state | ⬜ |
+| P1-GRID-11 | `Cell.to_dict()` - Serialize cell to dict for frontend | ⬜ |
 
 ### 2. Pathfinder Class (Depends: Grid)
 
@@ -95,7 +96,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 | ID | Task (short) | Status | Branch | Design decision |
 |----|--------------|--------|--------|------------------|
-| P1-GRID-01 | `Grid.__init__` | ⬜ | | e.g. [Grid Layout Constants](design-decisions.md#decision-grid-layout-constants) |
+| P1-GRID-01 | `Grid.__init__` | ⬜ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
 | P1-GRID-02 | `Cell.is_traversable` | ⬜ | | |
 | P1-GRID-03 | `Cell.is_occupied` | ⬜ | | |
 | P1-GRID-04 | `Grid.get_cell` | ⬜ | | |
@@ -105,6 +106,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-GRID-08 | `Grid.get_edge_cells` | ⬜ | | |
 | P1-GRID-09 | `Grid.get_intersection_cells` | ⬜ | | |
 | P1-GRID-10 | `Grid.snapshot` | ⬜ | | |
+| P1-GRID-11 | `Cell.to_dict` | ⬜ | | |
 | P1-PATH-01 | `PathNode.f_cost` | ⬜ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-PATH-02 | `PathNode.__lt__` | ⬜ | | |
 | P1-PATH-03 | `Pathfinder.find_path` | ⬜ | | |
