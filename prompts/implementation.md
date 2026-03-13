@@ -77,12 +77,13 @@ You’re absolutely right. The `__init__` method should be implemented first, si
 - **City blocks pattern:** This method needs to implement the specific layout described in the architecture.
 - **Traffic light setup:** It needs to identify intersection positions for traffic light placement.
 
-----
+---
 
-### Task handoff 
- # Moving to sonnet 4.6 or gpt-5.3 codex as they are better suited for coding and other related task
+### Task handoff
 
- # Urban Flow - Development Context Handoff
+# Moving to sonnet 4.6 or gpt-5.3 codex as they are better suited for coding and other related task
+
+# Urban Flow - Development Context Handoff
 
 ## Project & Role
 You are a Senior Python Developer on the Urban Flow traffic simulation project - a tick-based emergency vehicle preemption system with Python backend + browser frontend.
