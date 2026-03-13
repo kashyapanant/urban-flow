@@ -119,7 +119,7 @@ You are a Senior Python Developer on the Urban Flow traffic simulation project -
 ## Pending Questions for P1-GRID-01
 **ANSWER THESE BEFORE IMPLEMENTING:**
 1. Grid layout: Exact "city blocks" pattern or configurable?
-2. Traffic lights: Create objects in Grid.__init__() or just identify positions?
+2. Traffic lights: Create objects in `Grid.__init__()` or just identify positions?
 3. Error handling: ValueError for invalid dimensions or use SimulationConfig validation?
 4. Implementation depth: Full working method or incremental approach?
 
