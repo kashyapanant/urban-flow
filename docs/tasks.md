@@ -143,7 +143,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()`, `Cell.is_traversable()`, `Cell.is_occupied()` done (P1-GRID-01, P1-GRID-02, P1-GRID-03).
+**Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()`, `Cell.is_traversable()`, `Cell.is_occupied()`, `Grid.get_cell()` done (P1-GRID-01, P1-GRID-02, P1-GRID-03, P1-GRID-04).
 
 **Next task:** P1-GRID-05 – `Grid.get_neighbors()` (or next unchecked task in [Task registry](#task-registry)).
 
