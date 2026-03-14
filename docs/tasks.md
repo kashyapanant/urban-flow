@@ -27,8 +27,8 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-GRID-01 | `Grid.__init__()` - Initialize grid with city blocks layout | ⬜ |
-| P1-GRID-02 | `Cell.is_traversable()` - Check if cell allows vehicle movement | ⬜ |
+| P1-GRID-01 | `Grid.__init__()` - Initialize grid with city blocks layout | ✅ |
+| P1-GRID-02 | `Cell.is_traversable()` - Check if cell allows vehicle movement | ✅ |
 | P1-GRID-03 | `Cell.is_occupied()` - Check if cell contains vehicle | ⬜ |
 | P1-GRID-04 | `Grid.get_cell()` - Get cell at coordinates | ⬜ |
 | P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ⬜ |
@@ -96,8 +96,8 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 | ID | Task (short) | Status | Branch | Design decision |
 |----|--------------|--------|--------|------------------|
-| P1-GRID-01 | `Grid.__init__` | ⬜ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
-| P1-GRID-02 | `Cell.is_traversable` | ⬜ | | |
+| P1-GRID-01 | `Grid.__init__` | ✅ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
+| P1-GRID-02 | `Cell.is_traversable` | ✅ | | |
 | P1-GRID-03 | `Cell.is_occupied` | ⬜ | | |
 | P1-GRID-04 | `Grid.get_cell` | ⬜ | | |
 | P1-GRID-05 | `Grid.get_neighbors` | ⬜ | | |
@@ -143,9 +143,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first).
+**Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()` and `Cell.is_traversable()` done (P1-GRID-01, P1-GRID-02).
 
-**Next task:** P1-GRID-01 – `Grid.__init__()` (or next unchecked task in registry).
+**Next task:** P1-GRID-03 – `Cell.is_occupied()` (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 

@@ -5,7 +5,49 @@ from collections import Counter
 import pytest
 
 from backend.config import MAX_GRID_SIZE, MIN_GRID_SIZE, STREET_SPACING
-from backend.simulation.grid import CellType, Grid
+from backend.simulation.grid import Cell, CellType, Grid
+
+
+class TestCellIsTraversable:
+    """Test cases for P1-GRID-02 `Cell.is_traversable()`."""
+
+    @pytest.mark.parametrize(
+        ("cell_type", "expected"),
+        [
+            (CellType.ROAD, True),
+            (CellType.INTERSECTION, True),
+            (CellType.OBSTACLE, False),
+        ],
+    )
+    def test_is_traversable_returns_expected_by_cell_type(self, cell_type, expected):
+        """Cell traversability is determined by its type."""
+        # Arrange
+        cell = Cell(x=1, y=2, type=cell_type)
+
+        # Act
+        actual = cell.is_traversable()
+
+        # Assert
+        assert actual is expected
+
+    def test_is_traversable_ignores_vehicle_occupancy(self):
+        """A road/intersection remains traversable even when occupied."""
+        # Arrange
+        occupied_road_cell = Cell(x=0, y=0, type=CellType.ROAD, vehicle=object())
+        occupied_intersection_cell = Cell(
+            x=1,
+            y=1,
+            type=CellType.INTERSECTION,
+            vehicle=object(),
+        )
+
+        # Act
+        road_result = occupied_road_cell.is_traversable()
+        intersection_result = occupied_intersection_cell.is_traversable()
+
+        # Assert
+        assert road_result is True
+        assert intersection_result is True
 
 
 class TestGridInit:
