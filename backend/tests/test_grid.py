@@ -1,6 +1,7 @@
 """Tests for P1-GRID-01 (`Grid.__init__()`) behavior."""
 
 from collections import Counter
+from unittest.mock import Mock
 
 import pytest
 
@@ -33,12 +34,12 @@ class TestCellIsTraversable:
     def test_is_traversable_ignores_vehicle_occupancy(self):
         """A road/intersection remains traversable even when occupied."""
         # Arrange
-        occupied_road_cell = Cell(x=0, y=0, type=CellType.ROAD, vehicle=object())
+        occupied_road_cell = Cell(x=0, y=0, type=CellType.ROAD, vehicle=Mock())
         occupied_intersection_cell = Cell(
             x=1,
             y=1,
             type=CellType.INTERSECTION,
-            vehicle=object(),
+            vehicle=Mock(),
         )
 
         # Act
@@ -48,6 +49,48 @@ class TestCellIsTraversable:
         # Assert
         assert road_result is True
         assert intersection_result is True
+
+
+class TestCellIsOccupied:
+    """Test cases for P1-GRID-03 `Cell.is_occupied()`."""
+
+    @pytest.mark.parametrize(
+        ("vehicle_ref", "expected"),
+        [
+            (None, False),
+            (Mock(), True),
+        ],
+    )
+    def test_is_occupied_returns_expected_for_vehicle_presence(
+        self, vehicle_ref, expected
+    ):
+        """Occupancy depends only on whether vehicle reference exists."""
+        # Arrange
+        cell = Cell(x=2, y=3, type=CellType.ROAD, vehicle=vehicle_ref)
+
+        # Act
+        actual = cell.is_occupied()
+
+        # Assert
+        assert actual is expected
+
+    @pytest.mark.parametrize(
+        "cell_type",
+        [CellType.ROAD, CellType.INTERSECTION, CellType.OBSTACLE],
+    )
+    def test_is_occupied_is_consistent_across_cell_types(self, cell_type):
+        """Cell type does not change occupancy semantics."""
+        # Arrange
+        empty_cell = Cell(x=0, y=0, type=cell_type, vehicle=None)
+        occupied_cell = Cell(x=0, y=0, type=cell_type, vehicle=Mock())
+
+        # Act
+        empty_result = empty_cell.is_occupied()
+        occupied_result = occupied_cell.is_occupied()
+
+        # Assert
+        assert empty_result is False
+        assert occupied_result is True
 
 
 class TestGridInit:
