@@ -1,6 +1,7 @@
 """Tests for P1-GRID-01 (`Grid.__init__()`) behavior."""
 
 from collections import Counter
+from unittest.mock import Mock
 
 import pytest
 
@@ -33,12 +34,12 @@ class TestCellIsTraversable:
     def test_is_traversable_ignores_vehicle_occupancy(self):
         """A road/intersection remains traversable even when occupied."""
         # Arrange
-        occupied_road_cell = Cell(x=0, y=0, type=CellType.ROAD, vehicle=object())
+        occupied_road_cell = Cell(x=0, y=0, type=CellType.ROAD, vehicle=Mock())
         occupied_intersection_cell = Cell(
             x=1,
             y=1,
             type=CellType.INTERSECTION,
-            vehicle=object(),
+            vehicle=Mock(),
         )
 
         # Act
@@ -57,7 +58,7 @@ class TestCellIsOccupied:
         ("vehicle_ref", "expected"),
         [
             (None, False),
-            (object(), True),
+            (Mock(), True),
         ],
     )
     def test_is_occupied_returns_expected_for_vehicle_presence(
@@ -81,7 +82,7 @@ class TestCellIsOccupied:
         """Cell type does not change occupancy semantics."""
         # Arrange
         empty_cell = Cell(x=0, y=0, type=cell_type, vehicle=None)
-        occupied_cell = Cell(x=0, y=0, type=cell_type, vehicle=object())
+        occupied_cell = Cell(x=0, y=0, type=cell_type, vehicle=Mock())
 
         # Act
         empty_result = empty_cell.is_occupied()
