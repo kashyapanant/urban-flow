@@ -50,8 +50,12 @@ class Cell:
         return self.type is not CellType.OBSTACLE
 
     def is_occupied(self) -> bool:
-        """Check if this cell is currently occupied by a vehicle."""
-        raise NotImplementedError("is_occupied()")
+        """Check if this cell is currently occupied by a vehicle.
+
+        Returns:
+            True if a vehicle reference is present in this cell.
+        """
+        return self.vehicle is not None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert cell to dictionary for serialization."""
