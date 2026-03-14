@@ -29,7 +29,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 |----|------|--------|
 | P1-GRID-01 | `Grid.__init__()` - Initialize grid with city blocks layout | ✅ |
 | P1-GRID-02 | `Cell.is_traversable()` - Check if cell allows vehicle movement | ✅ |
-| P1-GRID-03 | `Cell.is_occupied()` - Check if cell contains vehicle | ⬜ |
+| P1-GRID-03 | `Cell.is_occupied()` - Check if cell contains vehicle | ✅ |
 | P1-GRID-04 | `Grid.get_cell()` - Get cell at coordinates | ⬜ |
 | P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ⬜ |
 | P1-GRID-06 | `Grid.place_vehicle()` - Place vehicle in cell | ⬜ |
@@ -98,7 +98,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 |----|--------------|--------|--------|------------------|
 | P1-GRID-01 | `Grid.__init__` | ✅ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
 | P1-GRID-02 | `Cell.is_traversable` | ✅ | | |
-| P1-GRID-03 | `Cell.is_occupied` | ⬜ | | |
+| P1-GRID-03 | `Cell.is_occupied` | ✅ | | |
 | P1-GRID-04 | `Grid.get_cell` | ⬜ | | |
 | P1-GRID-05 | `Grid.get_neighbors` | ⬜ | | |
 | P1-GRID-06 | `Grid.place_vehicle` | ⬜ | | |
