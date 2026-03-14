@@ -1,4 +1,4 @@
-"""Tests for P1-GRID-01 (`Grid.__init__()`) behavior."""
+"""Tests for implemented Grid/Cell task behavior."""
 
 from collections import Counter
 from unittest.mock import Mock
@@ -198,3 +198,51 @@ class TestGridInit:
         assert counts[CellType.INTERSECTION] == 16
         assert counts[CellType.ROAD] == 48
         assert counts[CellType.OBSTACLE] == 36
+
+
+class TestGridGetCell:
+    """Test cases for P1-GRID-04 `Grid.get_cell()`."""
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (0, 0),
+            (3, 2),
+            (4, 3),
+        ],
+    )
+    def test_get_cell_returns_cell_for_in_bounds_coordinates(self, x, y):
+        """Valid coordinates return the corresponding cell instance."""
+        # Arrange
+        grid = Grid(width=5, height=4)
+
+        # Act
+        cell = grid.get_cell(x, y)
+
+        # Assert
+        assert cell is not None
+        assert cell is grid.cells[y][x]
+        assert cell.x == x
+        assert cell.y == y
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (-1, 0),
+            (0, -1),
+            (5, 0),
+            (0, 4),
+            (5, 4),
+            (-1, -1),
+        ],
+    )
+    def test_get_cell_returns_none_for_out_of_bounds_coordinates(self, x, y):
+        """Coordinates outside grid boundaries return None."""
+        # Arrange
+        grid = Grid(width=5, height=4)
+
+        # Act
+        cell = grid.get_cell(x, y)
+
+        # Assert
+        assert cell is None
