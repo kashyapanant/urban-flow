@@ -9,6 +9,12 @@ from backend.config import MAX_GRID_SIZE, MIN_GRID_SIZE, STREET_SPACING
 from backend.simulation.grid import Cell, CellType, Grid
 
 
+@pytest.fixture
+def grid_5x4():
+    """Return a shared 5x4 grid for get_cell tests."""
+    return Grid(width=5, height=4)
+
+
 class TestCellIsTraversable:
     """Test cases for P1-GRID-02 `Cell.is_traversable()`."""
 
@@ -211,17 +217,14 @@ class TestGridGetCell:
             (4, 3),
         ],
     )
-    def test_get_cell_returns_cell_for_in_bounds_coordinates(self, x, y):
+    def test_get_cell_returns_cell_for_in_bounds_coordinates(self, grid_5x4, x, y):
         """Valid coordinates return the corresponding cell instance."""
-        # Arrange
-        grid = Grid(width=5, height=4)
-
         # Act
-        cell = grid.get_cell(x, y)
+        cell = grid_5x4.get_cell(x, y)
 
         # Assert
         assert cell is not None
-        assert cell is grid.cells[y][x]
+        assert cell is grid_5x4.cells[y][x]
         assert cell.x == x
         assert cell.y == y
 
@@ -236,13 +239,10 @@ class TestGridGetCell:
             (-1, -1),
         ],
     )
-    def test_get_cell_returns_none_for_out_of_bounds_coordinates(self, x, y):
+    def test_get_cell_returns_none_for_out_of_bounds_coordinates(self, grid_5x4, x, y):
         """Coordinates outside grid boundaries return None."""
-        # Arrange
-        grid = Grid(width=5, height=4)
-
         # Act
-        cell = grid.get_cell(x, y)
+        cell = grid_5x4.get_cell(x, y)
 
         # Assert
         assert cell is None
