@@ -11,7 +11,7 @@ from backend.simulation.grid import Cell, CellType, Grid
 
 @pytest.fixture
 def grid_5x4():
-    """Return a 5x4 grid for get_cell tests."""
+    """Return a 5x4 grid for grid coordinate tests."""
     return Grid(width=5, height=4)
 
 
@@ -246,3 +246,47 @@ class TestGridGetCell:
 
         # Assert
         assert cell is None
+
+
+class TestGridGetNeighbors:
+    """Test cases for P1-GRID-05 `Grid.get_neighbors()`."""
+
+    @pytest.mark.parametrize(
+        ("x", "y", "expected_coords"),
+        [
+            (0, 0, [(0, 1), (1, 0)]),
+            (0, 1, [(0, 0), (0, 2)]),
+            (3, 1, [(3, 0), (3, 2)]),
+            (1, 1, [(1, 0), (0, 1)]),
+        ],
+    )
+    def test_get_neighbors_returns_only_traversable_cardinal_neighbors(
+        self, grid_5x4, x, y, expected_coords
+    ):
+        """Neighbors include only in-bounds traversable cardinal cells."""
+        # Act
+        neighbors = grid_5x4.get_neighbors(x, y)
+
+        # Assert
+        assert {(cell.x, cell.y) for cell in neighbors} == set(expected_coords)
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (-1, 0),
+            (0, -1),
+            (5, 0),
+            (0, 4),
+            (5, 4),
+            (-1, -1),
+        ],
+    )
+    def test_get_neighbors_returns_empty_list_for_out_of_bounds_coordinates(
+        self, grid_5x4, x, y
+    ):
+        """Out-of-bounds source coordinates produce no neighbors."""
+        # Act
+        neighbors = grid_5x4.get_neighbors(x, y)
+
+        # Assert
+        assert neighbors == []

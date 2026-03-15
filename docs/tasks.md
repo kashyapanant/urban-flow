@@ -31,7 +31,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 | P1-GRID-02 | `Cell.is_traversable()` - Check if cell allows vehicle movement | ✅ |
 | P1-GRID-03 | `Cell.is_occupied()` - Check if cell contains vehicle | ✅ |
 | P1-GRID-04 | `Grid.get_cell()` - Get cell at coordinates | ✅ |
-| P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ⬜ |
+| P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ✅ |
 | P1-GRID-06 | `Grid.place_vehicle()` - Place vehicle in cell | ⬜ |
 | P1-GRID-07 | `Grid.remove_vehicle()` - Remove vehicle from cell | ⬜ |
 | P1-GRID-08 | `Grid.get_edge_cells()` - Get spawn-eligible edge cells | ⬜ |
@@ -100,7 +100,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-GRID-02 | `Cell.is_traversable` | ✅ | | |
 | P1-GRID-03 | `Cell.is_occupied` | ✅ | | |
 | P1-GRID-04 | `Grid.get_cell` | ✅ | | |
-| P1-GRID-05 | `Grid.get_neighbors` | ⬜ | | |
+| P1-GRID-05 | `Grid.get_neighbors` | ✅ | | |
 | P1-GRID-06 | `Grid.place_vehicle` | ⬜ | | |
 | P1-GRID-07 | `Grid.remove_vehicle` | ⬜ | | |
 | P1-GRID-08 | `Grid.get_edge_cells` | ⬜ | | |
@@ -143,9 +143,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()`, `Cell.is_traversable()`, `Cell.is_occupied()`, `Grid.get_cell()` done (P1-GRID-01, P1-GRID-02, P1-GRID-03, P1-GRID-04).
+**Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()`, `Cell.is_traversable()`, `Cell.is_occupied()`, `Grid.get_cell()`, `Grid.get_neighbors()` done (P1-GRID-01 through P1-GRID-05).
 
-**Next task:** P1-GRID-05 – `Grid.get_neighbors()` (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-GRID-06 – `Grid.place_vehicle()` (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
