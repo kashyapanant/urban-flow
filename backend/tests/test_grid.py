@@ -11,7 +11,7 @@ from backend.simulation.grid import Cell, CellType, Grid
 
 @pytest.fixture
 def grid_5x4():
-    """Return a shared 5x4 grid for get_cell tests."""
+    """Return a 5x4 grid for get_cell tests."""
     return Grid(width=5, height=4)
 
 
