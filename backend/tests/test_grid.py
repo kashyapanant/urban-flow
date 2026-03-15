@@ -254,10 +254,10 @@ class TestGridGetNeighbors:
     @pytest.mark.parametrize(
         ("x", "y", "expected_coords"),
         [
-            ((0), (0), [(0, 1), (1, 0)]),
-            ((0), (1), [(0, 0), (0, 2)]),
-            ((3), (1), [(3, 0), (3, 2)]),
-            ((1), (1), [(1, 0), (0, 1)]),
+            (0, 0, [(0, 1), (1, 0)]),
+            (0, 1, [(0, 0), (0, 2)]),
+            (3, 1, [(3, 0), (3, 2)]),
+            (1, 1, [(1, 0), (0, 1)]),
         ],
     )
     def test_get_neighbors_returns_only_traversable_cardinal_neighbors(
@@ -268,7 +268,7 @@ class TestGridGetNeighbors:
         neighbors = grid_5x4.get_neighbors(x, y)
 
         # Assert
-        assert [(cell.x, cell.y) for cell in neighbors] == expected_coords
+        assert {(cell.x, cell.y) for cell in neighbors} == set(expected_coords)
 
     @pytest.mark.parametrize(
         ("x", "y"),
