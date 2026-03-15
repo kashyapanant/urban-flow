@@ -168,13 +168,16 @@ class Grid:
         """Get the cell at the specified coordinates.
 
         Args:
-            x: Column coordinate
-            y: Row coordinate
+            x: Column coordinate (0-indexed, left to right).
+            y: Row coordinate (0-indexed, top to bottom).
 
         Returns:
-            The cell at (x, y) or None if coordinates are invalid
+            The cell at (x, y), or None if the coordinates fall outside
+            the grid bounds.
         """
-        raise NotImplementedError("Grid.get_cell(")
+        if 0 <= x < self.width and 0 <= y < self.height:
+            return self.cells[y][x]
+        return None
 
     def get_neighbors(self, x: int, y: int) -> list[Cell]:
         """Get traversable neighboring cells (up, down, left, right).

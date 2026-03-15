@@ -1,4 +1,4 @@
-"""Tests for P1-GRID-01 (`Grid.__init__()`) behavior."""
+"""Tests for implemented Grid/Cell task behavior."""
 
 from collections import Counter
 from unittest.mock import Mock
@@ -7,6 +7,12 @@ import pytest
 
 from backend.config import MAX_GRID_SIZE, MIN_GRID_SIZE, STREET_SPACING
 from backend.simulation.grid import Cell, CellType, Grid
+
+
+@pytest.fixture
+def grid_5x4():
+    """Return a 5x4 grid for get_cell tests."""
+    return Grid(width=5, height=4)
 
 
 class TestCellIsTraversable:
@@ -198,3 +204,45 @@ class TestGridInit:
         assert counts[CellType.INTERSECTION] == 16
         assert counts[CellType.ROAD] == 48
         assert counts[CellType.OBSTACLE] == 36
+
+
+class TestGridGetCell:
+    """Test cases for P1-GRID-04 `Grid.get_cell()`."""
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (0, 0),
+            (3, 2),
+            (4, 3),
+        ],
+    )
+    def test_get_cell_returns_cell_for_in_bounds_coordinates(self, grid_5x4, x, y):
+        """Valid coordinates return the corresponding cell instance."""
+        # Act
+        cell = grid_5x4.get_cell(x, y)
+
+        # Assert
+        assert cell is not None
+        assert cell is grid_5x4.cells[y][x]
+        assert cell.x == x
+        assert cell.y == y
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (-1, 0),
+            (0, -1),
+            (5, 0),
+            (0, 4),
+            (5, 4),
+            (-1, -1),
+        ],
+    )
+    def test_get_cell_returns_none_for_out_of_bounds_coordinates(self, grid_5x4, x, y):
+        """Coordinates outside grid boundaries return None."""
+        # Act
+        cell = grid_5x4.get_cell(x, y)
+
+        # Assert
+        assert cell is None
