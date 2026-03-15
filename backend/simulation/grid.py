@@ -182,14 +182,34 @@ class Grid:
     def get_neighbors(self, x: int, y: int) -> list[Cell]:
         """Get traversable neighboring cells (up, down, left, right).
 
+        Only the four cardinal directions are considered — no diagonals.
+        A neighbour is included only if it exists within the grid bounds
+        and its cell type is not OBSTACLE (i.e. ``Cell.is_traversable()``
+        returns True).
+
         Args:
-            x: Column coordinate
-            y: Row coordinate
+            x: Column coordinate of the source cell.
+            y: Row coordinate of the source cell.
 
         Returns:
-            List of neighboring cells that vehicles can move to
+            List of traversable neighbouring cells. Empty if the source
+            coordinates are out of bounds or all neighbours are obstacles.
         """
-        raise NotImplementedError("Grid.get_neighbors(")
+        # Validate source coordinates first — return empty list immediately if
+        # (x, y) is outside the grid, matching the documented contract.
+        if self.get_cell(x, y) is None:
+            return []
+
+        neighbors: list[Cell] = []
+        # Each (dx, dy) is a cardinal direction offset:
+        #   (0, -1) up  |  (0, +1) down  |  (-1, 0) left  |  (+1, 0) right
+        # get_cell() returns None for out-of-bounds coordinates, so no
+        # separate bounds check is needed for the neighbours themselves.
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            cell = self.get_cell(x + dx, y + dy)
+            if cell is not None and cell.is_traversable():
+                neighbors.append(cell)
+        return neighbors
 
     def is_traversable(self, x: int, y: int) -> bool:
         """Check if the cell at (x, y) can be traversed by vehicles.
