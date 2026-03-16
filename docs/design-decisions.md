@@ -163,6 +163,19 @@ This document records design decisions made during the implementation of the bac
 
 ---
 
+## Decision: Dual-Level is_traversable / is_occupied API (Task: P1-GRID-06)
+
+**Date:** 2026-03-08
+**Context:** Both `Cell` and `Grid` expose `is_traversable` and `is_occupied`. This raised the question of whether having the same concept at two levels is intentional or redundant.
+**Decision:** Keep both levels — `Cell.is_traversable()` / `Cell.is_occupied()` for callers that already hold a `Cell` object, and `Grid.is_traversable(x, y)` / `Grid.is_occupied(x, y)` as coordinate-based facade wrappers for callers that think in positions. The `Grid` wrappers always delegate to the `Cell` methods and absorb the out-of-bounds case (returning `False` safely), so there is no logic duplication.
+**Rationale:**
+- Different callers have different entry points: internal simulation logic traverses `Cell` objects directly; external code (engine, API, tests) works in coordinates.
+- The `Grid` wrappers eliminate repetitive `get_cell()` + `None` guard boilerplate at every call site.
+- Single source of truth is preserved: logic lives in `Cell`, `Grid` only delegates.
+- This is a standard Facade / Convenience API pattern for container + domain-object designs.
+
+---
+
 ## Decision: Grid Initialization — Cell Layout (Task: P1-GRID-01)
 
 **Date:** 2026-03-08
