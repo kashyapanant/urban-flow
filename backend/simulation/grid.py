@@ -247,18 +247,21 @@ class Grid:
         """Place a vehicle in the specified cell.
 
         Placement fails (returns False) if any of these conditions hold:
+        - ``vehicle`` is None.
         - (x, y) is outside the grid bounds.
         - The cell is not traversable (OBSTACLE).
         - The cell is already occupied by another vehicle.
 
         Args:
-            vehicle: The vehicle to place.
+            vehicle: The vehicle to place. Must not be None.
             x: Column coordinate of the target cell.
             y: Row coordinate of the target cell.
 
         Returns:
             True if the vehicle was placed successfully, False otherwise.
         """
+        if vehicle is None:
+            return False
         cell = self.get_cell(x, y)
         if cell is None or not cell.is_traversable() or cell.is_occupied():
             return False
