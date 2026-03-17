@@ -214,6 +214,9 @@ class Grid:
     def is_traversable(self, x: int, y: int) -> bool:
         """Check if the cell at (x, y) can be traversed by vehicles.
 
+        Convenience wrapper around ``Cell.is_traversable()``. Returns False
+        for out-of-bounds coordinates.
+
         Args:
             x: Column coordinate
             y: Row coordinate
@@ -221,10 +224,14 @@ class Grid:
         Returns:
             True if vehicles can move through this cell
         """
-        raise NotImplementedError("Grid.is_traversable(")
+        cell = self.get_cell(x, y)
+        return cell is not None and cell.is_traversable()
 
     def is_occupied(self, x: int, y: int) -> bool:
         """Check if the cell at (x, y) is occupied by a vehicle.
+
+        Convenience wrapper around ``Cell.is_occupied()``. Returns False
+        for out-of-bounds coordinates.
 
         Args:
             x: Column coordinate
@@ -233,20 +240,33 @@ class Grid:
         Returns:
             True if a vehicle is currently in this cell
         """
-        raise NotImplementedError("Grid.is_occupied(")
+        cell = self.get_cell(x, y)
+        return cell is not None and cell.is_occupied()
 
     def place_vehicle(self, vehicle: Vehicle, x: int, y: int) -> bool:
         """Place a vehicle in the specified cell.
 
+        Placement fails (returns False) if any of these conditions hold:
+        - ``vehicle`` is None.
+        - (x, y) is outside the grid bounds.
+        - The cell is not traversable (OBSTACLE).
+        - The cell is already occupied by another vehicle.
+
         Args:
-            vehicle: The vehicle to place
-            x: Column coordinate
-            y: Row coordinate
+            vehicle: The vehicle to place. Must not be None.
+            x: Column coordinate of the target cell.
+            y: Row coordinate of the target cell.
 
         Returns:
-            True if placement was successful, False otherwise
+            True if the vehicle was placed successfully, False otherwise.
         """
-        raise NotImplementedError("Grid.place_vehicle(")
+        if vehicle is None:
+            return False
+        cell = self.get_cell(x, y)
+        if cell is None or not cell.is_traversable() or cell.is_occupied():
+            return False
+        cell.vehicle = vehicle
+        return True
 
     def remove_vehicle(self, x: int, y: int) -> Vehicle | None:
         """Remove and return the vehicle from the specified cell.

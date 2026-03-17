@@ -290,3 +290,87 @@ class TestGridGetNeighbors:
 
         # Assert
         assert neighbors == []
+
+
+class TestGridPlaceVehicle:
+    """Test cases for P1-GRID-06 `Grid.place_vehicle()`."""
+
+    def test_place_vehicle_returns_false_when_vehicle_is_none(self, grid_5x4):
+        """Passing None as vehicle is rejected before any coordinate check."""
+        # Arrange
+        vehicles_before = [cell.vehicle for row in grid_5x4.cells for cell in row]
+
+        # Act
+        result = grid_5x4.place_vehicle(None, 1, 0)
+
+        # Assert
+        assert result is False
+        vehicles_after = [cell.vehicle for row in grid_5x4.cells for cell in row]
+        assert vehicles_after == vehicles_before
+
+    def test_place_vehicle_returns_true_and_stores_vehicle_on_traversable_cell(
+        self, grid_5x4
+    ):
+        """Placing a vehicle on an empty traversable cell succeeds."""
+        # Arrange
+        vehicle = Mock()
+
+        # Act
+        result = grid_5x4.place_vehicle(vehicle, 1, 0)
+
+        # Assert
+        assert result is True
+        assert grid_5x4.cells[0][1].vehicle is vehicle
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (-1, 0),
+            (0, -1),
+            (5, 0),
+            (0, 4),
+        ],
+    )
+    def test_place_vehicle_returns_false_for_out_of_bounds_coordinates(
+        self, grid_5x4, x, y
+    ):
+        """Out-of-bounds placement attempts fail without mutating the grid."""
+        # Arrange
+        vehicle = Mock()
+        vehicles_before = [cell.vehicle for row in grid_5x4.cells for cell in row]
+
+        # Act
+        result = grid_5x4.place_vehicle(vehicle, x, y)
+
+        # Assert
+        assert result is False
+        vehicles_after = [cell.vehicle for row in grid_5x4.cells for cell in row]
+        assert vehicles_after == vehicles_before
+
+    def test_place_vehicle_returns_false_for_obstacle_cell(self, grid_5x4):
+        """Placement on an obstacle cell fails and leaves the cell unchanged."""
+        # Arrange
+        vehicle = Mock()
+        vehicle_before = grid_5x4.cells[1][1].vehicle
+
+        # Act
+        result = grid_5x4.place_vehicle(vehicle, 1, 1)
+
+        # Assert
+        assert result is False
+        assert grid_5x4.cells[1][1].type is CellType.OBSTACLE
+        assert grid_5x4.cells[1][1].vehicle is vehicle_before
+
+    def test_place_vehicle_returns_false_when_cell_is_already_occupied(self, grid_5x4):
+        """Placement fails when the target traversable cell already has a vehicle."""
+        # Arrange
+        existing_vehicle = Mock()
+        new_vehicle = Mock()
+        grid_5x4.cells[0][1].vehicle = existing_vehicle
+
+        # Act
+        result = grid_5x4.place_vehicle(new_vehicle, 1, 0)
+
+        # Assert
+        assert result is False
+        assert grid_5x4.cells[0][1].vehicle is existing_vehicle
