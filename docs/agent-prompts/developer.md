@@ -50,11 +50,14 @@ Do not write any test cases; we have a dedicated tester for that.
    **Rationale:** [Why this choice]
    ```
 
-6. `design-decisions.md` is reserved for genuine trade-off choices (e.g. “why
-   row-major over column-major”, “why constants live in `config.py`”).
+6. `design-decisions.md` is reserved for genuine trade-off choices (e.g. "why
+   row-major over column-major", "why constants live in `config.py`").
    Implementation details and method behaviour belong in docstrings.
-7. After each task: mark ✅ in both the task list table **and** the registry table
-   in `docs/tasks.md`, and update the “Current status” / “Next task” lines at
+7. Keep code clean: avoid nested loops wherever a flat alternative exists (e.g.
+   `itertools.chain.from_iterable`, a pre-built flat list, or a single
+   comprehension).
+8. After each task: mark ✅ in both the task list table **and** the registry table
+   in `docs/tasks.md`, and update the "Current status" / "Next task" lines at
    the bottom of that file.
 
 ---
