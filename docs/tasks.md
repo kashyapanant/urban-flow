@@ -33,11 +33,8 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 | P1-GRID-04 | `Grid.get_cell()` - Get cell at coordinates | ✅ |
 | P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ✅ |
 | P1-GRID-06 | `Grid.place_vehicle()` - Place vehicle in cell | ✅ |
-| P1-GRID-07 | `Grid.remove_vehicle()` - Remove vehicle from cell | ⬜ |
-| P1-GRID-08 | `Grid.get_edge_cells()` - Get spawn-eligible edge cells | ⬜ |
-| P1-GRID-09 | `Grid.get_intersection_cells()` - Get intersection positions | ⬜ |
-| P1-GRID-10 | `Grid.snapshot()` - Create serializable state | ⬜ |
-| P1-GRID-11 | `Cell.to_dict()` - Serialize cell to dict for frontend | ⬜ |
+| P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()`) - Support vehicle cleanup, spawning, and intersection lookup | ⬜ |
+| P1-GRID-08 | Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) - Produce frontend-ready serializable state | ⬜ |
 
 ### 2. Pathfinder Class (Depends: Grid)
 
@@ -51,13 +48,11 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-VEH-01 | `Vehicle.get_next_position()` - Get next path position | ⬜ |
-| P1-VEH-02 | `Vehicle.advance_path()` - Move to next position | ⬜ |
-| P1-VEH-03 | `Vehicle.get_remaining_distance()` - Calculate remaining cells | ⬜ |
-| P1-VEH-04 | `VehicleManager.__init__()` - Initialize manager | ⬜ |
-| P1-VEH-05 | `VehicleManager.spawn_vehicles()` - Spawn at grid edges | ⬜ |
-| P1-VEH-06 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
-| P1-VEH-07 | `VehicleManager.collect_arrived()` - Remove completed vehicles | ⬜ |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`) - Read, advance, and measure route progress | ⬜ |
+| P1-VEH-02 | `VehicleManager.__init__()` - Initialize manager | ⬜ |
+| P1-VEH-03 | `VehicleManager.spawn_vehicles()` - Spawn at grid edges | ⬜ |
+| P1-VEH-04 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
+| P1-VEH-05 | `VehicleManager.collect_arrived()` - Remove completed vehicles | ⬜ |
 
 ### 4. TrafficLight Classes (Depends: Vehicle)
 
@@ -74,19 +69,16 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-MET-01 | `Metrics.normal_avg_ticks` - Calculate normal vehicle average | ⬜ |
-| P1-MET-02 | `Metrics.emergency_avg_ticks` - Calculate emergency average | ⬜ |
-| P1-MET-03 | `Metrics.improvement` - Calculate percentage improvement | ⬜ |
-| P1-MET-04 | `Metrics.record_arrival()` - Record vehicle completion | ⬜ |
+| P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) - Compute baseline and emergency performance gains | ⬜ |
+| P1-MET-02 | `Metrics.record_arrival()` - Record vehicle completion | ⬜ |
 
 ### 6. SimulationEngine (Orchestrates All)
 
 | ID | Task | Status |
 |----|------|--------|
 | P1-ENG-01 | `SimulationEngine.__init__()` - Initialize all components | ⬜ |
-| P1-ENG-02 | `SimulationEngine.start()` - Begin tick loop | ⬜ |
-| P1-ENG-03 | `SimulationEngine.tick()` - Execute single simulation step | ⬜ |
-| P1-ENG-04 | `SimulationEngine.snapshot()` - Create complete state | ⬜ |
+| P1-ENG-02 | Engine runtime loop (`SimulationEngine.start()`, `SimulationEngine.tick()`) - Start and execute the simulation lifecycle | ⬜ |
+| P1-ENG-03 | `SimulationEngine.snapshot()` - Create complete state | ⬜ |
 
 ---
 
@@ -102,35 +94,27 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-GRID-04 | `Grid.get_cell` | ✅ | | |
 | P1-GRID-05 | `Grid.get_neighbors` | ✅ | | |
 | P1-GRID-06 | `Grid.place_vehicle` | ✅ | | [Dual-Level API](design-decisions.md#decision-dual-level-is_traversable--is_occupied-api-task-p1-grid-06) |
-| P1-GRID-07 | `Grid.remove_vehicle` | ⬜ | | |
-| P1-GRID-08 | `Grid.get_edge_cells` | ⬜ | | |
-| P1-GRID-09 | `Grid.get_intersection_cells` | ⬜ | | |
-| P1-GRID-10 | `Grid.snapshot` | ⬜ | | |
-| P1-GRID-11 | `Cell.to_dict` | ⬜ | | |
+| P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle`, `Grid.get_edge_cells`, `Grid.get_intersection_cells`) | ⬜ | | |
+| P1-GRID-08 | Grid serialization (`Grid.snapshot`, `Cell.to_dict`) | ⬜ | | |
 | P1-PATH-01 | `PathNode.f_cost` | ⬜ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-PATH-02 | `PathNode.__lt__` | ⬜ | | |
 | P1-PATH-03 | `Pathfinder.find_path` | ⬜ | | |
-| P1-VEH-01 | `Vehicle.get_next_position` | ⬜ | | |
-| P1-VEH-02 | `Vehicle.advance_path` | ⬜ | | |
-| P1-VEH-03 | `Vehicle.get_remaining_distance` | ⬜ | | |
-| P1-VEH-04 | `VehicleManager.__init__` | ⬜ | | |
-| P1-VEH-05 | `VehicleManager.spawn_vehicles` | ⬜ | | |
-| P1-VEH-06 | `VehicleManager.move_vehicles` | ⬜ | | |
-| P1-VEH-07 | `VehicleManager.collect_arrived` | ⬜ | | |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) | ⬜ | | |
+| P1-VEH-02 | `VehicleManager.__init__` | ⬜ | | |
+| P1-VEH-03 | `VehicleManager.spawn_vehicles` | ⬜ | | |
+| P1-VEH-04 | `VehicleManager.move_vehicles` | ⬜ | | |
+| P1-VEH-05 | `VehicleManager.collect_arrived` | ⬜ | | |
 | P1-TL-01 | `TrafficLight.tick` | ⬜ | | |
 | P1-TL-02 | `TrafficLight.can_enter` | ⬜ | | |
 | P1-TL-03 | `TrafficLight.request_preemption` | ⬜ | | |
 | P1-TL-04 | `TrafficLight.release_preemption` | ⬜ | | |
 | P1-TL-05 | `TrafficLightManager.__init__` | ⬜ | | |
 | P1-TL-06 | `TrafficLightManager.tick` | ⬜ | | |
-| P1-MET-01 | `Metrics.normal_avg_ticks` | ⬜ | | |
-| P1-MET-02 | `Metrics.emergency_avg_ticks` | ⬜ | | |
-| P1-MET-03 | `Metrics.improvement` | ⬜ | | |
-| P1-MET-04 | `Metrics.record_arrival` | ⬜ | | |
+| P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) | ⬜ | | |
+| P1-MET-02 | `Metrics.record_arrival` | ⬜ | | |
 | P1-ENG-01 | `SimulationEngine.__init__` | ⬜ | | |
-| P1-ENG-02 | `SimulationEngine.start` | ⬜ | | |
-| P1-ENG-03 | `SimulationEngine.tick` | ⬜ | | |
-| P1-ENG-04 | `SimulationEngine.snapshot` | ⬜ | | |
+| P1-ENG-02 | Engine runtime loop (`SimulationEngine.start`, `SimulationEngine.tick`) | ⬜ | | |
+| P1-ENG-03 | `SimulationEngine.snapshot` | ⬜ | | |
 | P1-API-01 | `ConfigUpdateRequest` validation | ✅ | | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
 
 ---
@@ -145,7 +129,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 **Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()`, `Cell.is_traversable()`, `Cell.is_occupied()`, `Grid.get_cell()`, `Grid.get_neighbors()`, `Grid.place_vehicle()` done (P1-GRID-01 through P1-GRID-06).
 
-**Next task:** P1-GRID-07 – `Grid.remove_vehicle()` (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-GRID-07 – Grid utility queries (`Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()`) (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
