@@ -11,6 +11,10 @@ repos:
         entry: mypy backend/
         language: system
         types: [python]
+        # Pre-commit appends staged filenames by default; that duplicates paths with
+        # `mypy backend/` and breaks package mapping ("Duplicate module named ...").
+        pass_filenames: false
+        files: ^backend/
       - id: ruff-format
         name: ruff-format
         entry: ruff format --check
