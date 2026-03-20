@@ -374,3 +374,108 @@ class TestGridPlaceVehicle:
         # Assert
         assert result is False
         assert grid_5x4.cells[0][1].vehicle is existing_vehicle
+
+
+class TestGridUtilityQueries:
+    """Test cases for P1-GRID-07 grid utility query methods."""
+
+    def test_remove_vehicle_returns_vehicle_and_clears_cell_when_occupied(
+        self, grid_5x4
+    ):
+        """Removing from an occupied cell returns vehicle and empties the cell."""
+        # Arrange
+        vehicle = Mock()
+        grid_5x4.cells[0][1].vehicle = vehicle
+
+        # Act
+        removed = grid_5x4.remove_vehicle(1, 0)
+
+        # Assert
+        assert removed is vehicle
+        assert grid_5x4.cells[0][1].vehicle is None
+
+    def test_remove_vehicle_returns_none_for_empty_cell_without_mutation(
+        self, grid_5x4
+    ):
+        """Removing from an empty in-bounds cell returns None and changes nothing."""
+        # Arrange
+        vehicles_before = [cell.vehicle for row in grid_5x4.cells for cell in row]
+
+        # Act
+        removed = grid_5x4.remove_vehicle(1, 0)
+
+        # Assert
+        assert removed is None
+        vehicles_after = [cell.vehicle for row in grid_5x4.cells for cell in row]
+        assert vehicles_after == vehicles_before
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (-1, 0),
+            (0, -1),
+            (5, 0),
+            (0, 4),
+        ],
+    )
+    def test_remove_vehicle_returns_none_for_out_of_bounds_without_mutation(
+        self, grid_5x4, x, y
+    ):
+        """Out-of-bounds removals return None and leave all vehicle refs unchanged."""
+        # Arrange
+        grid_5x4.cells[0][1].vehicle = Mock()
+        vehicles_before = [cell.vehicle for row in grid_5x4.cells for cell in row]
+
+        # Act
+        removed = grid_5x4.remove_vehicle(x, y)
+
+        # Assert
+        assert removed is None
+        vehicles_after = [cell.vehicle for row in grid_5x4.cells for cell in row]
+        assert vehicles_after == vehicles_before
+
+    def test_get_edge_cells_returns_all_traversable_perimeter_cells(self, grid_5x4):
+        """Edge query returns traversable border cells in documented order."""
+        # Act
+        edge_cells = grid_5x4.get_edge_cells()
+
+        # Assert
+        expected_coords = [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (3, 0),
+            (4, 0),
+            (0, 3),
+            (1, 3),
+            (2, 3),
+            (3, 3),
+            (4, 3),
+            (0, 1),
+            (0, 2),
+        ]
+        assert [(cell.x, cell.y) for cell in edge_cells] == expected_coords
+        assert all(cell.is_traversable() for cell in edge_cells)
+
+    def test_get_edge_cells_deduplicates_corners(self, grid_5x4):
+        """Corner cells appear only once in edge-cell results."""
+        # Act
+        edge_coords = [(cell.x, cell.y) for cell in grid_5x4.get_edge_cells()]
+
+        # Assert
+        assert edge_coords.count((0, 0)) == 1
+        assert edge_coords.count((4, 0)) == 1
+        assert edge_coords.count((0, 3)) == 1
+        assert edge_coords.count((4, 3)) == 1
+
+    def test_get_intersection_cells_returns_all_intersections_in_row_major_order(
+        self, grid_5x4
+    ):
+        """Intersection query returns all and only intersection cells row-major."""
+        # Act
+        intersections = grid_5x4.get_intersection_cells()
+
+        # Assert
+        expected_coords = [(0, 0), (3, 0), (0, 3), (3, 3)]
+        assert [(cell.x, cell.y) for cell in intersections] == expected_coords
+        assert all(cell.type is CellType.INTERSECTION for cell in intersections)
