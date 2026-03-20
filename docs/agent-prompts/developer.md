@@ -52,6 +52,6 @@ backend (FastAPI) and a browser frontend (Vanilla JS + Canvas).
 
 ## Next Steps
 1. Read `@backend/simulation/grid.py` fully before touching anything
-2. Implement next task from task.md
+2. Implement next task from docs/task.md
 3. Run `make lint`, update docs/tasks.md, wait for review
 4. Then proceed to next one
