@@ -271,30 +271,76 @@ class Grid:
     def remove_vehicle(self, x: int, y: int) -> Vehicle | None:
         """Remove and return the vehicle from the specified cell.
 
+        If the coordinates are out of bounds or the cell contains no vehicle,
+        the grid is left unchanged and None is returned.
+
         Args:
-            x: Column coordinate
-            y: Row coordinate
+            x: Column coordinate.
+            y: Row coordinate.
 
         Returns:
-            The removed vehicle or None if no vehicle was present
+            The vehicle that was occupying the cell, or None if the cell was
+            empty, did not exist, or was out of bounds.
         """
-        raise NotImplementedError("Grid.remove_vehicle(")
+        cell = self.get_cell(x, y)
+        if cell is None or cell.vehicle is None:
+            return None
+        vehicle = cell.vehicle
+        cell.vehicle = None
+        return vehicle
 
     def get_edge_cells(self) -> list[Cell]:
         """Get all traversable cells on the grid edges for vehicle spawning.
 
+        Collects every cell on the four perimeter edges (top row, bottom row,
+        left column, right column), deduplicates corner cells, and filters to
+        only those that are traversable (ROAD or INTERSECTION).  The returned
+        list is ordered top-row → bottom-row → left-column → right-column,
+        with corners belonging to the row passes only.
+
         Returns:
-            List of cells on the perimeter that vehicles can spawn in
+            List of traversable perimeter cells, in reading order around the
+            border.  Empty if no perimeter cell is traversable (e.g. a 1×1
+            grid whose single OBSTACLE cell sits on every edge).
         """
-        raise NotImplementedError("Grid.get_edge_cells(")
+        seen: set[tuple[int, int]] = set()
+        edge_cells: list[Cell] = []
+
+        def _add(cell: Cell) -> None:
+            key = (cell.x, cell.y)
+            if key not in seen:
+                seen.add(key)
+                if cell.is_traversable():
+                    edge_cells.append(cell)
+
+        for x in range(self.width):
+            _add(self.cells[0][x])
+        for x in range(self.width):
+            _add(self.cells[self.height - 1][x])
+        for y in range(self.height):
+            _add(self.cells[y][0])
+        for y in range(self.height):
+            _add(self.cells[y][self.width - 1])
+
+        return edge_cells
 
     def get_intersection_cells(self) -> list[Cell]:
         """Get all intersection cells for traffic light placement.
 
+        Iterates the grid in row-major order and collects every cell whose
+        type is INTERSECTION (i.e. cells that lie on both an avenue column
+        and a street row).
+
         Returns:
-            List of all intersection cells in the grid
+            List of all INTERSECTION cells in row-major order (top-left to
+            bottom-right).  Empty if the grid contains no intersections.
         """
-        raise NotImplementedError("Grid.get_intersection_cells(")
+        return [
+            self.cells[y][x]
+            for y in range(self.height)
+            for x in range(self.width)
+            if self.cells[y][x].type is CellType.INTERSECTION
+        ]
 
     def snapshot(self) -> dict[str, Any]:
         """Create a serializable snapshot of the grid state.
