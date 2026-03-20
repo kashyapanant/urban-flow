@@ -3,12 +3,12 @@ repos:
     hooks:
       - id: ruff
         name: ruff
-        entry: ruff check --fix
+        entry: uv run ruff check --fix
         language: system
         types: [python]
       - id: mypy
         name: mypy
-        entry: mypy backend/
+        entry: uv run mypy backend/
         language: system
         types: [python]
         # Pre-commit appends staged filenames by default; that duplicates paths with
@@ -17,6 +17,6 @@ repos:
         files: ^backend/
       - id: ruff-format
         name: ruff-format
-        entry: ruff format --check
+        entry: uv run ruff format --check
         language: system
         types: [python]
