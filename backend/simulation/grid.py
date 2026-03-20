@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -303,24 +304,20 @@ class Grid:
             border.  Empty if no perimeter cell is traversable (e.g. a 1×1
             grid whose single OBSTACLE cell sits on every edge).
         """
+        edges = [
+            [self.cells[0][x] for x in range(self.width)],
+            [self.cells[self.height - 1][x] for x in range(self.width)],
+            [self.cells[y][0] for y in range(self.height)],
+            [self.cells[y][self.width - 1] for y in range(self.height)],
+        ]
+
         seen: set[tuple[int, int]] = set()
         edge_cells: list[Cell] = []
-
-        def _add(cell: Cell) -> None:
-            key = (cell.x, cell.y)
-            if key not in seen:
-                seen.add(key)
+        for cell in itertools.chain.from_iterable(edges):
+            if (cell.x, cell.y) not in seen:
+                seen.add((cell.x, cell.y))
                 if cell.is_traversable():
                     edge_cells.append(cell)
-
-        for x in range(self.width):
-            _add(self.cells[0][x])
-        for x in range(self.width):
-            _add(self.cells[self.height - 1][x])
-        for y in range(self.height):
-            _add(self.cells[y][0])
-        for y in range(self.height):
-            _add(self.cells[y][self.width - 1])
 
         return edge_cells
 
