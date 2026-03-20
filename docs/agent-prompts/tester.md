@@ -51,7 +51,7 @@ system with a Python backend (FastAPI) and a browser frontend
 3. **Boundary value analysis** — always cover min, max, and one-over/one-under
    for numeric ranges. Most bugs live at boundaries.
 
-4. **Parameterize similar cases** — use `@pytest.mark.parametrize` to reduce
+4. **Parametrize similar cases** — use `@pytest.mark.parametrize` to reduce
    duplication; never repeat the same logical test with different values as
    separate methods.
 
