@@ -17,6 +17,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _component_id(component: Any | None) -> str | None:
+    """Resolve a JSON-safe id string from an object that exposes ``id``.
+
+    Returns ``None`` when ``component`` is ``None`` or has no ``id`` attribute.
+    String ``id`` values are returned as-is; non-string values are coerced
+    with ``str()`` so snapshots remain serializable.
+    """
+    if component is None:
+        return None
+    ident = getattr(component, "id", None)
+    if ident is None:
+        return None
+    return ident if isinstance(ident, str) else str(ident)
+
+
 class CellType(Enum):
     """Types of cells in the simulation grid."""
 
@@ -59,8 +74,29 @@ class Cell:
         return self.vehicle is not None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert cell to dictionary for serialization."""
-        raise NotImplementedError("Cell.to_dict(")
+        """Serialize this cell for API/WebSocket payloads.
+
+        The mapping always includes the same keys so consumers can read a
+        uniform shape: ``x``, ``y``, ``type``, ``vehicle_id``, and
+        ``traffic_light_id``. ``type`` is the string :attr:`CellType.value`.
+        Occupant fields use ``None`` when there is no vehicle or traffic light
+        in the cell.
+
+        References are not embedded as nested objects: only ``vehicle_id`` and
+        ``traffic_light_id`` are set (via :func:`_component_id`), matching how
+        the simulation engine exposes full vehicle and light records in
+        separate top-level snapshot lists.
+
+        Returns:
+            A JSON-serializable dict describing this cell.
+        """
+        return {
+            "x": self.x,
+            "y": self.y,
+            "type": self.type.value,
+            "vehicle_id": _component_id(self.vehicle),
+            "traffic_light_id": _component_id(self.traffic_light),
+        }
 
 
 class Grid:
@@ -340,9 +376,22 @@ class Grid:
         ]
 
     def snapshot(self) -> dict[str, Any]:
-        """Create a serializable snapshot of the grid state.
+        """Create a serializable snapshot of the entire grid.
+
+        The returned dict has three keys:
+
+        - ``width`` / ``height``: grid dimensions (same as :attr:`width` /
+          :attr:`height`).
+        - ``cells``: nested list in **row-major** order — outer index is row
+          ``y``, inner index is column ``x``. ``cells[y][x]`` is the dict from
+          :meth:`Cell.to_dict` for :attr:`cells` ``[y][x]``, aligned with
+          internal storage.
 
         Returns:
-            Dictionary representation of the grid for frontend
+            A JSON-serializable dict suitable for WebSocket/API ``grid`` payloads.
         """
-        raise NotImplementedError("Grid.snapshot(")
+        return {
+            "width": self.width,
+            "height": self.height,
+            "cells": [[cell.to_dict() for cell in row] for row in self.cells],
+        }
