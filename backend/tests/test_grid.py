@@ -1,5 +1,6 @@
 """Tests for implemented Grid/Cell task behavior."""
 
+import json
 from collections import Counter
 from unittest.mock import Mock
 
@@ -292,6 +293,58 @@ class TestGridGetNeighbors:
         assert neighbors == []
 
 
+class TestGridStateWrappers:
+    """Test cases for Grid convenience wrappers `is_traversable` and `is_occupied`."""
+
+    @pytest.mark.parametrize(
+        ("x", "y", "expected"),
+        [
+            (0, 0, True),  # INTERSECTION
+            (1, 0, True),  # ROAD
+            (1, 1, False),  # OBSTACLE
+            (-1, 0, False),  # out of bounds
+            (5, 0, False),  # out of bounds
+        ],
+    )
+    def test_is_traversable_returns_expected_for_grid_coordinates(
+        self, grid_5x4, x, y, expected
+    ):
+        """Traversability wrapper mirrors cell type and returns False out of bounds."""
+        # Act
+        actual = grid_5x4.is_traversable(x, y)
+
+        # Assert
+        assert actual is expected
+
+    def test_is_occupied_returns_true_for_occupied_cell(self, grid_5x4):
+        """Occupancy wrapper returns True when the target cell has a vehicle."""
+        # Arrange
+        grid_5x4.cells[0][1].vehicle = Mock()
+
+        # Act
+        actual = grid_5x4.is_occupied(1, 0)
+
+        # Assert
+        assert actual is True
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [
+            (1, 0),  # traversable but empty
+            (1, 1),  # obstacle and empty
+            (-1, 0),  # out of bounds
+            (0, 4),  # out of bounds
+        ],
+    )
+    def test_is_occupied_returns_false_for_empty_or_out_of_bounds(self, grid_5x4, x, y):
+        """Occupancy wrapper returns False for empty or invalid cells."""
+        # Act
+        actual = grid_5x4.is_occupied(x, y)
+
+        # Assert
+        assert actual is False
+
+
 class TestGridPlaceVehicle:
     """Test cases for P1-GRID-06 `Grid.place_vehicle()`."""
 
@@ -479,3 +532,130 @@ class TestGridUtilityQueries:
         expected_coords = [(0, 0), (3, 0), (0, 3), (3, 3)]
         assert [(cell.x, cell.y) for cell in intersections] == expected_coords
         assert all(cell.type is CellType.INTERSECTION for cell in intersections)
+
+
+class TestCellToDict:
+    """Test cases for P1-GRID-08 `Cell.to_dict()`."""
+
+    @pytest.mark.parametrize(
+        ("cell_type", "expected_type"),
+        [
+            (CellType.ROAD, "road"),
+            (CellType.INTERSECTION, "intersection"),
+            (CellType.OBSTACLE, "obstacle"),
+        ],
+    )
+    def test_to_dict_serializes_required_fields_with_none_ids(
+        self, cell_type, expected_type
+    ):
+        """Cell serialization always includes fixed keys and type value string."""
+        # Arrange
+        cell = Cell(x=2, y=1, type=cell_type)
+
+        # Act
+        payload = cell.to_dict()
+
+        # Assert
+        assert payload == {
+            "x": 2,
+            "y": 1,
+            "type": expected_type,
+            "vehicle_id": None,
+            "traffic_light_id": None,
+        }
+
+    def test_to_dict_serializes_component_ids_and_coerces_non_strings(self):
+        """Vehicle/light ids are extracted and coerced to JSON-safe strings."""
+        # Arrange
+        vehicle = Mock()
+        vehicle.id = 42
+        traffic_light = Mock()
+        traffic_light.id = "tl-7"
+        cell = Cell(
+            x=0,
+            y=0,
+            type=CellType.INTERSECTION,
+            vehicle=vehicle,
+            traffic_light=traffic_light,
+        )
+
+        # Act
+        payload = cell.to_dict()
+
+        # Assert
+        assert payload["vehicle_id"] == "42"
+        assert payload["traffic_light_id"] == "tl-7"
+
+    def test_to_dict_returns_none_when_component_has_no_id_attribute(self):
+        """Missing id attributes serialize as None rather than nested objects."""
+        # Arrange
+        vehicle_without_id = Mock(spec_set=[])
+        light_without_id = Mock(spec_set=[])
+        cell = Cell(
+            x=3,
+            y=4,
+            type=CellType.ROAD,
+            vehicle=vehicle_without_id,
+            traffic_light=light_without_id,
+        )
+
+        # Act
+        payload = cell.to_dict()
+
+        # Assert
+        assert payload["vehicle_id"] is None
+        assert payload["traffic_light_id"] is None
+
+
+class TestGridSnapshot:
+    """Test cases for P1-GRID-08 `Grid.snapshot()`."""
+
+    def test_snapshot_returns_dimensions_and_row_major_cell_payloads(self, grid_5x4):
+        """Snapshot shape matches grid dimensions and preserves row-major layout."""
+        # Arrange
+        vehicle = Mock()
+        vehicle.id = "veh-1"
+        grid_5x4.cells[0][1].vehicle = vehicle
+
+        # Act
+        snapshot = grid_5x4.snapshot()
+
+        # Assert
+        assert snapshot["width"] == 5
+        assert snapshot["height"] == 4
+        assert len(snapshot["cells"]) == 4
+        assert all(len(row) == 5 for row in snapshot["cells"])
+        assert snapshot["cells"][0][0] == grid_5x4.cells[0][0].to_dict()
+        assert snapshot["cells"][0][1]["vehicle_id"] == "veh-1"
+        assert snapshot["cells"][1][0] == grid_5x4.cells[1][0].to_dict()
+
+    def test_snapshot_is_json_serializable(self, grid_5x4):
+        """Snapshot output can be JSON-encoded for API/WebSocket payloads."""
+        # Arrange
+        traffic_light = Mock()
+        traffic_light.id = "light-2"
+        grid_5x4.cells[0][0].traffic_light = traffic_light
+
+        # Act
+        snapshot = grid_5x4.snapshot()
+        encoded = json.dumps(snapshot)
+        decoded = json.loads(encoded)
+
+        # Assert
+        assert isinstance(encoded, str)
+        assert decoded == snapshot
+
+    def test_snapshot_does_not_mutate_grid_state(self, grid_5x4):
+        """Snapshot is read-only and leaves cell occupancy references unchanged."""
+        # Arrange
+        vehicle = Mock()
+        vehicle.id = "veh-keep"
+        grid_5x4.cells[0][1].vehicle = vehicle
+        vehicles_before = [cell.vehicle for row in grid_5x4.cells for cell in row]
+
+        # Act
+        _ = grid_5x4.snapshot()
+
+        # Assert
+        vehicles_after = [cell.vehicle for row in grid_5x4.cells for cell in row]
+        assert vehicles_after == vehicles_before

@@ -76,6 +76,12 @@ system with a Python backend (FastAPI) and a browser frontend
 10. **One test class per task** — name classes `TestGrid<MethodName>` or
     `TestCell<MethodName>`.
 
+11. **Zero-miss coverage policy** — do not leave reachable lines in the target
+    implementation untested. Run coverage checks after testing a task; if any
+    lines remain uncovered and appear unreachable by design, report exactly
+    which lines/methods are uncovered and **wait for developer confirmation**
+    before proceeding.
+
 ---
 
 ## Established Patterns
@@ -122,6 +128,7 @@ If a test reveals an implementation bug:
 make lint                                        # must pass with zero errors
 uv run pytest backend/tests/test_grid.py -k <method_name>  # focused pass first
 make test                                        # full suite must stay green
+make test-cov                                    # verify no uncovered target lines
 ```
 
 ---
