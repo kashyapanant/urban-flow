@@ -639,10 +639,11 @@ class TestGridSnapshot:
         # Act
         snapshot = grid_5x4.snapshot()
         encoded = json.dumps(snapshot)
+        decoded = json.loads(encoded)
 
         # Assert
         assert isinstance(encoded, str)
-        assert '"width": 5' in encoded
+        assert decoded == snapshot
 
     def test_snapshot_does_not_mutate_grid_state(self, grid_5x4):
         """Snapshot is read-only and leaves cell occupancy references unchanged."""
