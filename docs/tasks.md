@@ -34,7 +34,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 | P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ✅ |
 | P1-GRID-06 | `Grid.place_vehicle()` - Place vehicle in cell | ✅ |
 | P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()`) - Support vehicle cleanup, spawning, and intersection lookup | ✅ |
-| P1-GRID-08 | Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) - Produce frontend-ready serializable state | ⬜ |
+| P1-GRID-08 | Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) - Produce frontend-ready serializable state | ✅ |
 
 ### 2. Pathfinder Class (Depends: Grid)
 
@@ -95,7 +95,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-GRID-05 | `Grid.get_neighbors` | ✅ | | |
 | P1-GRID-06 | `Grid.place_vehicle` | ✅ | | [Dual-Level API](design-decisions.md#decision-dual-level-is_traversable--is_occupied-api-task-p1-grid-06) |
 | P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle`, `Grid.get_edge_cells`, `Grid.get_intersection_cells`) | ✅ | | |
-| P1-GRID-08 | Grid serialization (`Grid.snapshot`, `Cell.to_dict`) | ⬜ | | |
+| P1-GRID-08 | Grid serialization (`Grid.snapshot`, `Cell.to_dict`) | ✅ | | |
 | P1-PATH-01 | `PathNode.f_cost` | ⬜ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-PATH-02 | `PathNode.__lt__` | ⬜ | | |
 | P1-PATH-03 | `Pathfinder.find_path` | ⬜ | | |
@@ -127,9 +127,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid foundation: `Grid.__init__()`, `Cell.is_traversable()`, `Cell.is_occupied()`, `Grid.get_cell()`, `Grid.get_neighbors()`, `Grid.place_vehicle()`, `Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()` done (P1-GRID-01 through P1-GRID-07).
+**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`).
 
-**Next task:** P1-GRID-08 – Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-PATH-01 – `PathNode.f_cost` (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
