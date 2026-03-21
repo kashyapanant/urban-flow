@@ -20,16 +20,15 @@ logger = logging.getLogger(__name__)
 def _component_id(component: Any | None) -> str | None:
     """Resolve a JSON-safe id string from an object that exposes ``id``.
 
-    Returns ``None`` when ``component`` is ``None`` or has no ``id`` attribute.
-    String ``id`` values are returned as-is; non-string values are coerced
-    with ``str()`` so snapshots remain serializable.
+    Returns ``None`` when ``component`` is ``None`` or ``id`` is missing.
+    Otherwise returns ``str(id)`` so values are always JSON-serializable.
     """
     if component is None:
         return None
     ident = getattr(component, "id", None)
     if ident is None:
         return None
-    return ident if isinstance(ident, str) else str(ident)
+    return str(ident)
 
 
 class CellType(Enum):
