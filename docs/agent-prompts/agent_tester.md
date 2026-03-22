@@ -9,15 +9,17 @@ system with a Python backend (FastAPI) and a browser frontend
 
 ## Key Resources (READ THESE FIRST)
 
-- **@docs/tasks.md** — task list, order, and progress tracking
+- **@docs/tasks.md** — task list, order, progress; **next unchecked task** picks the module
+  and test file (Grid complete ✅; Pathfinder next → `backend/simulation/pathfinder.py`,
+  `backend/tests/test_pathfinder.py`).
 - **@docs/requirements.md** — MVP scope and user stories
 - **@docs/architecture.md** — full system design
 - **@docs/design-decisions.md** — all implementation decisions
-- **@backend/simulation/grid.py** — file being actively implemented
+- **@backend/simulation/grid.py** — Grid/Cell implementation (foundation complete)
 - **@backend/config.py** — `MIN_GRID_SIZE`, `MAX_GRID_SIZE`, `STREET_SPACING`
   constants (single source of truth for grid limits)
-- **@backend/tests/test_grid.py** — existing test file for Grid/Cell tasks
-- **@Makefile** — use `make lint` and `make test` for all quality checks
+- **@backend/tests/test_grid.py** — tests for all P1-GRID-01 … P1-GRID-08 behavior
+- **@Makefile** — use `make lint`, `make test`, and `make test-cov` for quality checks
 
 ---
 
@@ -34,8 +36,44 @@ system with a Python backend (FastAPI) and a browser frontend
 | P1-GRID-04 | `Grid.get_cell()` | `TestGridGetCell` |
 | P1-GRID-05 | `Grid.get_neighbors()` | `TestGridGetNeighbors` |
 | P1-GRID-06 | `Grid.place_vehicle()` | `TestGridPlaceVehicle` |
+| P1-GRID-07 | `remove_vehicle`, `get_edge_cells`, `get_intersection_cells` | `TestGridUtilityQueries` |
+| P1-GRID-08 | `Cell.to_dict()`, `Grid.snapshot()` | `TestCellToDict`, `TestGridSnapshot` |
+| *(coverage)* | `Grid.is_traversable()`, `Grid.is_occupied()` (thin wrappers) | `TestGridStateWrappers` — added after `make test-cov` showed misses; **confirm with developer** before similar supplemental classes |
 
-**Next task to test:** `P1-GRID-07` — when the developer signals implementation is done.
+**Grid phase:** complete. **`backend/simulation/grid.py` is at 100% statement coverage** with the above.
+
+**Next task to test:** `P1-PATH-01` (`PathNode.f_cost`) — when the developer signals implementation is done. Use `backend/tests/test_pathfinder.py` and run focused tests with `-k` on the method or test class name.
+
+---
+
+## Learnings from Grid testing (carry forward)
+
+Use this as a checklist for Pathfinder and later modules.
+
+1. **Read the docstring as the contract** — If the API promises a specific **iteration order**
+   (e.g. `get_edge_cells`: top row → bottom row → left column → right column), assert **exact
+   list order**, not only set equality. A real bug slipped through when top/bottom cells were
+   interleaved per column; tests aligned to the docstring caught it.
+
+2. **Thin convenience wrappers need direct tests** — `Grid.is_traversable` / `Grid.is_occupied`
+   delegate to `get_cell` + `Cell` methods; the suite can still show **uncovered lines** on those
+   wrappers. After `make test-cov`, add small focused tests (or get confirmation per zero-miss
+   policy) so the **implementation file** you care about hits 100% where intended.
+
+3. **Serialization / JSON: structure, not string fragments** — Do not assert
+   `'"width": 5' in json.dumps(...)`: encoding can vary. Prefer **round-trip structure**:
+   `assert json.loads(json.dumps(snapshot)) == snapshot` (and keep asserting shape/keys on the
+   dict itself where useful).
+
+4. **`Cell.to_dict` / component ids** — Cover: fixed keys, `type` as enum **value** string,
+   `vehicle_id` / `traffic_light_id` via `id` (string passthrough, non-string coerced with
+   `str()`), and `None` when component is missing or has no `id`.
+
+5. **Non-mutation** — For read-only APIs like `snapshot()`, snapshot grid state before/after
+   and assert no change to cell references (vehicles, lights).
+
+6. **Bug protocol worked** — On failure, stop, report expected vs actual and which test failed,
+   wait for developer fix, then re-run lint → focused → full suite → `make test-cov`.
 
 ---
 
@@ -82,6 +120,11 @@ system with a Python backend (FastAPI) and a browser frontend
     which lines/methods are uncovered and **wait for developer confirmation**
     before proceeding.
 
+12. **Structure-based JSON assertions** — for “is JSON-serializable” tests, assert on the
+    **decoded** structure (e.g. `json.loads(json.dumps(obj)) == obj`) or explicit dict/list
+    equality. Never rely on substring checks inside the encoded string (whitespace/key order
+    can change).
+
 ---
 
 ## Established Patterns
@@ -110,6 +153,14 @@ assert vehicles_after == vehicles_before
 assert {(cell.x, cell.y) for cell in result} == set(expected_coords)
 ```
 
+### JSON round-trip (serializable + stable content)
+
+```python
+encoded = json.dumps(snapshot)
+decoded = json.loads(encoded)
+assert decoded == snapshot
+```
+
 ---
 
 ## Bug Handling Protocol
@@ -126,7 +177,7 @@ If a test reveals an implementation bug:
 
 ```bash
 make lint                                        # must pass with zero errors
-uv run pytest backend/tests/test_grid.py -k <method_name>  # focused pass first
+uv run pytest backend/tests/test_<module>.py -k <keyword>   # focused pass first
 make test                                        # full suite must stay green
 make test-cov                                    # verify no uncovered target lines
 ```
@@ -135,10 +186,12 @@ make test-cov                                    # verify no uncovered target li
 
 ## Workflow
 
-1. Developer says "implementation done for P1-GRID-XX".
-2. Read the relevant implementation in `backend/simulation/grid.py`.
-3. Read the existing `backend/tests/test_grid.py` to understand current state.
-4. Add a new test class for the task — no edits to existing tests unless fixing
-   a review comment.
-5. Run quality gates (lint → focused tests → full suite).
-6. Report results and wait for review comments before moving to the next task.
+1. Developer says "implementation done for P1-AREA-NN" (e.g. `P1-PATH-01`).
+2. Open **@docs/tasks.md** — confirm task scope and which **source file** + **test file** apply.
+3. Read the relevant implementation (e.g. `pathfinder.py`, not only `grid.py`).
+4. Read the matching test file to see existing classes and fixtures.
+5. Add a **new test class for that task** — avoid editing older tests except for review fixes
+   or agreed follow-ups (e.g. coverage supplementation after confirmation).
+6. Run quality gates: **lint → focused pytest (`-k`) → `make test` → `make test-cov`** on the
+   target package/module you touched.
+7. Report pass/fail, coverage notes, and wait for review before the next task.
