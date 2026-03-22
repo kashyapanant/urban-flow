@@ -27,11 +27,13 @@ class PathNode:
     @property
     def f_cost(self) -> float:
         """Total cost (g + h) for A* priority."""
-        raise NotImplementedError("PathNode.f_cost calculation")
+        return self.g_cost + self.h_cost
 
     def __lt__(self, other: PathNode) -> bool:
         """Comparison for priority queue (lower f_cost = higher priority)."""
-        raise NotImplementedError("PathNode.__lt__ comparison")
+        if not isinstance(other, PathNode):
+            return NotImplemented
+        return self.f_cost < other.f_cost
 
 
 class Pathfinder:
