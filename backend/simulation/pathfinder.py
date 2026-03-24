@@ -88,19 +88,25 @@ class Pathfinder:
                 return None
             return str(value).lower()
 
+        is_emergency = vehicle_type is VehicleType.EMERGENCY
+        get_light_fn = None
+        if traffic_light_manager is not None:
+            maybe_get_light = getattr(traffic_light_manager, "get_light", None)
+            if callable(maybe_get_light):
+                get_light_fn = maybe_get_light
+
         def movement_cost(cell: Cell) -> float:
             """Return movement cost for entering a neighbour cell."""
             base_cost = 1.0
-            if vehicle_type is not VehicleType.EMERGENCY:
+            if not is_emergency:
                 return base_cost
-            if cell.type is not CellType.INTERSECTION or traffic_light_manager is None:
+            if cell.type is not CellType.INTERSECTION:
                 return base_cost
 
             light = None
-            get_light = getattr(traffic_light_manager, "get_light", None)
-            if callable(get_light):
+            if get_light_fn is not None:
                 try:
-                    light = get_light((cell.x, cell.y))
+                    light = get_light_fn((cell.x, cell.y))
                 except NotImplementedError:
                     light = None
             if light is None:
