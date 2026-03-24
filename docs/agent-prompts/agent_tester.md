@@ -10,15 +10,17 @@ system with a Python backend (FastAPI) and a browser frontend
 ## Key Resources (READ THESE FIRST)
 
 - **@docs/tasks.md** — task list, order, progress; **next unchecked task** picks the module
-  and test file (Grid complete ✅; Pathfinder next → `backend/simulation/pathfinder.py`,
-  `backend/tests/test_pathfinder.py`).
+  and test file (Grid ✅; Pathfinder ✅; Vehicle next → `backend/simulation/vehicle.py`,
+  `backend/tests/test_vehicle.py`).
 - **@docs/requirements.md** — MVP scope and user stories
 - **@docs/architecture.md** — full system design
 - **@docs/design-decisions.md** — all implementation decisions
 - **@backend/simulation/grid.py** — Grid/Cell implementation (foundation complete)
+- **@backend/simulation/pathfinder.py** — Pathfinder/PathNode implementation (complete)
 - **@backend/config.py** — `MIN_GRID_SIZE`, `MAX_GRID_SIZE`, `STREET_SPACING`
   constants (single source of truth for grid limits)
-- **@backend/tests/test_grid.py** — tests for all P1-GRID-01 … P1-GRID-08 behavior
+- **@backend/tests/test_grid.py** — reference for Grid test patterns
+- **@backend/tests/test_pathfinder.py** — reference for Pathfinder test patterns (mocks, grid mutation, stale-guard targeting)
 - **@Makefile** — use `make lint`, `make test`, and `make test-cov` for quality checks
 
 ---
@@ -39,10 +41,15 @@ system with a Python backend (FastAPI) and a browser frontend
 | P1-GRID-07 | `remove_vehicle`, `get_edge_cells`, `get_intersection_cells` | `TestGridUtilityQueries` |
 | P1-GRID-08 | `Cell.to_dict()`, `Grid.snapshot()` | `TestCellToDict`, `TestGridSnapshot` |
 | *(coverage)* | `Grid.is_traversable()`, `Grid.is_occupied()` (thin wrappers) | `TestGridStateWrappers` — added after `make test-cov` showed misses; **confirm with developer** before similar supplemental classes |
+| P1-PATH-01 | `PathNode.f_cost` | `TestPathNodeFCost` in `test_pathfinder.py` |
+| P1-PATH-02 | `PathNode.__lt__()` | `TestPathNodeLt` in `test_pathfinder.py` |
+| P1-PATH-03 | `Pathfinder.find_path()` | `TestPathfinderFindPath` in `test_pathfinder.py` |
 
-**Grid phase:** complete. **`backend/simulation/grid.py` is at 100% statement coverage** with the above.
+**Grid phase:** complete. **`backend/simulation/grid.py` is at 100% statement coverage.**
 
-**Next task to test:** `P1-PATH-01` (`PathNode.f_cost`) — when the developer signals implementation is done. Use `backend/tests/test_pathfinder.py` and run focused tests with `-k` on the method or test class name.
+**Pathfinder phase:** complete. **`backend/simulation/pathfinder.py` is at 99% statement coverage** — line 138 (closed-set guard) is confirmed defensively unreachable under current invariants by the developer; `# pragma: no cover` is a developer-side action.
+
+**Next task to test:** `P1-VEH-01` (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) — when the developer signals implementation is done. Use `backend/tests/test_vehicle.py`.
 
 ---
 
@@ -74,6 +81,47 @@ Use this as a checklist for Pathfinder and later modules.
 
 6. **Bug protocol worked** — On failure, stop, report expected vs actual and which test failed,
    wait for developer fix, then re-run lint → focused → full suite → `make test-cov`.
+
+---
+
+## Learnings from Pathfinder testing (carry forward)
+
+7. **Delete skeleton stubs immediately** — If the test file already contains pre-generated
+   `pass` stubs (e.g. `TestPathNode`, `TestPathfinder`), delete them when writing the real
+   tests. They pass silently, assert nothing, and will never be filled in — we create a
+   properly-named class per task instead. Keeping stubs is misleading noise.
+
+8. **`make lint` only runs ruff — pre-commit also runs mypy** — Always run
+   `uv run pre-commit run --all-files` before declaring a task done. `make lint` catches
+   style/import issues; mypy (in pre-commit) catches type errors such as passing a wrong
+   type to a dunder method in a test.
+
+9. **Intentional type violations in tests need `# type: ignore[operator]`** — When a test
+   deliberately passes the wrong type to exercise a defensive guard (e.g., calling
+   `PathNode.__lt__(node, 42)` to observe `NotImplemented`), suppress mypy on that specific
+   line with `# type: ignore[operator]`. Use the narrowest possible ignore category.
+
+10. **`NotImplemented` vs `TypeError` — test both sides of comparison dunders** — For
+    `__lt__` and similar: call the method directly (`PathNode.__lt__(node, wrong)`) to assert
+    the raw `NotImplemented` return, AND use the operator (`node < wrong`) to assert
+    `TypeError`. They exercise different code paths.
+
+11. **Grid cells are mutable — use this to create test topologies** — `Cell` is a dataclass
+    with mutable fields. Set `grid.cells[y][x].type = CellType.OBSTACLE` directly in a test
+    to isolate a cell (e.g., block both neighbours of a corner cell to produce a "no path"
+    scenario) without needing a special constructor.
+
+12. **Algorithmic guard coverage may need a specific grid size/config** — An internal guard
+    (e.g., the A* stale-heap-entry check) may not fire on a 7×7 grid but will fire on a
+    10×10 grid with the right cost configuration. When a line stays uncovered despite complex
+    tests, **escalate to the developer for a concrete triggering scenario** rather than
+    assuming the line is unreachable. Grid size and cost landscape both matter.
+
+13. **Defensive unreachable lines — report and wait, never skip silently** — When coverage
+    reveals a line that appears unreachable by design (e.g., a closed-set guard that the
+    algorithm's invariants prevent from firing), report the exact line and your analysis.
+    Wait for developer confirmation; they decide whether to add `# pragma: no cover` in the
+    implementation or adjust the target. Never self-approve skipping a miss.
 
 ---
 
@@ -129,7 +177,7 @@ Use this as a checklist for Pathfinder and later modules.
 
 ## Established Patterns
 
-### Fixture
+### Fixture (module-level, shared across test classes)
 
 ```python
 @pytest.fixture
@@ -161,12 +209,40 @@ decoded = json.loads(encoded)
 assert decoded == snapshot
 ```
 
+### Mocking a TrafficLightManager (for Pathfinder / future modules)
+
+```python
+from unittest.mock import Mock
+
+red_light = Mock()
+red_light.current_phase = "red"          # string — _phase_value handles it directly
+
+# enum-style phase (object with .value):
+red_phase = Mock()
+red_phase.value = "red"
+red_light.current_phase = red_phase
+
+mock_tlm = Mock()
+mock_tlm.get_light.return_value = red_light          # always returns same light
+mock_tlm.get_light.side_effect = (                   # per-position control
+    lambda pos: red_light if pos == (3, 0) else None
+)
+```
+
+### Mutating a cell to create a test topology
+
+```python
+# Block (1,0) and (0,1) to fully isolate corner cell (0,0)
+grid.cells[0][1].type = CellType.OBSTACLE  # cells[y][x] — (x=1, y=0)
+grid.cells[1][0].type = CellType.OBSTACLE  # cells[y][x] — (x=0, y=1)
+```
+
 ---
 
 ## Bug Handling Protocol
 
 If a test reveals an implementation bug:
-1. **Stop** — do not change `grid.py` or any implementation file yourself.
+1. **Stop** — do not change any implementation file (`grid.py`, `pathfinder.py`, `vehicle.py`, etc.) yourself.
 2. **Report** — explain the bug clearly: what was expected, what actually
    happened, and which test case exposed it.
 3. **Wait** — let the developer confirm and fix it before proceeding.
