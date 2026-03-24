@@ -16,7 +16,8 @@ Do not write any test cases; we have a dedicated tester for that.
 
 - **Phase:** Implementation (skeleton complete, implementing methods one-by-one)
 - **Grid (P1-GRID-01 … P1-GRID-08):** **Complete** — treat `@backend/simulation/grid.py` as reference-quality, not the active edit target unless a bugfix is requested.
-- **Next task:** **P1-PATH-01** — `@backend/simulation/pathfinder.py` (`PathNode.f_cost`). Always confirm against `@docs/tasks.md` (it is the source of truth if this prompt drifts).
+- **Pathfinder (P1-PATH-01 … P1-PATH-03):** **Complete** — treat `@backend/simulation/pathfinder.py` as reference-quality unless a bugfix/refinement is requested.
+- **Next task:** **P1-VEH-01** — `@backend/simulation/vehicle.py` (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`). Always confirm against `@docs/tasks.md` (it is the source of truth if this prompt drifts).
 
 ---
 
@@ -26,8 +27,9 @@ Do not write any test cases; we have a dedicated tester for that.
 - **@docs/requirements.md** — MVP scope and user stories
 - **@docs/architecture.md** — system design and pseudocode contracts
 - **@docs/design-decisions.md** — **only** documented *trade-offs* (see rules below)
-- **@backend/simulation/pathfinder.py** — **current implementation focus** (PathNode, Pathfinder)
-- **@backend/simulation/grid.py** — consumed by pathfinding; grid API is stable
+- **@backend/simulation/vehicle.py** — **current implementation focus** (Vehicle, VehicleManager)
+- **@backend/simulation/pathfinder.py** — consumed by vehicle spawning/routing; API is stable through P1-PATH-03
+- **@backend/simulation/grid.py** — foundational API used by vehicle/pathfinding logic; stable
 - **@backend/config.py** — `MIN_GRID_SIZE`, `MAX_GRID_SIZE`, `STREET_SPACING` (and other shared limits)
 
 Pathfinding cost ideas are pre-recorded in design-decisions (e.g. pathfinding cost values); align new code with those docs unless you are explicitly revisiting a trade-off (then update `design-decisions.md` and the task registry).
@@ -99,12 +101,34 @@ architecture explicitly overrides them.
 
 ---
 
+## Conventions Established During Pathfinder Work (P1-PATH-01 … 03)
+
+Use these as the baseline for downstream vehicle/engine integration.
+
+- **PathNode contract:** `f_cost == g_cost + h_cost`; `__lt__` compares by lower
+  `f_cost` and returns `NotImplemented` for non-`PathNode` operands.
+- **A\* entry/exit behavior (`find_path`):** return `None` when start/goal is
+  out-of-bounds or non-traversable; return `[start]` when start equals goal.
+- **Core search model:** Manhattan heuristic + cardinal neighbors from
+  `Grid.get_neighbors`; reconstruct path by following `parent` pointers.
+- **Emergency weighting:** base move cost is `1.0`; for intersection entry use
+  penalties `+2.0` on red and `+1.0` on yellow (green/left-turn/no light
+  penalty `+0.0`).
+- **Traffic light lookup/fallback:** resolve `get_light` callable once per
+  `find_path` invocation (hot-path optimization), with fallback to
+  `cell.traffic_light`; tolerate unimplemented manager methods.
+- **Defensive guard semantics:** stale-heap guard is reachable in real A\*
+  runs; closed-set pop guard is intentionally defensive and currently marked
+  `# pragma: no cover`.
+
+---
+
 ## Next Steps
 
 1. Open **`@docs/tasks.md`** and confirm the next open task (expected:
-   **P1-PATH-01**).
-2. Read **`@backend/simulation/pathfinder.py`** (and any types it imports from
-   `grid` / `vehicle`) before editing.
+   **P1-VEH-01**).
+2. Read **`@backend/simulation/vehicle.py`** (and any types it imports from
+   `grid` / `pathfinder` / `traffic_light`) before editing.
 3. Implement the task scope only; run **`make lint`**; update **`docs/tasks.md`**
    checkmarks and footer.
 4. Wait for review, then continue in task order.
