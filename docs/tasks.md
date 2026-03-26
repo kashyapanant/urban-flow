@@ -48,7 +48,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`) - Read, advance, and measure route progress | ⬜ |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) - Read, advance, measure route progress, and serialize vehicle state | ✅ |
 | P1-VEH-02 | `VehicleManager.__init__()` - Initialize manager | ⬜ |
 | P1-VEH-03 | `VehicleManager.spawn_vehicles()` - Spawn at grid edges | ⬜ |
 | P1-VEH-04 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
@@ -99,7 +99,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-PATH-01 | `PathNode.f_cost` | ✅ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-PATH-02 | `PathNode.__lt__` | ✅ | | |
 | P1-PATH-03 | `Pathfinder.find_path` | ✅ | | |
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) | ⬜ | | |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`, `Vehicle.to_dict`) | ✅ | | |
 | P1-VEH-02 | `VehicleManager.__init__` | ⬜ | | |
 | P1-VEH-03 | `VehicleManager.spawn_vehicles` | ⬜ | | |
 | P1-VEH-04 | `VehicleManager.move_vehicles` | ⬜ | | |
@@ -121,15 +121,22 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Active issues & bugs
 
-*Space for logging bugs found during implementation.*
+- **PERF-WATCH-VEH-01 (follow-up):** `Vehicle._validate_path_state()` is invoked
+  from multiple hot-path methods (`get_next_position`, `advance_path` via
+  `get_next_position`, `get_remaining_distance`, `to_dict`). Re-check call
+  frequency and runtime impact after VehicleManager/Engine integration is
+  complete. If profiling shows meaningful overhead, optimize validation strategy
+  (e.g., reduce duplicate checks on hot paths while preserving safety). If
+  current behavior is retained, document the rationale in
+  `docs/design-decisions.md` and link it in the task registry.
 
 ---
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__`, `Pathfinder.find_path`).
+**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__`, `Pathfinder.find_path`); Vehicle path progression/serialization complete through P1-VEH-01 (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`, `Vehicle.to_dict`).
 
-**Next task:** P1-VEH-01 – Vehicle path progression (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-VEH-02 – `VehicleManager.__init__()` (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
