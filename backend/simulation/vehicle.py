@@ -45,33 +45,138 @@ class Vehicle:
     status: VehicleStatus = VehicleStatus.MOVING
     ticks_elapsed: int = 0
 
+    def _validate_path_state(self) -> None:
+        """Validate internal path/index state before route operations.
+
+        Raises:
+            ValueError: If the path is empty, path_index is out of range,
+                path endpoints do not match origin/destination, or the current
+                position does not match ``path[path_index]``.
+        """
+        if not self.path:
+            raise ValueError(f"Vehicle {self.id} has an empty path.")
+        if not (0 <= self.path_index < len(self.path)):
+            raise ValueError(
+                f"Vehicle {self.id} has invalid path_index {self.path_index}; "
+                f"expected 0 <= path_index < {len(self.path)}."
+            )
+        if self.path[0] != self.origin:
+            raise ValueError(
+                f"Vehicle {self.id} path must start at origin {self.origin}; "
+                f"got {self.path[0]}."
+            )
+        if self.path[-1] != self.destination:
+            raise ValueError(
+                f"Vehicle {self.id} path must end at destination "
+                f"{self.destination}; got {self.path[-1]}."
+            )
+        if self.path[self.path_index] != self.position:
+            raise ValueError(
+                f"Vehicle {self.id} position/path mismatch: "
+                f"position={self.position}, path[{self.path_index}]="
+                f"{self.path[self.path_index]}."
+            )
+
     def get_next_position(self) -> tuple[int, int] | None:
         """Get the next position on the vehicle's path.
 
+        The path is an ordered list from origin to destination and includes the
+        current position at ``path[path_index]``. This method returns the next
+        cell after the current index, or ``None`` when the vehicle is already at
+        the final path cell (destination).
+
         Returns:
-            Next (x, y) coordinates or None if at destination
+            Next (x, y) coordinates, or ``None`` if no further path cell exists.
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
         """
-        raise NotImplementedError("Vehicle.get_next_position(")
+        self._validate_path_state()
+
+        next_index = self.path_index + 1
+        if next_index >= len(self.path):
+            return None
+        return self.path[next_index]
 
     def advance_path(self) -> None:
-        """Move to the next position in the path."""
-        raise NotImplementedError("Vehicle.advance_path(")
+        """Advance one step along the precomputed path.
+
+        If a next path cell exists, the vehicle moves to that cell and
+        ``path_index`` increments by one. If the vehicle is already at the end
+        of the path, this is a no-op for position/index.
+
+        ``status`` is synchronized after the operation:
+        - ``ARRIVED`` when the vehicle is at the destination (end of path)
+        - ``MOVING`` otherwise
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
+        """
+        next_position = self.get_next_position()
+        if next_position is not None:
+            self.path_index += 1
+            self.position = next_position
+
+        self.status = (
+            VehicleStatus.ARRIVED
+            if self.path_index == len(self.path) - 1
+            else VehicleStatus.MOVING
+        )
 
     def get_remaining_distance(self) -> int:
         """Get the number of cells remaining to destination.
 
+        Remaining distance counts *steps* from the current path index to the
+        final path index (destination), so a vehicle already at destination
+        returns ``0``.
+
         Returns:
-            Number of path cells remaining
+            Number of path steps remaining to destination.
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
         """
-        raise NotImplementedError("Vehicle.get_remaining_distance(")
+        self._validate_path_state()
+        return len(self.path) - self.path_index - 1
 
     def to_dict(self) -> dict[str, Any]:
         """Convert vehicle to dictionary for serialization.
 
+        The returned mapping always includes these keys (in this order):
+        ``id``, ``type``, ``position``, ``origin``, ``destination``, ``path``,
+        ``path_index``, ``status``, ``ticks_elapsed``, ``next_position``,
+        ``remaining_distance``.
+
+        ``type`` and ``status`` are enum value strings. Coordinates remain
+        ``(x, y)`` tuples in Python and become JSON arrays when encoded.
+        ``next_position`` is ``None`` when the vehicle is already at the final
+        path cell (destination). ``path`` is returned as a shallow copy so
+        serialization does not expose the internal mutable route list.
+
         Returns:
-            Dictionary representation for frontend
+            JSON-serializable vehicle payload for snapshots/API responses.
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
         """
-        raise NotImplementedError("Vehicle.to_dict(")
+        self._validate_path_state()
+
+        next_index = self.path_index + 1
+        next_position = self.path[next_index] if next_index < len(self.path) else None
+
+        return {
+            "id": self.id,
+            "type": self.type.value,
+            "position": self.position,
+            "origin": self.origin,
+            "destination": self.destination,
+            "path": list(self.path),
+            "path_index": self.path_index,
+            "status": self.status.value,
+            "ticks_elapsed": self.ticks_elapsed,
+            "next_position": next_position,
+            "remaining_distance": len(self.path) - self.path_index - 1,
+        }
 
 
 class VehicleManager:
