@@ -99,7 +99,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-PATH-01 | `PathNode.f_cost` | ✅ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-PATH-02 | `PathNode.__lt__()` | ✅ | | |
 | P1-PATH-03 | `Pathfinder.find_path()` | ✅ | | |
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
 | P1-VEH-02 | `VehicleManager.__init__()` | ⬜ | | |
 | P1-VEH-03 | `VehicleManager.spawn_vehicles()` | ⬜ | | |
 | P1-VEH-04 | `VehicleManager.move_vehicles()` | ⬜ | | |
@@ -124,11 +124,11 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 - **PERF-WATCH-VEH-01 (follow-up):** `Vehicle._validate_path_state()` is invoked
   from multiple hot-path methods (`get_next_position()`, `advance_path()` via
   `get_next_position()`, `get_remaining_distance()`, `to_dict()`). Re-check call
-  frequency and runtime impact after VehicleManager/Engine integration is
-  complete. If profiling shows meaningful overhead, optimize validation strategy
-  (e.g., reduce duplicate checks on hot paths while preserving safety). If
-  current behavior is retained, document the rationale in
-  `docs/design-decisions.md` and link it in the task registry.
+  frequency and runtime impact **after** movement and tick orchestration are
+  integrated (minimum trigger: P1-VEH-04 + P1-ENG-02 complete). Profile at
+  realistic load (e.g., medium/high spawn-rate runs over sustained ticks) and
+  then decide whether to keep current boundary-validation behavior or refactor
+  to a single-validation internal helper for serialization hot paths.
 
 ---
 
