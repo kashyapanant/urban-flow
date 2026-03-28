@@ -510,6 +510,22 @@ class TestVehicleToDict:
         assert payload["remaining_distance"] == 0
         assert payload["status"] == "arrived"
 
+    def test_to_dict_normalizes_terminal_status_for_single_cell_path(
+        self, vehicle_single_cell: Vehicle
+    ) -> None:
+        """Terminal path shape serializes ARRIVED even if in-memory status is MOVING."""
+        # Arrange
+        assert vehicle_single_cell.status is VehicleStatus.MOVING
+
+        # Act
+        payload = vehicle_single_cell.to_dict()
+
+        # Assert
+        assert payload["next_position"] is None
+        assert payload["remaining_distance"] == 0
+        assert payload["status"] == VehicleStatus.ARRIVED.value
+        assert payload["status"] != VehicleStatus.MOVING.value
+
     def test_to_dict_emergency_vehicle_type_string(self) -> None:
         """Emergency vehicle serializes type as 'emergency'."""
         # Arrange
