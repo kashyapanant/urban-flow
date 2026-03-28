@@ -48,7 +48,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`) - Read, advance, and measure route progress | ⬜ |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) - Read, advance, measure route progress, and serialize vehicle state | ✅ |
 | P1-VEH-02 | `VehicleManager.__init__()` - Initialize manager | ⬜ |
 | P1-VEH-03 | `VehicleManager.spawn_vehicles()` - Spawn at grid edges | ⬜ |
 | P1-VEH-04 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
@@ -88,48 +88,55 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 | ID | Task (short) | Status | Branch | Design decision |
 |----|--------------|--------|--------|------------------|
-| P1-GRID-01 | `Grid.__init__` | ✅ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
-| P1-GRID-02 | `Cell.is_traversable` | ✅ | | |
-| P1-GRID-03 | `Cell.is_occupied` | ✅ | | |
-| P1-GRID-04 | `Grid.get_cell` | ✅ | | |
-| P1-GRID-05 | `Grid.get_neighbors` | ✅ | | |
-| P1-GRID-06 | `Grid.place_vehicle` | ✅ | | [Dual-Level API](design-decisions.md#decision-dual-level-is_traversable--is_occupied-api-task-p1-grid-06) |
-| P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle`, `Grid.get_edge_cells`, `Grid.get_intersection_cells`) | ✅ | | |
-| P1-GRID-08 | Grid serialization (`Grid.snapshot`, `Cell.to_dict`) | ✅ | | |
+| P1-GRID-01 | `Grid.__init__()` | ✅ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
+| P1-GRID-02 | `Cell.is_traversable()` | ✅ | | |
+| P1-GRID-03 | `Cell.is_occupied()` | ✅ | | |
+| P1-GRID-04 | `Grid.get_cell()` | ✅ | | |
+| P1-GRID-05 | `Grid.get_neighbors()` | ✅ | | |
+| P1-GRID-06 | `Grid.place_vehicle()` | ✅ | | [Dual-Level API](design-decisions.md#decision-dual-level-is_traversable--is_occupied-api-task-p1-grid-06) |
+| P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()`) | ✅ | | |
+| P1-GRID-08 | Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) | ✅ | | |
 | P1-PATH-01 | `PathNode.f_cost` | ✅ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
-| P1-PATH-02 | `PathNode.__lt__` | ✅ | | |
-| P1-PATH-03 | `Pathfinder.find_path` | ✅ | | |
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) | ⬜ | | |
-| P1-VEH-02 | `VehicleManager.__init__` | ⬜ | | |
-| P1-VEH-03 | `VehicleManager.spawn_vehicles` | ⬜ | | |
-| P1-VEH-04 | `VehicleManager.move_vehicles` | ⬜ | | |
-| P1-VEH-05 | `VehicleManager.collect_arrived` | ⬜ | | |
-| P1-TL-01 | `TrafficLight.tick` | ⬜ | | |
-| P1-TL-02 | `TrafficLight.can_enter` | ⬜ | | |
-| P1-TL-03 | `TrafficLight.request_preemption` | ⬜ | | |
-| P1-TL-04 | `TrafficLight.release_preemption` | ⬜ | | |
-| P1-TL-05 | `TrafficLightManager.__init__` | ⬜ | | |
-| P1-TL-06 | `TrafficLightManager.tick` | ⬜ | | |
+| P1-PATH-02 | `PathNode.__lt__()` | ✅ | | |
+| P1-PATH-03 | `Pathfinder.find_path()` | ✅ | | |
+| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
+| P1-VEH-02 | `VehicleManager.__init__()` | ⬜ | | |
+| P1-VEH-03 | `VehicleManager.spawn_vehicles()` | ⬜ | | |
+| P1-VEH-04 | `VehicleManager.move_vehicles()` | ⬜ | | |
+| P1-VEH-05 | `VehicleManager.collect_arrived()` | ⬜ | | |
+| P1-TL-01 | `TrafficLight.tick()` | ⬜ | | |
+| P1-TL-02 | `TrafficLight.can_enter()` | ⬜ | | |
+| P1-TL-03 | `TrafficLight.request_preemption()` | ⬜ | | |
+| P1-TL-04 | `TrafficLight.release_preemption()` | ⬜ | | |
+| P1-TL-05 | `TrafficLightManager.__init__()` | ⬜ | | |
+| P1-TL-06 | `TrafficLightManager.tick()` | ⬜ | | |
 | P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) | ⬜ | | |
-| P1-MET-02 | `Metrics.record_arrival` | ⬜ | | |
-| P1-ENG-01 | `SimulationEngine.__init__` | ⬜ | | |
-| P1-ENG-02 | Engine runtime loop (`SimulationEngine.start`, `SimulationEngine.tick`) | ⬜ | | |
-| P1-ENG-03 | `SimulationEngine.snapshot` | ⬜ | | |
+| P1-MET-02 | `Metrics.record_arrival()` | ⬜ | | |
+| P1-ENG-01 | `SimulationEngine.__init__()` | ⬜ | | |
+| P1-ENG-02 | Engine runtime loop (`SimulationEngine.start()`, `SimulationEngine.tick()`) | ⬜ | | |
+| P1-ENG-03 | `SimulationEngine.snapshot()` | ⬜ | | |
 | P1-API-01 | `ConfigUpdateRequest` validation | ✅ | | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
 
 ---
 
 ## Active issues & bugs
 
-*Space for logging bugs found during implementation.*
+- **PERF-WATCH-VEH-01 (follow-up):** `Vehicle._validate_path_state()` is invoked
+  from multiple hot-path methods (`get_next_position()`, `advance_path()` via
+  `get_next_position()`, `get_remaining_distance()`, `to_dict()`). Re-check call
+  frequency and runtime impact **after** movement and tick orchestration are
+  integrated (minimum trigger: P1-VEH-04 + P1-ENG-02 complete). Profile at
+  realistic load (e.g., medium/high spawn-rate runs over sustained ticks) and
+  then decide whether to keep current boundary-validation behavior or refactor
+  to a single-validation internal helper for serialization hot paths.
 
 ---
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__`, `Pathfinder.find_path`).
+**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__()`, `Pathfinder.find_path()`); Vehicle path progression/serialization complete through P1-VEH-01 (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`).
 
-**Next task:** P1-VEH-01 – Vehicle path progression (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-VEH-02 – `VehicleManager.__init__()` (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 

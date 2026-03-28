@@ -226,6 +226,31 @@ This document records design decisions made during the implementation of the bac
 
 ---
 
+## Decision: Defer Vehicle Validation Caching Until Integrated Profiling (Task: P1-VEH-01)
+
+**Date:** 2026-03-25
+**Context:** `Vehicle.to_dict()` currently calls `get_next_position()` and
+`get_remaining_distance()`, and both methods validate path state. Review feedback
+requested optimization to avoid duplicate validation on serialization hot paths.
+At the same time, another review emphasized reusing these public methods for
+consistency and maintainability.
+**Decision:** Keep the current implementation for now (no validation caching and
+no internal no-validation helper yet). Defer optimization until post-integration
+profiling once vehicle movement and engine tick orchestration are implemented
+(P1-VEH-04 + P1-ENG-02).
+**Rationale:**
+- Correctness and contract consistency are currently the priority; public methods
+  retain defensive validation at their boundaries.
+- Premature micro-optimization risks extra complexity (cache invalidation or
+  split validation paths) before real runtime evidence exists.
+- Integrated runtime behavior (spawn/move/snapshot loop) is required to measure
+  meaningful impact; isolated method-call timing is insufficient for this
+  decision.
+- A dedicated perf watch item (`PERF-WATCH-VEH-01`) already tracks the follow-up
+  and decision point.
+
+---
+
 ## Implementation Decision Template
 
 For future implementation decisions, use this format and link to task ID from docs/tasks.md:
