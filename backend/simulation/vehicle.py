@@ -150,7 +150,10 @@ class Vehicle:
         ``type`` and ``status`` are enum value strings. Coordinates remain
         ``(x, y)`` tuples in Python and become JSON arrays when encoded.
         ``next_position`` is ``None`` when the vehicle is already at the final
-        path cell (destination). ``path`` is returned as a shallow copy so
+        path cell (destination). For payload consistency, terminal path state
+        (``next_position`` is ``None`` and ``remaining_distance`` is ``0``)
+        serializes status as ``arrived`` even if the in-memory status has not
+        yet been synchronized. ``path`` is returned as a shallow copy so
         serialization does not expose the internal mutable route list.
 
         Returns:
@@ -159,10 +162,11 @@ class Vehicle:
         Raises:
             ValueError: If ``path``/``path_index``/``position`` are inconsistent.
         """
-        self._validate_path_state()
-
-        next_index = self.path_index + 1
-        next_position = self.path[next_index] if next_index < len(self.path) else None
+        next_position = self.get_next_position()
+        remaining_distance = self.get_remaining_distance()
+        serialized_status = self.status.value
+        if remaining_distance == 0 and next_position is None:
+            serialized_status = VehicleStatus.ARRIVED.value
 
         return {
             "id": self.id,
@@ -172,10 +176,10 @@ class Vehicle:
             "destination": self.destination,
             "path": list(self.path),
             "path_index": self.path_index,
-            "status": self.status.value,
+            "status": serialized_status,
             "ticks_elapsed": self.ticks_elapsed,
             "next_position": next_position,
-            "remaining_distance": len(self.path) - self.path_index - 1,
+            "remaining_distance": remaining_distance,
         }
 
 
