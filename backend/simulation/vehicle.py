@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random
+import uuid
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -190,8 +192,16 @@ class VehicleManager:
     """
 
     def __init__(self):
-        """Initialize the vehicle manager."""
-        raise NotImplementedError("VehicleManager.__init__() __init__")
+        """Initialize manager state for active vehicle lifecycle.
+
+        The manager keeps a single source-of-truth list for all vehicles that
+        are currently active in the simulation. Vehicles are added when
+        successfully spawned and removed once collected after arrival.
+
+        Attributes initialized:
+            _vehicles: Active vehicles in insertion order.
+        """
+        self._vehicles: list[Vehicle] = []
 
     def spawn_vehicles(
         self,
@@ -203,6 +213,12 @@ class VehicleManager:
     ) -> list[Vehicle]:
         """Spawn new vehicles at grid edges.
 
+        For each traversable edge cell, this method performs a spawn roll using
+        ``spawn_rate``. On success, it chooses a destination on a different edge
+        cell and attempts pathfinding (up to ``max_retries``). Vehicles are
+        placed on the grid and added to the active manager list only when a
+        valid path is found and placement succeeds.
+
         Args:
             grid: The simulation grid
             spawn_rate: Probability of spawning per edge cell per tick
@@ -212,8 +228,91 @@ class VehicleManager:
 
         Returns:
             List of newly spawned vehicles
+
+        Raises:
+            ValueError: If ``spawn_rate`` or ``emergency_probability`` is
+                outside ``[0.0, 1.0]``, or if ``max_retries`` is less than 1.
         """
-        raise NotImplementedError("VehicleManager.spawn_vehicles(")
+        if not 0.0 <= spawn_rate <= 1.0:
+            raise ValueError(f"spawn_rate must be in [0.0, 1.0], got {spawn_rate}.")
+        if not 0.0 <= emergency_probability <= 1.0:
+            raise ValueError(
+                "emergency_probability must be in [0.0, 1.0], "
+                f"got {emergency_probability}."
+            )
+        if max_retries < 1:
+            raise ValueError(f"max_retries must be >= 1, got {max_retries}.")
+
+        # Local import avoids module import cycle: pathfinder imports VehicleType.
+        from .pathfinder import Pathfinder
+
+        edge_cells = grid.get_edge_cells()
+        if not edge_cells:
+            return []
+
+        edge_positions = [(cell.x, cell.y) for cell in edge_cells]
+        spawned: list[Vehicle] = []
+
+        for origin_cell in edge_cells:
+            if origin_cell.is_occupied():
+                continue
+            if random.random() >= spawn_rate:
+                continue
+
+            origin = (origin_cell.x, origin_cell.y)
+            destination_candidates = [pos for pos in edge_positions if pos != origin]
+            if not destination_candidates:
+                continue
+
+            vehicle_type = (
+                VehicleType.EMERGENCY
+                if random.random() < emergency_probability
+                else VehicleType.NORMAL
+            )
+
+            destination: tuple[int, int] | None = None
+            path: list[tuple[int, int]] | None = None
+            for _ in range(max_retries):
+                candidate_destination = random.choice(destination_candidates)
+                candidate_path = Pathfinder.find_path(
+                    grid=grid,
+                    start=origin,
+                    goal=candidate_destination,
+                    vehicle_type=vehicle_type,
+                    traffic_light_manager=traffic_light_manager,
+                )
+                if candidate_path is None:
+                    continue
+                if not candidate_path:
+                    continue
+                if (
+                    candidate_path[0] != origin
+                    or candidate_path[-1] != candidate_destination
+                ):
+                    continue
+
+                destination = candidate_destination
+                path = candidate_path
+                break
+
+            if destination is None or path is None:
+                continue
+
+            vehicle = Vehicle(
+                id=uuid.uuid4().hex[:8],
+                type=vehicle_type,
+                position=origin,
+                origin=origin,
+                destination=destination,
+                path=path,
+            )
+            if not grid.place_vehicle(vehicle, *origin):
+                continue
+
+            self._vehicles.append(vehicle)
+            spawned.append(vehicle)
+
+        return spawned
 
     def move_vehicles(
         self, grid: Grid, traffic_light_manager: TrafficLightManager
@@ -232,10 +331,26 @@ class VehicleManager:
     def collect_arrived(self) -> list[Vehicle]:
         """Remove and return vehicles that have reached their destination.
 
+        Vehicles are collected in their current active-list order. Vehicles that
+        are not yet arrived remain active in the same relative order.
+
         Returns:
             List of vehicles that completed their journey
         """
-        raise NotImplementedError("VehicleManager.collect_arrived(")
+        arrived = [
+            vehicle
+            for vehicle in self._vehicles
+            if vehicle.status is VehicleStatus.ARRIVED
+        ]
+        if not arrived:
+            return []
+
+        self._vehicles = [
+            vehicle
+            for vehicle in self._vehicles
+            if vehicle.status is not VehicleStatus.ARRIVED
+        ]
+        return arrived
 
     def get_all(self) -> list[Vehicle]:
         """Get all active vehicles.
