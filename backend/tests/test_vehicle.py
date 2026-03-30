@@ -1,10 +1,16 @@
-"""Tests for the vehicle module — P1-VEH-01."""
+"""Tests for the vehicle module — P1-VEH-01, P1-VEH-02."""
 
 import json
+from unittest.mock import Mock, patch
 
 import pytest
 
-from backend.simulation.vehicle import Vehicle, VehicleStatus, VehicleType
+from backend.simulation.vehicle import (
+    Vehicle,
+    VehicleManager,
+    VehicleStatus,
+    VehicleType,
+)
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -658,3 +664,656 @@ class TestVehicleToDict:
         # Act / Assert
         with pytest.raises(ValueError, match="empty path"):
             vehicle.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-02 — shared fixtures and helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def vehicle_manager() -> VehicleManager:
+    """Return a fresh VehicleManager with no active vehicles."""
+    return VehicleManager()
+
+
+def _make_arrived_vehicle(vid: str) -> Vehicle:
+    """Create a Vehicle at its destination with ARRIVED status."""
+    return Vehicle(
+        id=vid,
+        type=VehicleType.NORMAL,
+        position=(1, 0),
+        origin=(0, 0),
+        destination=(1, 0),
+        path=[(0, 0), (1, 0)],
+        path_index=1,
+        status=VehicleStatus.ARRIVED,
+    )
+
+
+def _make_moving_vehicle(vid: str) -> Vehicle:
+    """Create a Vehicle in transit with MOVING status."""
+    return Vehicle(
+        id=vid,
+        type=VehicleType.NORMAL,
+        position=(0, 0),
+        origin=(0, 0),
+        destination=(1, 0),
+        path=[(0, 0), (1, 0)],
+        path_index=0,
+        status=VehicleStatus.MOVING,
+    )
+
+
+def _make_two_cell_mock_grid(
+    *,
+    origin_occupied: bool = False,
+    place_vehicle_result: bool = True,
+) -> Mock:
+    """Return a Mock grid with two edge cells: origin (0,0) and dest (9,0).
+
+    The origin cell's ``is_occupied`` return value and ``place_vehicle``
+    result are configurable so individual tests can exercise different paths
+    without repeating boilerplate.
+    """
+    origin_cell = Mock()
+    origin_cell.x = 0
+    origin_cell.y = 0
+    origin_cell.is_occupied.return_value = origin_occupied
+
+    dest_cell = Mock()
+    dest_cell.x = 9
+    dest_cell.y = 0
+    dest_cell.is_occupied.return_value = False
+
+    mock_grid = Mock()
+    mock_grid.get_edge_cells.return_value = [origin_cell, dest_cell]
+    mock_grid.place_vehicle.return_value = place_vehicle_result
+    return mock_grid
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-02 — VehicleManager.__init__
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleManagerInit:
+    """Tests for VehicleManager.__init__ — initial manager state."""
+
+    def test_init_vehicles_list_is_empty(self) -> None:
+        """Freshly constructed manager has an empty vehicle list."""
+        # Act
+        manager = VehicleManager()
+
+        # Assert
+        assert manager._vehicles == []
+
+    def test_init_vehicles_attribute_is_list_type(self) -> None:
+        """_vehicles is a list, not another sequence type."""
+        # Act
+        manager = VehicleManager()
+
+        # Assert
+        assert isinstance(manager._vehicles, list)
+
+    def test_init_two_instances_have_independent_lists(self) -> None:
+        """Each VehicleManager owns its own _vehicles list; mutation is isolated."""
+        # Arrange
+        manager_a = VehicleManager()
+        manager_b = VehicleManager()
+
+        # Act — mutate one instance's list
+        manager_a._vehicles.append(Mock(spec=Vehicle))
+
+        # Assert — sibling instance is unaffected
+        assert manager_b._vehicles == []
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-02 — VehicleManager.spawn_vehicles
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleManagerSpawnVehicles:
+    """Tests for VehicleManager.spawn_vehicles — edge-cell vehicle creation."""
+
+    # --- Input validation ---
+
+    @pytest.mark.parametrize("spawn_rate", [-0.01, 1.01, -1.0, 2.0])
+    def test_spawn_vehicles_raises_on_invalid_spawn_rate(
+        self, vehicle_manager: VehicleManager, spawn_rate: float
+    ) -> None:
+        """spawn_rate outside [0.0, 1.0] raises ValueError."""
+        # Arrange
+        mock_grid = Mock()
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="spawn_rate"):
+            vehicle_manager.spawn_vehicles(mock_grid, spawn_rate, 0.1, 1)
+
+    @pytest.mark.parametrize("emergency_prob", [-0.01, 1.01])
+    def test_spawn_vehicles_raises_on_invalid_emergency_probability(
+        self, vehicle_manager: VehicleManager, emergency_prob: float
+    ) -> None:
+        """emergency_probability outside [0.0, 1.0] raises ValueError."""
+        # Arrange
+        mock_grid = Mock()
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="emergency_probability"):
+            vehicle_manager.spawn_vehicles(mock_grid, 0.5, emergency_prob, 1)
+
+    @pytest.mark.parametrize("max_retries", [0, -1, -100])
+    def test_spawn_vehicles_raises_on_invalid_max_retries(
+        self, vehicle_manager: VehicleManager, max_retries: int
+    ) -> None:
+        """max_retries less than 1 raises ValueError."""
+        # Arrange
+        mock_grid = Mock()
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="max_retries"):
+            vehicle_manager.spawn_vehicles(mock_grid, 0.5, 0.1, max_retries)
+
+    # --- Boundary: valid edge inputs must not raise ---
+
+    def test_spawn_vehicles_spawn_rate_zero_never_spawns(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """spawn_rate=0.0 is accepted and produces no vehicles.
+
+        random.random() always returns a value in [0, 1), so
+        ``random.random() >= 0.0`` is always True, meaning every edge cell is
+        skipped before any work is done.
+        """
+        # Arrange
+        sole_cell = Mock()
+        sole_cell.x = 0
+        sole_cell.y = 0
+        sole_cell.is_occupied.return_value = False
+        mock_grid = Mock()
+        mock_grid.get_edge_cells.return_value = [sole_cell]
+
+        # Act
+        result = vehicle_manager.spawn_vehicles(mock_grid, 0.0, 0.1, 1)
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    def test_spawn_vehicles_max_retries_one_is_accepted(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """max_retries=1 (boundary) raises no ValueError."""
+        # Arrange
+        mock_grid = Mock()
+        mock_grid.get_edge_cells.return_value = []
+
+        # Act / Assert — must not raise
+        result = vehicle_manager.spawn_vehicles(mock_grid, 0.5, 0.1, 1)
+        assert result == []
+
+    # --- No edge cells ---
+
+    def test_spawn_vehicles_returns_empty_when_no_edge_cells(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Grid with no edge cells immediately returns []."""
+        # Arrange
+        mock_grid = Mock()
+        mock_grid.get_edge_cells.return_value = []
+
+        # Act
+        result = vehicle_manager.spawn_vehicles(mock_grid, 0.5, 0.1, 1)
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    # --- Occupied origin cell ---
+
+    def test_spawn_vehicles_skips_occupied_origin_cell(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Occupied edge cell is never used as a spawn origin."""
+        # Arrange — sole edge cell is occupied
+        occupied_cell = Mock()
+        occupied_cell.x = 0
+        occupied_cell.y = 0
+        occupied_cell.is_occupied.return_value = True
+        mock_grid = Mock()
+        mock_grid.get_edge_cells.return_value = [occupied_cell]
+
+        # Act — spawn_rate=1.0 guarantees a spawn attempt if cell were free
+        result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert — occupied cell skipped; nothing spawned
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    # --- Single edge cell: no valid destination ---
+
+    def test_spawn_vehicles_skips_when_no_destination_candidates(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """With exactly one edge cell no destination exists; nothing is spawned."""
+        # Arrange — sole traversable edge cell; destination_candidates will be []
+        sole_cell = Mock()
+        sole_cell.x = 0
+        sole_cell.y = 0
+        sole_cell.is_occupied.return_value = False
+        mock_grid = Mock()
+        mock_grid.get_edge_cells.return_value = [sole_cell]
+
+        with patch("random.random", return_value=0.0):  # passes spawn roll
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    # --- Pathfinding failures ---
+
+    def test_spawn_vehicles_skips_when_all_pathfinding_retries_fail(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle is not spawned when Pathfinder returns None for every retry."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = None
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    def test_spawn_vehicles_skips_when_pathfinder_returns_empty_path(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle is not spawned when Pathfinder returns an empty list."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=[],
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    def test_spawn_vehicles_skips_when_path_start_does_not_match_origin(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle skipped when returned path[0] differs from the spawn origin."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        # Path starts at (1,1) instead of origin (0,0)
+        bad_path = [(1, 1), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=bad_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert result == []
+
+    # --- grid.place_vehicle failure ---
+
+    def test_spawn_vehicles_skips_when_place_vehicle_fails(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle not added when grid.place_vehicle returns False."""
+        # Arrange — place_vehicle always refuses
+        mock_grid = _make_two_cell_mock_grid(place_vehicle_result=False)
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == []
+
+    # --- Successful spawn ---
+
+    def test_spawn_vehicles_returns_spawned_vehicle_on_success(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Successful spawn: returned list and _vehicles both contain the vehicle."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert len(result) >= 1
+        assert len(vehicle_manager._vehicles) >= 1
+        for v in result:
+            assert v in vehicle_manager._vehicles
+
+    def test_spawn_vehicles_spawned_vehicle_has_correct_route_fields(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Spawned vehicle's origin, destination, path, and position are correct."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert len(result) >= 1
+        spawned = result[0]
+        assert spawned.origin == (0, 0)
+        assert spawned.destination == (9, 0)
+        assert spawned.path == [(0, 0), (9, 0)]
+        assert spawned.position == (0, 0)
+        assert spawned.path_index == 0
+
+    def test_spawn_vehicles_spawned_vehicle_id_is_eight_char_hex(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Spawned vehicle ID is an 8-character hexadecimal string."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        assert len(result) >= 1
+        assert len(result[0].id) == 8
+        assert all(c in "0123456789abcdef" for c in result[0].id)
+
+    def test_spawn_vehicles_spawns_emergency_vehicle_when_probability_is_one(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """emergency_probability=1.0 always produces EMERGENCY type vehicles."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            # random.random()=0.0 < 1.0 → EMERGENCY
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 1.0, 1)
+
+        assert len(result) >= 1
+        assert result[0].type is VehicleType.EMERGENCY
+
+    def test_spawn_vehicles_spawns_normal_vehicle_when_probability_is_zero(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """emergency_probability=0.0 always produces NORMAL type vehicles."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            # random.random()=0.0 < 0.0 is False → NORMAL
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        assert len(result) >= 1
+        assert result[0].type is VehicleType.NORMAL
+
+    def test_spawn_vehicles_calls_place_vehicle_with_spawned_vehicle_and_origin(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """grid.place_vehicle is called with the new vehicle at the origin coords."""
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        fake_path = [(0, 0), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch("random.choice", side_effect=lambda lst: lst[0]),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=fake_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert — place_vehicle called once with the spawned vehicle and origin (0,0)
+        assert len(result) >= 1
+        mock_grid.place_vehicle.assert_called_once_with(result[0], 0, 0)
+
+    def test_spawn_vehicles_accumulates_vehicles_across_successive_calls(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """_vehicles persists between spawn calls; second call grows the list."""
+        # Arrange
+        fake_path = [(0, 0), (9, 0)]
+
+        for _ in range(2):
+            mock_grid = _make_two_cell_mock_grid()
+            with (
+                patch("random.random", return_value=0.0),
+                patch("random.choice", side_effect=lambda lst: lst[0]),
+                patch(
+                    "backend.simulation.pathfinder.Pathfinder.find_path",
+                    return_value=fake_path,
+                ),
+            ):
+                vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert — _vehicles grew over two calls
+        assert len(vehicle_manager._vehicles) >= 2
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-02 — VehicleManager.collect_arrived
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleManagerCollectArrived:
+    """Tests for VehicleManager.collect_arrived — removes and returns arrived."""
+
+    def test_collect_arrived_returns_empty_when_no_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Manager with no active vehicles returns []."""
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert
+        assert result == []
+
+    def test_collect_arrived_returns_empty_when_no_arrived_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """All-MOVING vehicle list returns [] and leaves _vehicles unchanged."""
+        # Arrange
+        v1 = _make_moving_vehicle("v1")
+        v2 = _make_moving_vehicle("v2")
+        vehicle_manager._vehicles = [v1, v2]
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert
+        assert result == []
+        assert vehicle_manager._vehicles == [v1, v2]
+
+    def test_collect_arrived_returns_all_when_all_vehicles_arrived(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """All-ARRIVED vehicle list: all returned, _vehicles cleared."""
+        # Arrange
+        v1 = _make_arrived_vehicle("v1")
+        v2 = _make_arrived_vehicle("v2")
+        vehicle_manager._vehicles = [v1, v2]
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert
+        assert result == [v1, v2]
+        assert vehicle_manager._vehicles == []
+
+    def test_collect_arrived_returns_only_arrived_vehicles_in_mixed_list(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Mixed list: only ARRIVED vehicles returned; MOVING ones remain."""
+        # Arrange
+        v_moving = _make_moving_vehicle("v-move")
+        v_arrived = _make_arrived_vehicle("v-arr")
+        vehicle_manager._vehicles = [v_moving, v_arrived]
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert
+        assert result == [v_arrived]
+        assert vehicle_manager._vehicles == [v_moving]
+
+    def test_collect_arrived_preserves_insertion_order_of_arrived_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Arrived vehicles are returned in their original insertion order."""
+        # Arrange
+        v1 = _make_arrived_vehicle("v1")
+        v2 = _make_arrived_vehicle("v2")
+        v3 = _make_arrived_vehicle("v3")
+        vehicle_manager._vehicles = [v1, v2, v3]
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert — order preserved
+        assert result == [v1, v2, v3]
+
+    def test_collect_arrived_preserves_relative_order_of_remaining_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Non-arrived vehicles remain in _vehicles in their original relative order."""
+        # Arrange
+        v1 = _make_moving_vehicle("v1")
+        v2 = _make_arrived_vehicle("v2")
+        v3 = _make_moving_vehicle("v3")
+        vehicle_manager._vehicles = [v1, v2, v3]
+
+        # Act
+        vehicle_manager.collect_arrived()
+
+        # Assert — v1 and v3 remain; v2 removed; relative order kept
+        assert vehicle_manager._vehicles == [v1, v3]
+
+    def test_collect_arrived_does_not_mutate_returned_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicles returned by collect_arrived still carry ARRIVED status."""
+        # Arrange
+        v_arrived = _make_arrived_vehicle("v-arr")
+        vehicle_manager._vehicles = [v_arrived]
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert — vehicle state untouched
+        assert result[0].status is VehicleStatus.ARRIVED
+
+    def test_collect_arrived_second_call_returns_empty_after_first_collection(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Second collect_arrived call returns [] — vehicles already removed."""
+        # Arrange
+        v_arrived = _make_arrived_vehicle("v-arr")
+        vehicle_manager._vehicles = [v_arrived]
+        vehicle_manager.collect_arrived()  # first collection removes the vehicle
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert
+        assert result == []
+
+    def test_collect_arrived_ignores_waiting_status_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """WAITING vehicles are not collected; only ARRIVED status triggers removal."""
+        # Arrange
+        v_waiting = Vehicle(
+            id="v-wait",
+            type=VehicleType.NORMAL,
+            position=(0, 0),
+            origin=(0, 0),
+            destination=(1, 0),
+            path=[(0, 0), (1, 0)],
+            path_index=0,
+            status=VehicleStatus.WAITING,
+        )
+        vehicle_manager._vehicles = [v_waiting]
+
+        # Act
+        result = vehicle_manager.collect_arrived()
+
+        # Assert — WAITING is not ARRIVED; vehicle stays in _vehicles
+        assert result == []
+        assert vehicle_manager._vehicles == [v_waiting]
