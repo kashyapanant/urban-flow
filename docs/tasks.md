@@ -49,10 +49,8 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 | ID | Task | Status |
 |----|------|--------|
 | P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) - Read, advance, measure route progress, and serialize vehicle state | ✅ |
-| P1-VEH-02 | `VehicleManager.__init__()` - Initialize manager | ⬜ |
-| P1-VEH-03 | `VehicleManager.spawn_vehicles()` - Spawn at grid edges | ⬜ |
-| P1-VEH-04 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
-| P1-VEH-05 | `VehicleManager.collect_arrived()` - Remove completed vehicles | ⬜ |
+| P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) - Initialize manager, spawn at grid edges, and remove completed vehicles | ✅ |
+| P1-VEH-03 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
 
 ### 4. TrafficLight Classes (Depends: Vehicle)
 
@@ -100,10 +98,8 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-PATH-02 | `PathNode.__lt__()` | ✅ | | |
 | P1-PATH-03 | `Pathfinder.find_path()` | ✅ | | |
 | P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
-| P1-VEH-02 | `VehicleManager.__init__()` | ⬜ | | |
-| P1-VEH-03 | `VehicleManager.spawn_vehicles()` | ⬜ | | |
-| P1-VEH-04 | `VehicleManager.move_vehicles()` | ⬜ | | |
-| P1-VEH-05 | `VehicleManager.collect_arrived()` | ⬜ | | |
+| P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) | ✅ | | |
+| P1-VEH-03 | `VehicleManager.move_vehicles()` | ⬜ | | |
 | P1-TL-01 | `TrafficLight.tick()` | ⬜ | | |
 | P1-TL-02 | `TrafficLight.can_enter()` | ⬜ | | |
 | P1-TL-03 | `TrafficLight.request_preemption()` | ⬜ | | |
@@ -125,7 +121,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
   from multiple hot-path methods (`get_next_position()`, `advance_path()` via
   `get_next_position()`, `get_remaining_distance()`, `to_dict()`). Re-check call
   frequency and runtime impact **after** movement and tick orchestration are
-  integrated (minimum trigger: P1-VEH-04 + P1-ENG-02 complete). Profile at
+  integrated (minimum trigger: P1-VEH-03 + P1-ENG-02 complete). Profile at
   realistic load (e.g., medium/high spawn-rate runs over sustained ticks) and
   then decide whether to keep current boundary-validation behavior or refactor
   to a single-validation internal helper for serialization hot paths.
@@ -134,9 +130,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__()`, `Pathfinder.find_path()`); Vehicle path progression/serialization complete through P1-VEH-01 (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`).
+**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__()`, `Pathfinder.find_path()`); Vehicle path progression/serialization complete through P1-VEH-01 (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`), and vehicle manager setup/spawn/cleanup complete through P1-VEH-02 (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`).
 
-**Next task:** P1-VEH-02 – `VehicleManager.__init__()` (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-VEH-03 – `VehicleManager.move_vehicles()` (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
