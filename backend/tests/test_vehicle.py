@@ -961,8 +961,34 @@ class TestVehicleManagerSpawnVehicles:
         """Vehicle skipped when returned path[0] differs from the spawn origin."""
         # Arrange
         mock_grid = _make_two_cell_mock_grid()
-        # Path starts at (1,1) instead of origin (0,0)
+        # Path starts at (1,1) instead of origin (0,0) — first guard fires
         bad_path = [(1, 1), (9, 0)]
+
+        with (
+            patch("random.random", return_value=0.0),
+            patch(
+                "backend.simulation.pathfinder.Pathfinder.find_path",
+                return_value=bad_path,
+            ),
+        ):
+            result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
+
+        # Assert
+        assert result == []
+
+    def test_spawn_vehicles_skips_when_path_end_does_not_match_destination(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle skipped when returned path[-1] differs from the chosen destination.
+
+        Mirrors the origin-mismatch test: path[0] matches origin so the first
+        half of the endpoint guard passes, but path[-1] != candidate_destination
+        triggers the second half and causes the retry to be skipped.
+        """
+        # Arrange
+        mock_grid = _make_two_cell_mock_grid()
+        # Path starts at origin (0,0) ✓ but ends at (5,5) instead of (9,0)
+        bad_path = [(0, 0), (5, 5)]
 
         with (
             patch("random.random", return_value=0.0),
