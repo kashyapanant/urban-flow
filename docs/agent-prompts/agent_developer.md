@@ -260,24 +260,38 @@ class Vehicle:
         """Get the next position on the vehicle's path.
         
         Returns:
-            Tuple (x, y) of next position, or None if path is empty.
+            Tuple (x, y) of next position, or None if already at destination.
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
         """
-        if not self.path:
-            return None
-        return self.path[0]
+        self._validate_path_state()
+        next_index = self.path_index + 1
+        return self.path[next_index] if next_index < len(self.path) else None
     
     def advance_path(self) -> None:
-        """Move to the next position by removing it from the path."""
-        if self.path:
-            self.path.pop(0)
+        """Advance one step along the precomputed path.
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
+        """
+        next_position = self.get_next_position()
+        if next_position is None:
+            return
+        self.path_index += 1
+        self.position = next_position
     
     def get_remaining_distance(self) -> int:
         """Get the number of cells remaining on the path.
         
         Returns:
-            Number of positions left (0 if path is empty).
+            Number of steps remaining to destination.
+
+        Raises:
+            ValueError: If ``path``/``path_index``/``position`` are inconsistent.
         """
-        return len(self.path)
+        self._validate_path_state()
+        return max(0, len(self.path) - self.path_index - 1)
 
 # Stop here. Wait for review before implementing P1-VEH-02.
 ```
@@ -303,26 +317,30 @@ the path is empty.
 def get_next_position(self) -> tuple[int, int] | None:
     """Get the next position on the vehicle's path.
     
-    The path is stored as a list of (x, y) tuples. This method returns
-    the first position without removing it (peek operation).
+    The path is stored as an immutable list of (x, y) tuples. The current
+    position is ``path[path_index]``. This method returns the *next* cell after
+    the current index, or ``None`` when already at destination.
     
     Returns:
-        Tuple (x, y) of next position, or None if path is empty.
+        Tuple (x, y) of next position, or ``None`` if already at destination.
         Coordinates use the standard Grid convention: x is column, y is row.
+
+    Raises:
+        ValueError: If ``path``/``path_index``/``position`` are inconsistent.
     
     Example:
-        >>> vehicle = Vehicle(id="v1", position=(0, 0), path=[(1, 0), (2, 0)])
-        >>> vehicle.get_next_position()
-        (1, 0)
-        >>> vehicle.path  # Path not modified
-        [(1, 0), (2, 0)]
+        >>> vehicle.path_index  # tracks progress; path stays immutable
+        0
     """
-    if not self.path:
+    self._validate_path_state()
+
+    next_index = self.path_index + 1
+    if next_index >= len(self.path):
         return None
-    return self.path[0]
+    return self.path[next_index]
 ```
 
-**When to add a design decision:** Only when there's a **genuine trade-off** (e.g., "Why `path.pop(0)` instead of maintaining a path index?")
+**When to add a design decision:** Only when there's a **genuine trade-off** (e.g., "Why an immutable route with `path_index` instead of mutating `path` with `pop(0)`?")
 
 ---
 
@@ -390,21 +408,7 @@ Waiting for guidance."
 # BAD - nested loops for flattening
 def get_edge_cells(self) -> list[Cell]:
     edge_cells = []
-    
-    # Top and bottom rows
-    for row_idx in [0, self.height - 1]:
-        for x in range(self.width):
-            cell = self.cells[row_idx][x]
-            if cell.is_traversable():
-                edge_cells.append(cell)
-    
-    # Left and right columns
-    for col_idx in [0, self.width - 1]:
-        for y in range(self.height):
-            cell = self.cells[y][col_idx]
-            if cell.is_traversable():
-                edge_cells.append(cell)
-    
+    # ... nested loops over perimeter ...
     return edge_cells
 ```
 
@@ -415,28 +419,12 @@ def get_edge_cells(self) -> list[Cell]:
 from itertools import chain
 
 def get_edge_cells(self) -> list[Cell]:
-    """Get all traversable cells on the grid perimeter for vehicle spawning.
-    
-    Returns cells in order: top row → bottom row → left column → right column.
-    Corner cells are included only once (not duplicated).
-    
-    Returns:
-        List of traversable edge cells, or empty list if grid has no edges.
-    """
     if self.width == 0 or self.height == 0:
         return []
-    
-    # Collect rows and columns as separate lists
+
     top = [c for c in self.cells[0] if c.is_traversable()]
     bottom = [c for c in self.cells[-1] if c.is_traversable()]
-    
-    # Left/right columns exclude corners (already in top/bottom)
-    left = [self.cells[y][0] for y in range(1, self.height - 1) 
-            if self.cells[y][0].is_traversable()]
-    right = [self.cells[y][-1] for y in range(1, self.height - 1) 
-             if self.cells[y][-1].is_traversable()]
-    
-    # Flatten all four strips in documented order
+    # ... left/right columns excluding corners ...
     return list(chain(top, bottom, left, right))
 ```
 
@@ -448,19 +436,8 @@ def get_edge_cells(self) -> list[Cell]:
 # BAD - unnecessary type checking
 def _component_id(component) -> str | None:
     """Extract ID from vehicle or traffic light component."""
-    if component is None:
-        return None
-    
-    if isinstance(component, str):
-        return component
-    elif hasattr(component, 'id'):
-        ident = component.id
-        if isinstance(ident, str):
-            return ident
-        else:
-            return str(ident)
-    else:
-        return None
+    # ... lots of isinstance / hasattr branching ...
+    return None
 ```
 
 ### ✅ DO: Use getattr with default and duck typing
@@ -512,7 +489,10 @@ def get_next_position(self) -> tuple[int, int] | None:
     """Get the next position on the vehicle's path.
     
     Returns:
-        Tuple (x, y) of next position, or None if path is empty.
+        Tuple (x, y) of next position, or ``None`` if already at destination.
+
+    Raises:
+        ValueError: If ``path``/``path_index``/``position`` are inconsistent.
     """
 ```
 
@@ -607,10 +587,10 @@ When assigned a task (e.g., "Implement **P1-VEH-01**"), follow this checklist:
    git commit -m "feat(vehicle): implement path navigation methods (P1-VEH-01)
    
    - Add get_next_position() - peek at next path position
-   - Add advance_path() - remove current position from path
-   - Add get_remaining_distance() - count remaining cells
+   - Add advance_path() - advance along path via path_index (no path mutation)
+   - Add get_remaining_distance() - count remaining steps to destination
    
-   All methods handle empty path gracefully."
+   All methods validate path/index state and raise on inconsistencies."
    ```
 
 10. **Report completion:**
@@ -619,13 +599,13 @@ When assigned a task (e.g., "Implement **P1-VEH-01**"), follow this checklist:
     
     Methods implemented:
     - Vehicle.get_next_position() - returns next (x,y) or None
-    - Vehicle.advance_path() - pops first path element
-    - Vehicle.get_remaining_distance() - returns len(path)
+    - Vehicle.advance_path() - advances along path via path_index
+    - Vehicle.get_remaining_distance() - returns remaining steps to destination
     
     Quality gates:
     - make lint: ✅ passes
     - Docstrings: ✅ complete
-    - Edge cases: ✅ empty path handled
+    - Edge cases: ✅ path/index state validated (raises on inconsistencies)
     
     Ready for review.
     ```
@@ -729,9 +709,6 @@ uv sync  # Reinstall dependencies with correct Python version
 def method_name(self, arg1: int, arg2: str | None = None) -> bool:
     """One-line summary ending with period.
     
-    Optional longer description explaining behavior, edge cases,
-    or important details. Can span multiple paragraphs.
-    
     Args:
         arg1: Description of arg1. What it represents, valid range, etc.
         arg2: Description of arg2. Include "Defaults to None" if optional.
@@ -742,11 +719,7 @@ def method_name(self, arg1: int, arg2: str | None = None) -> bool:
     
     Raises:
         ValueError: When arg1 is negative or zero.
-        TypeError: When arg2 is not a string.
-    
-    Example:
-        >>> obj.method_name(42, "test")
-        True
+        # ... other exceptions as needed ...
     """
 ```
 
@@ -810,8 +783,9 @@ toward Option A for consistency. Confirm?"
    if TYPE_CHECKING:
        from backend.simulation.vehicle import Vehicle
    
-   class Cell:
-       vehicle: Vehicle | None = None  # OK now
+   # Example:
+   # class Cell:
+   #     vehicle: Vehicle | None = None
    ```
 
 2. **Missing implementation:**
