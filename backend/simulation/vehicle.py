@@ -272,8 +272,11 @@ class VehicleManager:
 
             destination: tuple[int, int] | None = None
             path: list[tuple[int, int]] | None = None
-            for _ in range(max_retries):
-                candidate_destination = random.choice(destination_candidates)
+            retry_destinations = random.sample(
+                destination_candidates,
+                k=min(max_retries, len(destination_candidates)),
+            )
+            for candidate_destination in retry_destinations:
                 candidate_path = Pathfinder.find_path(
                     grid=grid,
                     start=origin,
@@ -299,7 +302,7 @@ class VehicleManager:
                 continue
 
             vehicle = Vehicle(
-                id=uuid.uuid4().hex[:8],
+                id=uuid.uuid4().hex,
                 type=vehicle_type,
                 position=origin,
                 origin=origin,
@@ -337,19 +340,18 @@ class VehicleManager:
         Returns:
             List of vehicles that completed their journey
         """
-        arrived = [
-            vehicle
-            for vehicle in self._vehicles
-            if vehicle.status is VehicleStatus.ARRIVED
-        ]
+        arrived: list[Vehicle] = []
+        remaining: list[Vehicle] = []
+        for vehicle in self._vehicles:
+            if vehicle.status is VehicleStatus.ARRIVED:
+                arrived.append(vehicle)
+            else:
+                remaining.append(vehicle)
+
         if not arrived:
             return []
 
-        self._vehicles = [
-            vehicle
-            for vehicle in self._vehicles
-            if vehicle.status is not VehicleStatus.ARRIVED
-        ]
+        self._vehicles = remaining
         return arrived
 
     def get_all(self) -> list[Vehicle]:
