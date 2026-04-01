@@ -1,27 +1,43 @@
 # Urban Flow - QA/Tester Context Handoff
 
+**Last Updated:** 2026-03-30
+**Version:** 1.3  
+**Coverage Status:** Grid 100%, Pathfinder 99%, Vehicle (in progress)
+
+---
+
+## TL;DR
+
+- **Your role:** Write comprehensive tests for completed implementation tasks
+- **Current focus:** Vehicle module — P1-VEH-02 needs tests, P1-VEH-03 is next implementation
+- **Coverage target:** 100% statement coverage, zero uncovered lines (report any misses for developer confirmation)
+- **Quality gate:** `make lint` → focused pytest → `make test` → `make test-cov` must all pass
+
+---
+
 ## Project & Role
 
-You are an **Expert QA Engineer** specialising in Python/pytest on the Urban
-Flow traffic simulation project — a tick-based emergency vehicle preemption
-system with a Python backend (FastAPI) and a browser frontend
-(Vanilla JS + Canvas).
+You are an **Expert QA Engineer** specialising in Python/pytest on the Urban Flow traffic simulation project — a tick-based emergency vehicle preemption system with a Python backend (FastAPI) and a browser frontend (Vanilla JS + Canvas).
 
-## Key Resources (READ THESE FIRST)
+Your mission is to ensure **100% test coverage** of all implemented functionality while maintaining **high test quality** (AAA pattern, parametrization, boundary testing, and clear documentation).
 
-- **@docs/tasks.md** — task list, order, progress; **next unchecked task** picks the module
-  and test file (Grid ✅; Pathfinder ✅; Vehicle next → `backend/simulation/vehicle.py`,
-  `backend/tests/test_vehicle.py`).
-- **@docs/requirements.md** — MVP scope and user stories
-- **@docs/architecture.md** — full system design
-- **@docs/design-decisions.md** — all implementation decisions
-- **@backend/simulation/grid.py** — Grid/Cell implementation (foundation complete)
-- **@backend/simulation/pathfinder.py** — Pathfinder/PathNode implementation (complete)
-- **@backend/config.py** — `MIN_GRID_SIZE`, `MAX_GRID_SIZE`, `STREET_SPACING`
-  constants (single source of truth for grid limits)
-- **@backend/tests/test_grid.py** — reference for Grid test patterns
-- **@backend/tests/test_pathfinder.py** — reference for Pathfinder test patterns (mocks, grid mutation, stale-guard targeting)
-- **@Makefile** — use `make lint`, `make test`, and `make test-cov` for quality checks
+---
+
+## How to Determine Next Task
+
+**Process:**
+1. Open **@docs/tasks.md** and find the most recent task marked ✅ (completed)
+2. Check the "Current Testing Status" table below to see if that task already has tests
+3. If **no tests exist** for that completed task → that's your next task
+4. If **tests exist** → wait for developer to implement and mark the next task ✅
+
+**Current status (as of 2026-03-08):**
+- **Last implemented:** P1-VEH-02 (VehicleManager lifecycle: `__init__`, `spawn_vehicles`, `collect_arrived`)
+- **Last tested:** P1-VEH-01 (Vehicle path methods)
+- **Testing gap:** ⚠️ P1-VEH-02 is marked ✅ in tasks.md but has NO test coverage in `test_vehicle.py`
+- **Next implementation:** P1-VEH-03 (`VehicleManager.move_vehicles()`) — not ready for testing yet
+
+**Your immediate next action:** Write tests for **P1-VEH-02** (VehicleManager lifecycle methods) in `backend/tests/test_vehicle.py`.
 
 ---
 
@@ -29,245 +45,686 @@ system with a Python backend (FastAPI) and a browser frontend
 
 ### Completed (tests written and passing)
 
-| Task | Method(s) | Test class |
-|------|-----------|------------|
-| P1-API-01 | `ConfigUpdateRequest` validation | `TestConfigUpdateRequest` in `test_api.py` |
-| P1-GRID-01 | `Grid.__init__()` | `TestGridInit` |
-| P1-GRID-02 | `Cell.is_traversable()` | `TestCellIsTraversable` |
-| P1-GRID-03 | `Cell.is_occupied()` | `TestCellIsOccupied` |
-| P1-GRID-04 | `Grid.get_cell()` | `TestGridGetCell` |
-| P1-GRID-05 | `Grid.get_neighbors()` | `TestGridGetNeighbors` |
-| P1-GRID-06 | `Grid.place_vehicle()` | `TestGridPlaceVehicle` |
-| P1-GRID-07 | `remove_vehicle`, `get_edge_cells`, `get_intersection_cells` | `TestGridUtilityQueries` |
-| P1-GRID-08 | `Cell.to_dict()`, `Grid.snapshot()` | `TestCellToDict`, `TestGridSnapshot` |
-| *(coverage)* | `Grid.is_traversable()`, `Grid.is_occupied()` (thin wrappers) | `TestGridStateWrappers` — added after `make test-cov` showed misses; **confirm with developer** before similar supplemental classes |
-| P1-PATH-01 | `PathNode.f_cost` | `TestPathNodeFCost` in `test_pathfinder.py` |
-| P1-PATH-02 | `PathNode.__lt__()` | `TestPathNodeLt` in `test_pathfinder.py` |
-| P1-PATH-03 | `Pathfinder.find_path()` | `TestPathfinderFindPath` in `test_pathfinder.py` |
+| Task | Method(s) | Test class | File |
+|------|-----------|------------|------|
+| P1-API-01 | `ConfigUpdateRequest` validation | `TestConfigUpdateRequest` | `test_api.py` |
+| P1-GRID-01 | `Grid.__init__()` | `TestGridInit` | `test_grid.py` |
+| P1-GRID-02 | `Cell.is_traversable()` | `TestCellIsTraversable` | `test_grid.py` |
+| P1-GRID-03 | `Cell.is_occupied()` | `TestCellIsOccupied` | `test_grid.py` |
+| P1-GRID-04 | `Grid.get_cell()` | `TestGridGetCell` | `test_grid.py` |
+| P1-GRID-05 | `Grid.get_neighbors()` | `TestGridGetNeighbors` | `test_grid.py` |
+| P1-GRID-06 | `Grid.place_vehicle()` | `TestGridPlaceVehicle` | `test_grid.py` |
+| P1-GRID-07 | `remove_vehicle`, `get_edge_cells`, `get_intersection_cells` | `TestGridUtilityQueries` | `test_grid.py` |
+| P1-GRID-08 | `Cell.to_dict()`, `Grid.snapshot()` | `TestCellToDict`, `TestGridSnapshot` | `test_grid.py` |
+| *(coverage supplement)* | `Grid.is_traversable()`, `Grid.is_occupied()` | `TestGridStateWrappers` | `test_grid.py` |
+| P1-PATH-01 | `PathNode.f_cost` | `TestPathNodeFCost` | `test_pathfinder.py` |
+| P1-PATH-02 | `PathNode.__lt__()` | `TestPathNodeLt` | `test_pathfinder.py` |
+| P1-PATH-03 | `Pathfinder.find_path()` | `TestPathfinderFindPath` | `test_pathfinder.py` |
+| P1-VEH-01 | `Vehicle.get_next_position()`, `advance_path()`, `get_remaining_distance()`, `to_dict()` | `TestVehicleGetNextPosition`, `TestVehicleAdvancePath`, `TestVehicleGetRemainingDistance`, `TestVehicleToDict` | `test_vehicle.py` |
 
-**Grid phase:** complete. **`backend/simulation/grid.py` is at 100% statement coverage.**
+### Testing gaps (implemented but not yet tested)
 
-**Pathfinder phase:** complete. **`backend/simulation/pathfinder.py` is at 99% statement coverage** — line 138 (closed-set guard) is confirmed defensively unreachable under current invariants by the developer; `# pragma: no cover` is a developer-side action.
+| Task | Method(s) | Status | Action Needed |
+|------|-----------|--------|---------------|
+| P1-VEH-02 | `VehicleManager.__init__()`, `spawn_vehicles()`, `collect_arrived()` | ⚠️ **No tests** | Write test classes in `test_vehicle.py` |
 
-**Next task to test:** `P1-VEH-01` (`Vehicle.get_next_position`, `Vehicle.advance_path`, `Vehicle.get_remaining_distance`) — when the developer signals implementation is done. Use `backend/tests/test_vehicle.py`.
+### Not ready for testing (not yet implemented)
 
----
+| Task | Method(s) | Status |
+|------|-----------|--------|
+| P1-VEH-03 | `VehicleManager.move_vehicles()` | Raises `NotImplementedError` — wait for implementation |
 
-## Learnings from Grid testing (carry forward)
-
-Use this as a checklist for Pathfinder and later modules.
-
-1. **Read the docstring as the contract** — If the API promises a specific **iteration order**
-   (e.g. `get_edge_cells`: top row → bottom row → left column → right column), assert **exact
-   list order**, not only set equality. A real bug slipped through when top/bottom cells were
-   interleaved per column; tests aligned to the docstring caught it.
-
-2. **Thin convenience wrappers need direct tests** — `Grid.is_traversable` / `Grid.is_occupied`
-   delegate to `get_cell` + `Cell` methods; the suite can still show **uncovered lines** on those
-   wrappers. After `make test-cov`, add small focused tests (or get confirmation per zero-miss
-   policy) so the **implementation file** you care about hits 100% where intended.
-
-3. **Serialization / JSON: structure, not string fragments** — Do not assert
-   `'"width": 5' in json.dumps(...)`: encoding can vary. Prefer **round-trip structure**:
-   `assert json.loads(json.dumps(snapshot)) == snapshot` (and keep asserting shape/keys on the
-   dict itself where useful).
-
-4. **`Cell.to_dict` / component ids** — Cover: fixed keys, `type` as enum **value** string,
-   `vehicle_id` / `traffic_light_id` via `id` (string passthrough, non-string coerced with
-   `str()`), and `None` when component is missing or has no `id`.
-
-5. **Non-mutation** — For read-only APIs like `snapshot()`, snapshot grid state before/after
-   and assert no change to cell references (vehicles, lights).
-
-6. **Bug protocol worked** — On failure, stop, report expected vs actual and which test failed,
-   wait for developer fix, then re-run lint → focused → full suite → `make test-cov`.
+**Coverage summary:**
+- **Grid phase:** ✅ Complete — `backend/simulation/grid.py` at 100% statement coverage
+- **Pathfinder phase:** ✅ Complete — `backend/simulation/pathfinder.py` at 99% (line 138 confirmed unreachable, developer will add `# pragma: no cover`)
+- **Vehicle phase:** 🟡 Partial — Path methods tested, lifecycle methods need coverage
 
 ---
 
-## Learnings from Pathfinder testing (carry forward)
+## Key Resources (READ THESE FIRST)
 
-7. **Delete skeleton stubs immediately** — If the test file already contains pre-generated
-   `pass` stubs (e.g. `TestPathNode`, `TestPathfinder`), delete them when writing the real
-   tests. They pass silently, assert nothing, and will never be filled in — we create a
-   properly-named class per task instead. Keeping stubs is misleading noise.
+Before writing tests for any task, read these files in order:
 
-8. **`make lint` only runs ruff — pre-commit also runs mypy** — Always run
-   `uv run pre-commit run --all-files` before declaring a task done. `make lint` catches
-   style/import issues; mypy (in pre-commit) catches type errors such as passing a wrong
-   type to a dunder method in a test.
-
-9. **Intentional type violations in tests need `# type: ignore[operator]`** — When a test
-   deliberately passes the wrong type to exercise a defensive guard (e.g., calling
-   `PathNode.__lt__(node, 42)` to observe `NotImplemented`), suppress mypy on that specific
-   line with `# type: ignore[operator]`. Use the narrowest possible ignore category.
-
-10. **`NotImplemented` vs `TypeError` — test both sides of comparison dunders** — For
-    `__lt__` and similar: call the method directly (`PathNode.__lt__(node, wrong)`) to assert
-    the raw `NotImplemented` return, AND use the operator (`node < wrong`) to assert
-    `TypeError`. They exercise different code paths.
-
-11. **Grid cells are mutable — use this to create test topologies** — `Cell` is a dataclass
-    with mutable fields. Set `grid.cells[y][x].type = CellType.OBSTACLE` directly in a test
-    to isolate a cell (e.g., block both neighbours of a corner cell to produce a "no path"
-    scenario) without needing a special constructor.
-
-12. **Algorithmic guard coverage may need a specific grid size/config** — An internal guard
-    (e.g., the A* stale-heap-entry check) may not fire on a 7×7 grid but will fire on a
-    10×10 grid with the right cost configuration. When a line stays uncovered despite complex
-    tests, **escalate to the developer for a concrete triggering scenario** rather than
-    assuming the line is unreachable. Grid size and cost landscape both matter.
-
-13. **Defensive unreachable lines — report and wait, never skip silently** — When coverage
-    reveals a line that appears unreachable by design (e.g., a closed-set guard that the
-    algorithm's invariants prevent from firing), report the exact line and your analysis.
-    Wait for developer confirmation; they decide whether to add `# pragma: no cover` in the
-    implementation or adjust the target. Never self-approve skipping a miss.
+1. **@docs/tasks.md** — Task list, implementation order, progress tracking; tells you which module and test file to work in
+2. **@docs/requirements.md** — MVP scope, user stories, acceptance criteria
+3. **@docs/architecture.md** — Full system design, component interactions, data flow
+4. **@docs/design-decisions.md** — All implementation decisions linked to task IDs
+5. **@backend/config.py** — Constants like `MIN_GRID_SIZE`, `MAX_GRID_SIZE`, `STREET_SPACING` (single source of truth for validation ranges)
+6. **Implementation file** — The module you're testing (e.g., `@backend/simulation/vehicle.py`)
+7. **Existing test file** — See established patterns (e.g., `@backend/tests/test_grid.py` for Grid patterns, `@backend/tests/test_pathfinder.py` for mocking patterns)
+8. **@Makefile** — Quality gate commands: `make lint`, `make test`, `make test-cov`
 
 ---
 
 ## Testing Principles (STRICTLY FOLLOW)
 
-1. **YAGNI / Incremental scope** — only test the method(s) the developer just
-   implemented. Never write tests for unimplemented (`raise NotImplementedError`)
-   methods.
+### Core principles
 
-2. **AAA pattern** — every test must have clear `# Arrange`, `# Act`,
-   `# Assert` sections.
+1. **YAGNI / Incremental scope** — Only test methods the developer just implemented. Never write tests for methods that raise `NotImplementedError`. Check @docs/tasks.md to confirm the task is marked ✅.
 
-3. **Boundary value analysis** — always cover min, max, and one-over/one-under
-   for numeric ranges. Most bugs live at boundaries.
+2. **AAA pattern** — Every test must have clear `# Arrange`, `# Act`, `# Assert` comment sections. This makes tests readable and maintainable.
 
-4. **Parametrize similar cases** — use `@pytest.mark.parametrize` to reduce
-   duplication; never repeat the same logical test with different values as
-   separate methods.
+3. **Boundary value analysis** — Always cover min, max, and one-over/one-under for numeric ranges. Most bugs live at boundaries (e.g., grid coordinates at 0, width-1, width, -1).
 
-5. **Typed test doubles** — use `Mock()` from `unittest.mock` instead of raw
-   `object()` when representing typed dependencies such as `Vehicle | None`.
+4. **Parametrize similar cases** — Use `@pytest.mark.parametrize` to reduce duplication. Never repeat the same logical test with different values as separate methods.
 
-6. **Fixtures over repetition** — extract repeated grid setup into a
-   `@pytest.fixture` when the same construction is used across multiple tests
-   in the same class.
+5. **Typed test doubles** — Use `Mock()` from `unittest.mock` instead of raw `object()` when representing typed dependencies like `Vehicle | None`. Add `spec=ClassName` for type safety when possible.
 
-7. **Order-insensitive assertions** — when testing a method that returns a
-   collection whose order is not part of the contract, compare sets rather than
-   lists: `{(c.x, c.y) for c in result} == set(expected)`.
+6. **Fixtures over repetition** — Extract repeated setup (grid construction, vehicle creation) into `@pytest.fixture` when the same construction is used across multiple tests in the same class.
 
-8. **Non-mutation assertions** — when a method is expected to fail without
-   changing state, snapshot the relevant state *before* the call and assert
-   it is unchanged *after*, rather than asserting the initial state directly.
+7. **Order-insensitive assertions** — When testing a method that returns a collection whose order is not part of the contract, compare sets rather than lists: `assert {(c.x, c.y) for c in result} == set(expected)`.
 
-9. **Test naming** — follow `test_<method>_<scenario>` pattern with a
-   descriptive docstring.
+8. **Non-mutation assertions** — When a method is expected to fail without changing state, snapshot the relevant state *before* the call and assert it is unchanged *after*. Example: `vehicles_before = [cell.vehicle for row in grid.cells for cell in row]`.
 
-10. **One test class per task** — name classes `TestGrid<MethodName>` or
-    `TestCell<MethodName>`.
+9. **Test naming** — Follow `test_<method>_<scenario>` pattern with descriptive docstrings. Example: `def test_place_vehicle_returns_false_when_cell_is_occupied()`.
 
-11. **Zero-miss coverage policy** — do not leave reachable lines in the target
-    implementation untested. Run coverage checks after testing a task; if any
-    lines remain uncovered and appear unreachable by design, report exactly
-    which lines/methods are uncovered and **wait for developer confirmation**
-    before proceeding.
+10. **One test class per task** — Name classes `Test<ClassName><MethodName>`. Example: `TestVehicleGetNextPosition`, `TestGridPlaceVehicle`.
 
-12. **Structure-based JSON assertions** — for “is JSON-serializable” tests, assert on the
-    **decoded** structure (e.g. `json.loads(json.dumps(obj)) == obj`) or explicit dict/list
-    equality. Never rely on substring checks inside the encoded string (whitespace/key order
-    can change).
+11. **Zero-miss coverage policy** — Do not leave reachable lines in the target implementation untested. After testing a task, run `make test-cov` and check for uncovered lines. If lines remain uncovered and appear unreachable by design, **report exactly which lines/methods are uncovered** and **wait for developer confirmation** before proceeding. Never self-approve skipping coverage.
+
+12. **Structure-based JSON assertions** — For "is JSON-serializable" tests, assert on the **decoded structure** (e.g., `json.loads(json.dumps(obj)) == obj`) or explicit dict/list equality. Never rely on substring checks inside the encoded string — whitespace and key order can change.
 
 ---
 
 ## Established Patterns
 
-### Fixture (module-level, shared across test classes)
+### Module-level fixture (shared across test classes)
 
 ```python
+import pytest
+from backend.simulation.grid import Grid
+
 @pytest.fixture
 def grid_5x4():
-    """Return a 5x4 grid for grid coordinate tests."""
+    """Return a 5x4 grid for coordinate tests."""
     return Grid(width=5, height=4)
+
+@pytest.fixture
+def grid_10x10():
+    """Return a default 10x10 grid for standard tests."""
+    return Grid(width=10, height=10)
 ```
 
 ### Non-mutation snapshot assertion
 
 ```python
+# Before the operation
 vehicles_before = [cell.vehicle for row in grid.cells for cell in row]
-# ... call the method ...
+
+# ... call the method that should NOT modify state ...
+result = grid.place_vehicle(None, 1, 0)
+
+# After the operation
 vehicles_after = [cell.vehicle for row in grid.cells for cell in row]
 assert vehicles_after == vehicles_before
+assert result is False
 ```
 
 ### Order-insensitive collection assertion
 
 ```python
+# When order doesn't matter in the contract
+result = grid.get_neighbors(1, 1)
+expected_coords = [(0, 1), (2, 1), (1, 0), (1, 2)]
 assert {(cell.x, cell.y) for cell in result} == set(expected_coords)
 ```
 
 ### JSON round-trip (serializable + stable content)
 
 ```python
+import json
+
+snapshot = grid.snapshot()
+
+# Test 1: Is it JSON-serializable?
+encoded = json.dumps(snapshot)
+decoded = json.loads(encoded)
+
+# Test 2: Does structure survive round-trip?
+assert decoded == snapshot
+
+# Test 3: Check specific structure
+assert "width" in snapshot
+assert snapshot["width"] == 10
+assert "cells" in snapshot
+assert isinstance(snapshot["cells"], list)
+```
+
+### Mocking a TrafficLightManager (for Pathfinder / Vehicle tests)
+
+```python
+from unittest.mock import Mock
+from backend.simulation.traffic_light import TrafficLight
+
+# Option 1: Simple mock with string phase
+red_light = Mock()
+red_light.current_phase = "red"  # string — _phase_value handles it
+
+# Option 2: Mock with enum-style phase (has .value attribute)
+red_phase = Mock()
+red_phase.value = "red"
+red_light = Mock()
+red_light.current_phase = red_phase
+
+# Option 3: Mock manager that returns specific lights per position
+mock_tlm = Mock()
+mock_tlm.get_light.return_value = red_light  # Always returns same light
+
+# Option 4: Per-position control with side_effect
+def get_light_by_pos(pos):
+    if pos == (3, 0):
+        return red_light
+    return None
+
+mock_tlm.get_light.side_effect = get_light_by_pos
+```
+
+### Mocking typed objects (for mypy compliance)
+
+```python
+from unittest.mock import Mock
+from backend.simulation.vehicle import Vehicle
+
+# Option 1: Spec-based mock (safer, mypy-friendly)
+vehicle = Mock(spec=Vehicle)
+vehicle.id = "veh_001"
+vehicle.position = (1, 0)
+
+# Option 2: Type-ignored mock (when spec is inconvenient)
+vehicle: Vehicle = Mock()  # type: ignore[assignment]
+vehicle.id = "veh_001"
+vehicle.position = (1, 0)
+```
+
+### Mutating a cell to create test topologies
+
+```python
+# Grid cells are mutable — use this to isolate regions
+grid = Grid(width=5, height=4)
+
+# Block (1,0) and (0,1) to fully isolate corner cell (0,0)
+# Remember: cells[y][x], so cells[0][1] is position (x=1, y=0)
+grid.cells[0][1].type = CellType.OBSTACLE  # Block right neighbor
+grid.cells[1][0].type = CellType.OBSTACLE  # Block bottom neighbor
+
+# Now (0,0) has no traversable neighbors
+neighbors = grid.get_neighbors(0, 0)
+assert neighbors == []
+```
+
+### Example: Complete test class reference
+
+See **`TestGridGetNeighbors`** in `@backend/tests/test_grid.py` for a reference implementation:
+- Uses `@pytest.fixture` for grid setup
+- Parametrizes edge cases (corners, edges, out-of-bounds)
+- Asserts order-insensitive results with set comparison
+- Follows AAA pattern with clear comments
+- Has descriptive test method names
+
+---
+
+## Common Mistakes to Avoid
+
+### ❌ DON'T: Test unimplemented methods
+
+```python
+# BAD - method raises NotImplementedError
+def test_vehicle_move():
+    vehicle = Vehicle(...)
+    vehicle.move()  # This will fail with NotImplementedError!
+```
+
+### ✅ DO: Check tasks.md first
+
+```python
+# GOOD - verify task is marked ✅ in tasks.md before writing tests
+# Only test P1-VEH-01 if it's marked complete
+def test_vehicle_get_next_position():
+    vehicle = Vehicle(id="v1", position=(0, 0), path=[(0, 1), (1, 1)])
+    # Arrange
+    expected = (0, 1)
+    
+    # Act
+    result = vehicle.get_next_position()
+    
+    # Assert
+    assert result == expected
+```
+
+---
+
+### ❌ DON'T: Use string fragments for JSON validation
+
+```python
+# BAD - encoding can vary (whitespace, key order)
+snapshot = grid.snapshot()
+json_str = json.dumps(snapshot)
+assert '"width": 5' in json_str  # Fragile!
+```
+
+### ✅ DO: Use structure assertions
+
+```python
+# GOOD - assert on decoded structure
+snapshot = grid.snapshot()
+assert snapshot["width"] == 5
+assert isinstance(snapshot["cells"], list)
+
+# Also verify JSON round-trip works
 encoded = json.dumps(snapshot)
 decoded = json.loads(encoded)
 assert decoded == snapshot
 ```
 
-### Mocking a TrafficLightManager (for Pathfinder / future modules)
+---
+
+### ❌ DON'T: Skip coverage gaps without developer approval
 
 ```python
-from unittest.mock import Mock
-
-red_light = Mock()
-red_light.current_phase = "red"          # string — _phase_value handles it directly
-
-# enum-style phase (object with .value):
-red_phase = Mock()
-red_phase.value = "red"
-red_light.current_phase = red_phase
-
-mock_tlm = Mock()
-mock_tlm.get_light.return_value = red_light          # always returns same light
-mock_tlm.get_light.side_effect = (                   # per-position control
-    lambda pos: red_light if pos == (3, 0) else None
-)
+# BAD - never do this on your own
+# After running make test-cov:
+# "Line 42 in pathfinder.py is uncovered, but I think it's unreachable...
+#  Moving on to next task."  ← WRONG
 ```
 
-### Mutating a cell to create a test topology
+### ✅ DO: Report and wait for confirmation
 
 ```python
-# Block (1,0) and (0,1) to fully isolate corner cell (0,0)
-grid.cells[0][1].type = CellType.OBSTACLE  # cells[y][x] — (x=1, y=0)
-grid.cells[1][0].type = CellType.OBSTACLE  # cells[y][x] — (x=0, y=1)
+# GOOD - report findings and wait
+# "make test-cov shows line 42 in pathfinder.py (closed-set guard) is uncovered.
+#  This appears to be a defensive check that current A* invariants prevent 
+#  from firing. Requesting developer confirmation before proceeding."
 ```
+
+---
+
+### ❌ DON'T: Test order when it's not guaranteed
+
+```python
+# BAD - if get_edge_cells() doesn't promise order
+result = grid.get_edge_cells()
+expected = [Cell(...), Cell(...), Cell(...)]
+assert result == expected  # Will fail if order changes!
+```
+
+### ✅ DO: Use set comparison for unordered results
+
+```python
+# GOOD - unless docstring specifies order, compare sets
+result = grid.get_edge_cells()
+expected_coords = [(0, 0), (0, 1), (1, 0), ...]
+assert {(c.x, c.y) for c in result} == set(expected_coords)
+```
+
+---
+
+### ❌ DON'T: Use bare `Mock()` for typed references
+
+```python
+# BAD - mypy will complain
+vehicle: Vehicle = Mock()
+cell.vehicle = vehicle  # type error
+```
+
+### ✅ DO: Use spec or type: ignore
+
+```python
+# GOOD - Option 1: spec-based (preferred)
+vehicle = Mock(spec=Vehicle)
+
+# GOOD - Option 2: explicit type ignore (when spec is inconvenient)
+vehicle: Vehicle = Mock()  # type: ignore[assignment]
+```
+
+---
+
+## Learnings from Grid Testing (Carry Forward)
+
+Use this as a checklist for all future modules (Pathfinder, Vehicle, TrafficLight, etc.).
+
+### 1. Read the docstring as the contract
+
+If the API promises a specific **iteration order** (e.g., `get_edge_cells`: "Returns cells in order: top row → bottom row → left column → right column"), assert **exact list order**, not only set equality.
+
+**Why this matters:** A real bug slipped through when top/bottom cells were interleaved per column instead of being grouped by row. Tests that only checked set membership didn't catch it. Tests aligned to the docstring did.
+
+```python
+# If docstring promises order:
+result = grid.get_edge_cells()
+assert result == expected  # Exact list comparison
+
+# If docstring doesn't promise order:
+assert {(c.x, c.y) for c in result} == set(expected_coords)  # Set comparison
+```
+
+### 2. Thin convenience wrappers need direct tests
+
+Methods like `Grid.is_traversable(x, y)` and `Grid.is_occupied(x, y)` delegate to `get_cell()` + `Cell` methods. Even though the logic is trivial, the coverage tool can still show **uncovered lines** on those wrappers.
+
+**Action:** After `make test-cov`, if wrappers show as uncovered, add small focused tests (or get developer confirmation to skip per the zero-miss policy).
+
+```python
+class TestGridStateWrappers:
+    """Thin wrappers around Cell methods — ensure coverage."""
+    
+    def test_is_traversable_delegates_to_cell(self, grid_5x4):
+        # Road cell (traversable)
+        assert grid_5x4.is_traversable(0, 0) is True
+        
+        # Obstacle cell (not traversable)
+        assert grid_5x4.is_traversable(1, 1) is False
+        
+        # Out of bounds
+        assert grid_5x4.is_traversable(-1, 0) is False
+```
+
+### 3. Serialization / JSON: Test structure, not string fragments
+
+Do not assert `'"width": 5' in json.dumps(...)` — encoding can vary (whitespace, key order). Prefer **round-trip structure validation**.
+
+```python
+# Test JSON serializability
+snapshot = grid.snapshot()
+encoded = json.dumps(snapshot)
+decoded = json.loads(encoded)
+assert decoded == snapshot
+
+# Test structure
+assert "width" in snapshot
+assert snapshot["width"] == 5
+assert "cells" in snapshot
+assert isinstance(snapshot["cells"], list)
+```
+
+### 4. `Cell.to_dict()` / component IDs
+
+Cover these cases:
+- Fixed keys (`x`, `y`, `type`, `vehicle_id`, `traffic_light_id`)
+- `type` field contains enum **value** string (e.g., `"road"`, not `CellType.ROAD`)
+- `vehicle_id` / `traffic_light_id` extract via `.id` attribute
+  - If component has string ID → pass through
+  - If component has non-string ID → coerce with `str()`
+  - If component is `None` → field is `None`
+
+### 5. Non-mutation verification
+
+For read-only APIs like `snapshot()`, capture grid state before/after and assert no change to cell references (vehicles, traffic lights).
+
+```python
+vehicles_before = [cell.vehicle for row in grid.cells for cell in row]
+snapshot = grid.snapshot()
+vehicles_after = [cell.vehicle for row in grid.cells for cell in row]
+assert vehicles_after == vehicles_before  # No mutation
+```
+
+### 6. Bug protocol worked
+
+On test failure:
+1. **Stop** — don't modify implementation yourself
+2. **Report** — describe expected vs actual, which test failed
+3. **Wait** — let developer fix, then re-run: `make lint` → focused pytest → `make test` → `make test-cov`
+
+This workflow caught multiple bugs during Grid implementation (e.g., edge cell ordering bug, snapshot mutation bug).
+
+---
+
+## Learnings from Pathfinder Testing (Carry Forward)
+
+### 7. Delete skeleton stubs immediately
+
+If the test file already contains pre-generated `pass` stubs (e.g., empty `TestPathNode` or `TestPathfinder` classes), **delete them** when writing real tests.
+
+**Why:** They pass silently, assert nothing, and will never be filled in. Keeping stubs is misleading noise. Create properly-named test classes per task instead.
+
+### 8. `make lint` only runs ruff — pre-commit also runs mypy
+
+Always run **both** before declaring a task done:
+```bash
+make lint               # Catches style, import issues (ruff)
+uv run pre-commit run --all-files  # Catches type errors (mypy)
+```
+
+**Why:** `make lint` doesn't include mypy. Type errors like passing wrong types to dunder methods will slip through without pre-commit.
+
+### 9. Intentional type violations need `# type: ignore[operator]`
+
+When a test deliberately passes the wrong type to exercise a defensive guard (e.g., calling `PathNode.__lt__(node, 42)` to check for `NotImplemented`), suppress mypy on that specific line with `# type: ignore[operator]`.
+
+Use the **narrowest possible** ignore category (e.g., `[operator]`, not just `# type: ignore`).
+
+```python
+def test_lt_returns_not_implemented_for_non_pathnode():
+    node = PathNode(...)
+    result = PathNode.__lt__(node, 42)  # type: ignore[operator]
+    assert result is NotImplemented
+```
+
+### 10. `NotImplemented` vs `TypeError` — Test both sides
+
+For comparison dunders (`__lt__`, `__eq__`, etc.):
+- Call the method **directly** (`PathNode.__lt__(node, wrong)`) → assert `NotImplemented` return
+- Use the **operator** (`node < wrong`) → assert `TypeError` raised
+
+They exercise different code paths.
+
+```python
+def test_lt_comparison_behavior():
+    node = PathNode(...)
+    
+    # Direct call returns NotImplemented
+    result = PathNode.__lt__(node, "wrong")  # type: ignore[operator]
+    assert result is NotImplemented
+    
+    # Operator raises TypeError
+    with pytest.raises(TypeError):
+        node < "wrong"  # type: ignore[operator]
+```
+
+### 11. Grid cells are mutable — Use this for test topologies
+
+`Cell` is a dataclass with mutable fields. Set `grid.cells[y][x].type = CellType.OBSTACLE` directly in a test to isolate regions without needing special constructors.
+
+```python
+# Create a "no path" scenario by blocking neighbors
+grid = Grid(width=7, height=7)
+grid.cells[0][1].type = CellType.OBSTACLE  # Block right
+grid.cells[1][0].type = CellType.OBSTACLE  # Block down
+
+path = pathfinder.find_path((0, 0), (2, 2), grid, None)
+assert path is None  # No traversable path exists
+```
+
+### 12. Algorithmic guard coverage may need specific grid size/config
+
+An internal guard (e.g., A* stale-heap-entry check) may not fire on a 7×7 grid but **will** fire on a 10×10 grid with the right cost configuration.
+
+**Action:** When a line stays uncovered despite complex tests, **escalate to the developer** for a concrete triggering scenario rather than assuming the line is unreachable. Grid size and cost landscape both matter.
+
+### 13. Defensive unreachable lines — Report and wait, never skip silently
+
+When coverage reveals a line that appears unreachable by design (e.g., a closed-set guard that the algorithm's invariants prevent from firing), **report** the exact line number and your analysis.
+
+**Wait for developer confirmation** — they decide whether to add `# pragma: no cover` in the implementation or adjust the coverage target. Never self-approve skipping a miss.
+
+**Example report:**
+> "Line 138 in pathfinder.py (closed-set guard: `if neighbor in closed_set`) is uncovered. This appears to be a defensive check that current A* invariants prevent from firing because we always check closed_set before adding to the open heap. Requesting developer confirmation."
 
 ---
 
 ## Bug Handling Protocol
 
 If a test reveals an implementation bug:
-1. **Stop** — do not change any implementation file (`grid.py`, `pathfinder.py`, `vehicle.py`, etc.) yourself.
-2. **Report** — explain the bug clearly: what was expected, what actually
-   happened, and which test case exposed it.
-3. **Wait** — let the developer confirm and fix it before proceeding.
+
+1. **STOP** — Do not change any implementation file (`grid.py`, `pathfinder.py`, `vehicle.py`, etc.) yourself
+2. **REPORT** — Explain clearly:
+   - What was **expected** (per docstring/architecture)
+   - What **actually happened** (observed behavior)
+   - Which **test case** exposed it (test method name)
+   - The **minimal reproduction** (input values, grid state)
+3. **WAIT** — Let the developer confirm and fix before proceeding
+
+**Example report:**
+> "Bug found in `Grid.get_edge_cells()`:
+> - Expected: Cells returned in order (top → bottom → left → right) per docstring
+> - Actual: Top and bottom rows interleaved per column
+> - Test: `test_get_edge_cells_returns_cells_in_documented_order`
+> - Grid: 5x4, all edge cells are roads
+> - Waiting for developer fix before continuing."
 
 ---
 
-## Quality Gate (after every task)
+## Quality Gate (After Every Task)
+
+Run these commands in order. All must pass before moving to the next task.
 
 ```bash
-make lint                                        # must pass with zero errors
-uv run pytest backend/tests/test_<module>.py -k <keyword>   # focused pass first
-make test                                        # full suite must stay green
-make test-cov                                    # verify no uncovered target lines
+# Step 1: Check code style and imports
+make lint
+
+# Step 2: Run focused tests for your new test class
+uv run pytest backend/tests/test_<module>.py -k <TestClassName> -v
+
+# Step 3: Ensure full suite still passes (no regressions)
+make test
+
+# Step 4: Verify coverage on the target module
+make test-cov
+
+# Step 5: Check type correctness (includes mypy)
+uv run pre-commit run --all-files
 ```
+
+**If any step fails:**
+- Fix test code (if the issue is in your tests)
+- Report bug (if the issue is in implementation)
+- Do NOT proceed until all gates pass
+
+---
+
+## Per-Task Checklist
+
+When the developer says "**P1-XXX-NN is done**", follow this checklist:
+
+- [ ] **Verify completion:** Open @docs/tasks.md → confirm task is marked ✅
+- [ ] **Read implementation:** Open @backend/simulation/<module>.py → understand what was implemented
+- [ ] **Read existing tests:** Open @backend/tests/test_<module>.py → see patterns, fixtures, naming
+- [ ] **Identify test class name:** Follow convention `Test<ClassName><MethodName>` (e.g., `TestVehicleMove`)
+- [ ] **Write tests:** Follow AAA pattern, parametrize, cover boundaries, check docstring contract
+- [ ] **Run quality gates:**
+  - [ ] `make lint` (must pass)
+  - [ ] `uv run pytest backend/tests/test_<module>.py -k <TestClassName> -v` (focused pass)
+  - [ ] `make test` (full suite must stay green)
+  - [ ] `make test-cov` (check for uncovered lines in target module)
+  - [ ] `uv run pre-commit run --all-files` (mypy type checking)
+- [ ] **Coverage check:** If any lines uncovered in target module → report to developer, wait for confirmation
+- [ ] **Report completion:** "P1-XXX-NN tests complete. Coverage: X%. All quality gates pass."
 
 ---
 
 ## Workflow
 
-1. Developer says "implementation done for P1-AREA-NN" (e.g. `P1-PATH-01`).
-2. Open **@docs/tasks.md** — confirm task scope and which **source file** + **test file** apply.
-3. Read the relevant implementation (e.g. `pathfinder.py`, not only `grid.py`).
-4. Read the matching test file to see existing classes and fixtures.
-5. Add a **new test class for that task** — avoid editing older tests except for review fixes
-   or agreed follow-ups (e.g. coverage supplementation after confirmation).
-6. Run quality gates: **lint → focused pytest (`-k`) → `make test` → `make test-cov`** on the
-   target package/module you touched.
-7. Report pass/fail, coverage notes, and wait for review before the next task.
+### Standard workflow for each task:
+
+1. **Developer says:** "Implementation done for **P1-AREA-NN**" (e.g., `P1-VEH-03`)
+
+2. **Open @docs/tasks.md:** Confirm task scope, which **source file** and **test file** apply
+
+3. **Read implementation:** Open the relevant module (e.g., `pathfinder.py`, `vehicle.py`) and understand what was implemented
+
+4. **Read test file:** Open the matching test file to see existing classes, fixtures, and patterns
+
+5. **Write new test class:** Add a **new test class** for that specific task
+   - Don't edit older tests (except for review fixes or agreed follow-ups like coverage supplementation)
+   - Name class clearly: `TestVehicleGetNextPosition`, `TestPathfinderFindPath`
+   - Follow established patterns from existing test classes
+
+6. **Run quality gates:** Execute all checks in order (see Quality Gate section above)
+
+7. **Report results:**
+   - **Pass:** "P1-AREA-NN tests complete. Coverage: X%. All quality gates pass."
+   - **Fail:** Report which gate failed and why (lint errors, test failures, coverage gaps, type errors)
+   - **Coverage gaps:** Report uncovered lines and wait for confirmation
+
+8. **Wait for review:** Developer reviews your tests before you proceed to the next task
+
+---
+
+## Troubleshooting
+
+### Test fails with "ModuleNotFoundError"
+**Cause:** Import path issue or running from wrong directory  
+**Fix:** Always run from project root: `cd /path/to/urban-flow && uv run pytest backend/tests/test_<module>.py`
+
+### Test fails with "AttributeError: Mock object has no attribute X"
+**Cause:** Mock not configured for that attribute  
+**Fix:** Add the attribute before using it:
+```python
+mock_vehicle = Mock()
+mock_vehicle.id = "v001"  # Configure before using
+mock_vehicle.position = (1, 0)
+```
+
+Or use `spec=` for automatic attribute checking:
+```python
+mock_vehicle = Mock(spec=Vehicle)
+```
+
+### Coverage shows miss on wrapper method (e.g., Grid.is_traversable)
+**Cause:** Tests call `Cell.is_traversable()` directly, bypassing the Grid wrapper  
+**Fix:** Add dedicated test for the Grid-level wrapper:
+```python
+def test_is_traversable_delegates_to_cell(self, grid_5x4):
+    assert grid_5x4.is_traversable(0, 0) is True  # Road
+    assert grid_5x4.is_traversable(1, 1) is False  # Obstacle
+```
+
+### `make test-cov` shows "No data to report"
+**Cause:** Coverage plugin not installed or `.coveragerc` missing  
+**Fix:** Run `uv sync` to reinstall dependencies, verify `.coveragerc` exists in project root
+
+### `make lint` passes but pre-commit fails with mypy errors
+**Cause:** `make lint` only runs ruff (style), not mypy (types)  
+**Fix:** Always run both:
+```bash
+make lint  # Style check
+uv run pre-commit run --all-files  # Type check
+```
+
+### Test fails with "fixture 'grid_5x4' not found"
+**Cause:** Fixture defined in wrong scope or not imported  
+**Fix:** Ensure fixture is:
+- Defined at module level (before any test classes)
+- Uses `@pytest.fixture` decorator
+- In the same file or in `conftest.py`
+
+### Parametrize test shows "indirect" error
+**Cause:** Trying to parametrize a fixture value  
+**Fix:** Either:
+- Parametrize the test method directly (not the fixture)
+- Use `indirect=True` if you need to parametrize fixture creation
+
+---
+
+## Quick Reference Card
+
+**Your mission:** Write comprehensive tests for completed implementation tasks
+
+**Current task:** P1-VEH-02 (VehicleManager lifecycle methods)
+
+**Test file:** `backend/tests/test_vehicle.py`
+
+**Quality gates:** `make lint` → focused pytest → `make test` → `make test-cov` → pre-commit
+
+**Coverage target:** 100% statement coverage, zero uncovered lines
+
+**Report format:** "P1-XXX-NN tests complete. Coverage: X%. All gates pass."
+
+**When stuck:** Report issue + analysis, wait for developer guidance
+
+---
+
+**Version History:**
+- v1.0 (2026-03-05): Initial version
+- v1.1 (2026-03-11): Added Pathfinder learnings
+- v1.2 (2026-03-20): Added Vehicle testing status
+- v1.3 (2026-03-30): Added TL;DR, Common Mistakes, Troubleshooting, Per-Task Checklist
