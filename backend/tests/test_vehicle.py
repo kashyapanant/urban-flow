@@ -924,7 +924,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -945,7 +944,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=[],
@@ -968,7 +966,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=bad_path,
@@ -991,7 +988,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -1015,7 +1011,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -1039,7 +1034,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -1056,17 +1050,16 @@ class TestVehicleManagerSpawnVehicles:
         assert spawned.position == (0, 0)
         assert spawned.path_index == 0
 
-    def test_spawn_vehicles_spawned_vehicle_id_is_eight_char_hex(
+    def test_spawn_vehicles_spawned_vehicle_id_is_full_uuid_hex(
         self, vehicle_manager: VehicleManager
     ) -> None:
-        """Spawned vehicle ID is an 8-character hexadecimal string."""
+        """Spawned vehicle ID is a 32-character hexadecimal string (uuid4().hex)."""
         # Arrange
         mock_grid = _make_two_cell_mock_grid()
         fake_path = [(0, 0), (9, 0)]
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -1075,7 +1068,7 @@ class TestVehicleManagerSpawnVehicles:
             result = vehicle_manager.spawn_vehicles(mock_grid, 1.0, 0.0, 1)
 
         assert len(result) >= 1
-        assert len(result[0].id) == 8
+        assert len(result[0].id) == 32
         assert all(c in "0123456789abcdef" for c in result[0].id)
 
     def test_spawn_vehicles_spawns_emergency_vehicle_when_probability_is_one(
@@ -1088,7 +1081,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -1110,7 +1102,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
@@ -1132,7 +1123,6 @@ class TestVehicleManagerSpawnVehicles:
 
         with (
             patch("random.random", return_value=0.0),
-            patch("random.choice", side_effect=lambda lst: lst[0]),
             patch(
                 "backend.simulation.pathfinder.Pathfinder.find_path",
                 return_value=fake_path,
