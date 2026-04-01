@@ -7,12 +7,13 @@ This document records design decisions made during the implementation of the bac
 ## Decision: Vehicle ID Generation Format
 
 **Date:** 2026-02-28
+**Updated:** 2026-03-25
 **Context:** The architecture specifies that vehicles need unique IDs but doesn't specify the format.
-**Decision:** Use short UUID format (first 8 characters of UUID4) for vehicle IDs.
+**Decision:** Use full UUID4 hex strings for vehicle IDs.
 **Rationale:** 
-- UUIDs guarantee uniqueness across simulation runs
-- Short format (8 chars) is readable in logs and debugging
+- Full UUID strings greatly reduce collision risk in long-running simulations
 - UUID4 is cryptographically random, avoiding predictable patterns
+- IDs remain plain strings and are JSON-safe without additional conversion
 
 ---
 
@@ -237,7 +238,7 @@ consistency and maintainability.
 **Decision:** Keep the current implementation for now (no validation caching and
 no internal no-validation helper yet). Defer optimization until post-integration
 profiling once vehicle movement and engine tick orchestration are implemented
-(P1-VEH-04 + P1-ENG-02).
+(P1-VEH-03 + P1-ENG-02).
 **Rationale:**
 - Correctness and contract consistency are currently the priority; public methods
   retain defensive validation at their boundaries.
