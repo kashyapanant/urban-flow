@@ -322,14 +322,87 @@ class VehicleManager:
     ) -> None:
         """Move all vehicles one step along their paths.
 
-        Vehicles are processed in priority order: emergency first, then by
-        remaining distance (shortest first), then random tiebreak.
+        Vehicles are sorted into priority order before movement: emergency
+        vehicles go first, then by fewest remaining path steps (shortest
+        first), and random shuffle resolves ties within each tier. Processing
+        order matters because the first vehicle to claim an unoccupied cell
+        wins — later vehicles that target the same cell will simply wait.
+
+        For each vehicle in priority order:
+
+        1. Skip vehicles that have already arrived.
+        2. Look up the next cell on the vehicle's pre-computed path.
+        3. If there is no next cell the vehicle is at its destination — mark
+           it ``ARRIVED`` and release the grid cell.
+        4. If the next cell is occupied, set status to ``WAITING`` and skip.
+        5. If the next cell is an intersection, ask
+           ``traffic_light_manager.can_vehicle_enter`` using the direction of
+           travel. If entry is denied, set status to ``WAITING`` and skip.
+        6. Otherwise move: release the current grid cell, place the vehicle on
+           the next cell, call ``Vehicle.advance_path()``.
+        7. Increment ``ticks_elapsed`` for every non-arrived vehicle regardless
+           of whether it moved or waited.
+
+        Direction of travel is derived from the (dx, dy) offset between the
+        current and next position:
+        - dx=+1 → ``"east"``
+        - dx=-1 → ``"west"``
+        - dy=+1 → ``"south"``
+        - dy=-1 → ``"north"``
 
         Args:
-            grid: The simulation grid
-            traffic_light_manager: For traffic light permission checks
+            grid: The simulation grid used for cell occupancy checks and
+                vehicle placement/removal.
+            traffic_light_manager: Consulted for intersection entry
+                permission via ``can_vehicle_enter(position, direction)``.
         """
-        raise NotImplementedError("VehicleManager.move_vehicles(")
+        _DIRECTION: dict[tuple[int, int], str] = {
+            (1, 0): "east",
+            (-1, 0): "west",
+            (0, 1): "south",
+            (0, -1): "north",
+        }
+
+        priority_key = lambda v: (  # noqa: E731
+            0 if v.type is VehicleType.EMERGENCY else 1,
+            v.get_remaining_distance(),
+            random.random(),
+        )
+        ordered = sorted(
+            (v for v in self._vehicles if v.status is not VehicleStatus.ARRIVED),
+            key=priority_key,
+        )
+
+        for vehicle in ordered:
+            next_pos = vehicle.get_next_position()
+
+            if next_pos is None:
+                # Already at destination — release the cell and mark arrived.
+                grid.remove_vehicle(*vehicle.position)
+                vehicle.status = VehicleStatus.ARRIVED
+                continue
+
+            next_cell = grid.get_cell(*next_pos)
+            if next_cell is None or next_cell.is_occupied():
+                vehicle.status = VehicleStatus.WAITING
+                vehicle.ticks_elapsed += 1
+                continue
+
+            # Check traffic light permission for intersection cells.
+            if next_cell.traffic_light is not None:
+                cx, cy = vehicle.position
+                nx, ny = next_pos
+                direction = _DIRECTION.get((nx - cx, ny - cy), "north")
+                if not traffic_light_manager.can_vehicle_enter(next_pos, direction):
+                    vehicle.status = VehicleStatus.WAITING
+                    vehicle.ticks_elapsed += 1
+                    continue
+
+            # Move: release old cell, claim new cell, advance path state.
+            grid.remove_vehicle(*vehicle.position)
+            grid.place_vehicle(vehicle, *next_pos)
+            vehicle.advance_path()
+            vehicle.ticks_elapsed += 1
 
     def collect_arrived(self) -> list[Vehicle]:
         """Remove and return vehicles that have reached their destination.
