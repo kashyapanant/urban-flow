@@ -50,7 +50,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 |----|------|--------|
 | P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) - Read, advance, measure route progress, and serialize vehicle state | ✅ |
 | P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) - Initialize manager, spawn at grid edges, and remove completed vehicles | ✅ |
-| P1-VEH-03 | `VehicleManager.move_vehicles()` - Priority-based movement | ⬜ |
+| P1-VEH-03 | `VehicleManager.move_vehicles()` - Priority-based movement | ✅ |
 | P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) - List all active vehicles, filter emergency vehicles, and produce serializable snapshots for the frontend | ⬜ |
 
 ### 4. TrafficLight Classes (Depends: Vehicle)
@@ -100,7 +100,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-PATH-03 | `Pathfinder.find_path()` | ✅ | | |
 | P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
 | P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) | ✅ | | |
-| P1-VEH-03 | `VehicleManager.move_vehicles()` | ⬜ | | |
+| P1-VEH-03 | `VehicleManager.move_vehicles()` | ✅ | | |
 | P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) | ⬜ | | |
 | P1-TL-01 | `TrafficLight.tick()` | ⬜ | | |
 | P1-TL-02 | `TrafficLight.can_enter()` | ⬜ | | |
@@ -132,9 +132,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08 (`Grid.snapshot()`, `Cell.to_dict()`); Pathfinder complete through P1-PATH-03 (`PathNode.f_cost`, `PathNode.__lt__()`, `Pathfinder.find_path()`); Vehicle path progression/serialization complete through P1-VEH-01 (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`), and vehicle manager setup/spawn/cleanup complete through P1-VEH-02 (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`).
+**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08; Pathfinder complete through P1-PATH-03; Vehicle module complete through P1-VEH-03 (`Vehicle` path progression/serialization, `VehicleManager.__init__`, `spawn_vehicles`, `collect_arrived`, `move_vehicles`).
 
-**Next task:** P1-VEH-03 – `VehicleManager.move_vehicles()` (or next unchecked task in [Task registry](#task-registry)). After that: **P1-VEH-04** – `VehicleManager.get_all()`, `get_emergency_vehicles()`, and `snapshot()`.
+**Next task:** P1-VEH-04 – VehicleManager queries (`VehicleManager.get_all()`, `get_emergency_vehicles()`, `snapshot()`) (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
