@@ -1632,18 +1632,65 @@ class TestVehicleManagerMoveVehicles:
 
     # --- Priority ordering (real Grid for accurate occupancy tracking) ---
 
+    def test_move_vehicles_releases_destination_cell_when_vehicle_arrives(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Destination cell is released immediately when a move produces ARRIVED status.
+
+        After advance_path() sets status to ARRIVED, move_vehicles calls
+        remove_vehicle on the destination so the cell cannot block future
+        spawns or movement in the same tick.
+        """
+        # Arrange — 2-cell path; vehicle arrives at (1,0) in one step
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — old cell released, then destination cell released on arrival
+        assert vehicle.status is VehicleStatus.ARRIVED
+        assert mock_grid.remove_vehicle.call_count == 2
+        mock_grid.remove_vehicle.assert_any_call(0, 0)
+        mock_grid.remove_vehicle.assert_any_call(1, 0)
+
+    def test_move_vehicles_raises_on_non_cardinal_path_step(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Non-cardinal step into an intersection raises ValueError."""
+        # Arrange — diagonal step (0,0)→(1,1) is not a single cardinal move
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 1)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        # Intersection cell triggers the direction check
+        mock_grid.get_cell.return_value = _intersection_cell_mock()
+        mock_tlm = Mock()
+        mock_tlm.can_vehicle_enter.return_value = True
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="not a single cardinal move"):
+            vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
     def test_move_vehicles_emergency_processed_before_normal_on_contested_cell(
         self, vehicle_manager: VehicleManager
     ) -> None:
         """EMERGENCY vehicle claims a contested road cell before a NORMAL vehicle can.
 
-        Both vehicles target (2, 0). Despite normal being listed first in
-        _vehicles, emergency's lower priority-key tier ensures it moves first
-        and occupies the cell, leaving normal WAITING.
+        Both vehicles target (2, 0) as an intermediate step. Despite normal
+        being listed first in _vehicles, emergency's lower priority-key tier
+        ensures it moves first and keeps the cell occupied, leaving normal
+        WAITING.
         """
-        # Arrange — (1,0), (2,0), (4,0) are road cells on y=0 in a 7×7 grid
+        # Arrange — (1,0), (2,0), (4,0), (5,0) are road cells in a 7×7 grid.
+        # Emergency path has (2,0) as an intermediate step (destination is (5,0))
+        # so the cell is NOT released after the move, blocking normal.
         grid = Grid(width=7, height=7)
-        emergency = _vehicle_at("e1", [(1, 0), (2, 0)], vtype=VehicleType.EMERGENCY)
+        emergency = _vehicle_at(
+            "e1", [(1, 0), (2, 0), (5, 0)], vtype=VehicleType.EMERGENCY
+        )
         normal = _vehicle_at("n1", [(4, 0), (2, 0)], vtype=VehicleType.NORMAL)
         grid.place_vehicle(emergency, 1, 0)
         grid.place_vehicle(normal, 4, 0)
@@ -1655,8 +1702,9 @@ class TestVehicleManagerMoveVehicles:
         # Act
         vehicle_manager.move_vehicles(grid, mock_tlm)
 
-        # Assert
+        # Assert — emergency at (2,0) MOVING; normal still at (4,0) WAITING
         assert emergency.position == (2, 0)
+        assert emergency.status is VehicleStatus.MOVING
         assert normal.position == (4, 0)
         assert normal.status is VehicleStatus.WAITING
 
@@ -1665,13 +1713,15 @@ class TestVehicleManagerMoveVehicles:
     ) -> None:
         """Among NORMAL vehicles the one with fewer steps remaining is processed first.
 
-        v_close (remaining=1) and v_far (remaining=2) both target (2, 0).
-        v_close wins the cell; v_far is left WAITING.
+        v_close (remaining=2) and v_far (remaining=3) both target (2, 0) as
+        their next step. v_close wins the cell and stays MOVING; v_far is
+        left WAITING.
         """
-        # Arrange
+        # Arrange — both vehicles want (2,0) as their next cell; (2,0) is an
+        # intermediate step for each so it stays occupied after the first move.
         grid = Grid(width=7, height=7)
-        v_close = _vehicle_at("vc", [(1, 0), (2, 0)])  # remaining = 1
-        v_far = _vehicle_at("vf", [(4, 0), (2, 0), (1, 0)])  # remaining = 2
+        v_close = _vehicle_at("vc", [(1, 0), (2, 0), (5, 0)])  # remaining = 2
+        v_far = _vehicle_at("vf", [(4, 0), (2, 0), (5, 0), (1, 0)])  # remaining = 3
         grid.place_vehicle(v_close, 1, 0)
         grid.place_vehicle(v_far, 4, 0)
 
@@ -1682,7 +1732,8 @@ class TestVehicleManagerMoveVehicles:
         # Act
         vehicle_manager.move_vehicles(grid, mock_tlm)
 
-        # Assert
+        # Assert — v_close moved to (2,0) MOVING; v_far blocked at (4,0) WAITING
         assert v_close.position == (2, 0)
+        assert v_close.status is VehicleStatus.MOVING
         assert v_far.position == (4, 0)
         assert v_far.status is VehicleStatus.WAITING
