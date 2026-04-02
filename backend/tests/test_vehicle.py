@@ -1597,6 +1597,35 @@ class TestVehicleManagerMoveVehicles:
         mock_grid.remove_vehicle.assert_called_once_with(0, 0)
         mock_grid.place_vehicle.assert_called_once_with(vehicle, 1, 0)
 
+    def test_move_vehicles_place_fails_rolls_back_position_and_waits(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """When place_vehicle returns False the vehicle is restored and waits.
+
+        The grid removes the vehicle from its old cell first. If placement on
+        the next cell fails (returns False), the vehicle is put back on its
+        original cell and its status is set to WAITING so the grid stays
+        consistent and no path progress is recorded.
+        """
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0), (2, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_grid.place_vehicle.return_value = False
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — old cell removed, both place_vehicle calls made, status WAITING
+        mock_grid.remove_vehicle.assert_called_once_with(0, 0)
+        assert mock_grid.place_vehicle.call_count == 2
+        mock_grid.place_vehicle.assert_any_call(vehicle, 1, 0)
+        mock_grid.place_vehicle.assert_any_call(vehicle, 0, 0)
+        assert vehicle.status is VehicleStatus.WAITING
+        assert vehicle.position == (0, 0)
+
     # --- Direction mapping ---
 
     @pytest.mark.parametrize(
