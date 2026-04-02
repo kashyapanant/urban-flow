@@ -1713,16 +1713,18 @@ class TestVehicleManagerMoveVehicles:
         ensures it moves first and keeps the cell occupied, leaving normal
         WAITING.
         """
-        # Arrange — (1,0), (2,0), (4,0), (5,0) are road cells in a 7×7 grid.
-        # Emergency path has (2,0) as an intermediate step (destination is (5,0))
-        # so the cell is NOT released after the move, blocking normal.
+        # Arrange — all path steps are single-cell (adjacent) moves so that
+        # _cardinal_direction cannot raise even if direction checking becomes
+        # universal.  Emergency: (1,0)→(2,0)→(3,0); normal: (3,0)→(2,0).
+        # (2,0) is an intermediate step for emergency (destination is (3,0))
+        # so the cell stays occupied after the move, blocking normal.
         grid = Grid(width=7, height=7)
         emergency = _vehicle_at(
-            "e1", [(1, 0), (2, 0), (5, 0)], vtype=VehicleType.EMERGENCY
+            "e1", [(1, 0), (2, 0), (3, 0)], vtype=VehicleType.EMERGENCY
         )
-        normal = _vehicle_at("n1", [(4, 0), (2, 0)], vtype=VehicleType.NORMAL)
+        normal = _vehicle_at("n1", [(3, 0), (2, 0)], vtype=VehicleType.NORMAL)
         grid.place_vehicle(emergency, 1, 0)
-        grid.place_vehicle(normal, 4, 0)
+        grid.place_vehicle(normal, 3, 0)
 
         # List normal first to confirm ordering is not insertion-order dependent
         vehicle_manager._vehicles = [normal, emergency]
@@ -1731,10 +1733,10 @@ class TestVehicleManagerMoveVehicles:
         # Act
         vehicle_manager.move_vehicles(grid, mock_tlm)
 
-        # Assert — emergency at (2,0) MOVING; normal still at (4,0) WAITING
+        # Assert — emergency at (2,0) MOVING; normal still at (3,0) WAITING
         assert emergency.position == (2, 0)
         assert emergency.status is VehicleStatus.MOVING
-        assert normal.position == (4, 0)
+        assert normal.position == (3, 0)
         assert normal.status is VehicleStatus.WAITING
 
     def test_move_vehicles_shorter_remaining_distance_first_among_same_type(
@@ -1746,13 +1748,15 @@ class TestVehicleManagerMoveVehicles:
         their next step. v_close wins the cell and stays MOVING; v_far is
         left WAITING.
         """
-        # Arrange — both vehicles want (2,0) as their next cell; (2,0) is an
-        # intermediate step for each so it stays occupied after the first move.
+        # Arrange — all path steps are single-cell (adjacent) moves.
+        # v_close: (1,0)→(2,0)→(3,0) remaining=2; v_far: (3,0)→(2,0)→(1,0)→(0,0)
+        # remaining=3. (2,0) is an intermediate step for both so it stays occupied
+        # after v_close moves, blocking v_far.
         grid = Grid(width=7, height=7)
-        v_close = _vehicle_at("vc", [(1, 0), (2, 0), (5, 0)])  # remaining = 2
-        v_far = _vehicle_at("vf", [(4, 0), (2, 0), (5, 0), (1, 0)])  # remaining = 3
+        v_close = _vehicle_at("vc", [(1, 0), (2, 0), (3, 0)])  # remaining = 2
+        v_far = _vehicle_at("vf", [(3, 0), (2, 0), (1, 0), (0, 0)])  # remaining = 3
         grid.place_vehicle(v_close, 1, 0)
-        grid.place_vehicle(v_far, 4, 0)
+        grid.place_vehicle(v_far, 3, 0)
 
         # List v_far first to confirm ordering is not insertion-order dependent
         vehicle_manager._vehicles = [v_far, v_close]
@@ -1761,8 +1765,8 @@ class TestVehicleManagerMoveVehicles:
         # Act
         vehicle_manager.move_vehicles(grid, mock_tlm)
 
-        # Assert — v_close moved to (2,0) MOVING; v_far blocked at (4,0) WAITING
+        # Assert — v_close moved to (2,0) MOVING; v_far blocked at (3,0) WAITING
         assert v_close.position == (2, 0)
         assert v_close.status is VehicleStatus.MOVING
-        assert v_far.position == (4, 0)
+        assert v_far.position == (3, 0)
         assert v_far.status is VehicleStatus.WAITING
