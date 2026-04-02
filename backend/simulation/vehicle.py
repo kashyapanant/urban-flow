@@ -430,15 +430,22 @@ class VehicleManager:
                 vehicle.status = VehicleStatus.WAITING
             else:
                 # Move: release old cell, claim new cell, advance path state.
+                # Remove from old cell first, then attempt placement on the new
+                # cell. If placement fails (non-traversable or race condition),
+                # restore the vehicle to its current cell so grid and manager
+                # state remain consistent.
                 grid.remove_vehicle(*vehicle.position)
-                grid.place_vehicle(vehicle, *next_pos)
-                vehicle.advance_path()
+                if not grid.place_vehicle(vehicle, *next_pos):
+                    grid.place_vehicle(vehicle, *vehicle.position)
+                    vehicle.status = VehicleStatus.WAITING
+                else:
+                    vehicle.advance_path()
 
-                # If advance_path() set status to ARRIVED, release the
-                # destination cell immediately so it cannot block future
-                # spawns or movement.
-                if vehicle.status is VehicleStatus.ARRIVED:
-                    grid.remove_vehicle(*vehicle.position)
+                    # If advance_path() set status to ARRIVED, release the
+                    # destination cell immediately so it cannot block future
+                    # spawns or movement.
+                    if vehicle.status is VehicleStatus.ARRIVED:
+                        grid.remove_vehicle(*vehicle.position)
 
     def collect_arrived(self) -> list[Vehicle]:
         """Remove and return vehicles that have reached their destination.
