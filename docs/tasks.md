@@ -51,18 +51,14 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 | P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) - Read, advance, measure route progress, and serialize vehicle state | ✅ |
 | P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) - Initialize manager, spawn at grid edges, and remove completed vehicles | ✅ |
 | P1-VEH-03 | `VehicleManager.move_vehicles()` - Priority-based movement | ✅ |
-| P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) - List all active vehicles, filter emergency vehicles, and produce serializable snapshots for the frontend | ⬜ |
+| P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) - List all active vehicles, filter emergency vehicles, and produce serializable snapshots for the frontend | ✅ |
 
 ### 4. TrafficLight Classes (Depends: Vehicle)
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-TL-01 | `TrafficLight.tick()` - Advance phase timing | ⬜ |
-| P1-TL-02 | `TrafficLight.can_enter()` - Check movement permission | ⬜ |
-| P1-TL-03 | `TrafficLight.request_preemption()` - Emergency preemption | ⬜ |
-| P1-TL-04 | `TrafficLight.release_preemption()` - Resume normal cycling | ⬜ |
-| P1-TL-05 | `TrafficLightManager.__init__()` - Initialize all lights | ⬜ |
-| P1-TL-06 | `TrafficLightManager.tick()` - Update all lights | ⬜ |
+| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) - Phase timing, intersection entry rules, and emergency preemption | ⬜ |
+| P1-TL-02 | TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) - Create/update all lights for the grid | ⬜ |
 
 ### 5. Metrics Class (Depends: Vehicle)
 
@@ -101,13 +97,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
 | P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) | ✅ | | |
 | P1-VEH-03 | `VehicleManager.move_vehicles()` | ✅ | | |
-| P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) | ⬜ | | |
-| P1-TL-01 | `TrafficLight.tick()` | ⬜ | | |
-| P1-TL-02 | `TrafficLight.can_enter()` | ⬜ | | |
-| P1-TL-03 | `TrafficLight.request_preemption()` | ⬜ | | |
-| P1-TL-04 | `TrafficLight.release_preemption()` | ⬜ | | |
-| P1-TL-05 | `TrafficLightManager.__init__()` | ⬜ | | |
-| P1-TL-06 | `TrafficLightManager.tick()` | ⬜ | | |
+| P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) | ✅ | | |
+| P1-TL-01 | TrafficLight core (`tick`, `can_enter`, `request_preemption`, `release_preemption`) | ⬜ | | |
+| P1-TL-02 | TrafficLightManager (`__init__`, `tick`) | ⬜ | | |
 | P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) | ⬜ | | |
 | P1-MET-02 | `Metrics.record_arrival()` | ⬜ | | |
 | P1-ENG-01 | `SimulationEngine.__init__()` | ⬜ | | |
@@ -132,9 +124,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08; Pathfinder complete through P1-PATH-03; Vehicle module complete through P1-VEH-03 (`Vehicle` path progression/serialization, `VehicleManager.__init__`, `spawn_vehicles`, `collect_arrived`, `move_vehicles`).
+**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08; Pathfinder complete through P1-PATH-03; Vehicle module complete through P1-VEH-04 (`Vehicle` path progression/serialization, `VehicleManager.__init__`, `spawn_vehicles`, `collect_arrived`, `move_vehicles`, `get_all`, `get_emergency_vehicles`, `snapshot`).
 
-**Next task:** P1-VEH-04 – VehicleManager queries (`VehicleManager.get_all()`, `get_emergency_vehicles()`, `snapshot()`) (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-TL-01 – TrafficLight core (`TrafficLight.tick()`, `can_enter()`, `request_preemption()`, `release_preemption()`) (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
@@ -172,6 +164,6 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Notes
 
-- Each task is atomic and has a unique ID for linking (branch, design decision, PR).
+- Each task is atomic and has a unique ID for linking (branch, design decision, PR). TrafficLight Phase 1 uses **P1-TL-01** and **P1-TL-02** only (single-light behavior vs manager); older drafts split those into six IDs — use **P1-TL-01** / **P1-TL-02** going forward.
 - Update the [Task registry](#task-registry) when you create a branch or document a design decision.
 - Prefer referencing tasks by ID (e.g. “Implements P1-GRID-01”) in commits and PRs.
