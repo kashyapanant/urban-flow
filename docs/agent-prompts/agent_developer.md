@@ -1,16 +1,16 @@
 # Urban Flow - Development Context Handoff
 
-**Last Updated:** 2026-04-01  
-**Version:** 1.3  
-**Active Module:** `backend/simulation/vehicle.py`  
-**Completed:** Grid ✅, Pathfinder ✅, Vehicle P1-VEH-01/P1-VEH-02 ✅
+**Last Updated:** 2026-04-05  
+**Version:** 1.4  
+
+**Single source of truth for task status:** **`@docs/tasks.md`** — implementation order, ⬜/✅ status, task registry, and “Phase 1 – Pending / next steps.” **This handoff does not duplicate which tasks are complete or what to do next;** open `tasks.md` when you start work.
 
 ---
 
 ## TL;DR
 
 - **Your role:** Implement methods for assigned tasks (one task at a time, wait for review between tasks)
-- **Current focus:** Vehicle module — P1-VEH-03 (`VehicleManager.move_vehicles()`)
+- **Current task / module:** **See `@docs/tasks.md`** (first ⬜ in Phase 1 order, subject to dependencies in that file)
 - **Do NOT:** Write tests (tester handles that), skip ahead, modify completed modules without approval
 - **Quality gate:** `make lint` must pass → update tasks.md → report completion → wait for review
 
@@ -35,31 +35,20 @@ Your mission is to **implement high-quality methods** following established patt
 **Process:**
 1. Open **@docs/tasks.md** and scan the task tables in order (Grid → Pathfinder → Vehicle → TrafficLight → Metrics → Engine)
 2. Find the first task with status ⬜ (not yet complete)
-3. Verify prerequisites are met:
-   - Don't start P1-VEH-03 before P1-VEH-02
-   - Don't start TrafficLight before Vehicle methods are done
-   - Follow the dependency chain in the architecture
+3. Verify prerequisites are met (see task order and “Depends” notes in **`docs/tasks.md`** and **`docs/architecture.md`**):
+   - Do not start a task until its prerequisite rows are ✅ in `tasks.md`
+   - Respect cross-module ordering (e.g. TrafficLight after Vehicle when the tables say so)
 4. That task is your next assignment
 
-**Current status (as of 2026-04-01):**
-- **Last completed:** P1-VEH-02 (Vehicle manager lifecycle: `__init__()`, `spawn_vehicles()`, `collect_arrived()`)
-- **Grid module:** ✅ Complete (100% coverage, reference quality)
-- **Pathfinder module:** ✅ Complete (99% coverage, reference quality)
-- **Vehicle module:** 🟡 In Progress (`P1-VEH-01`, `P1-VEH-02` complete)
-- **Next task:** **P1-VEH-03** (`VehicleManager.move_vehicles()` — priority-based movement)
-- **Target file:** `@backend/simulation/vehicle.py`
-
-**Your immediate action:** Implement `VehicleManager.move_vehicles()` for P1-VEH-03 per the task scope in tasks.md and architecture.md.
+**Do not rely on this document for “what is done” or “what is next.”** After you pick the task from `tasks.md`, read its row, the task registry, `@docs/architecture.md`, and the implementation file named in that task (e.g. `backend/simulation/vehicle.py` for Vehicle work).
 
 ---
 
-## Current Status
+## Module stability (non-status)
 
-- **Phase:** Phase 1 Implementation (skeleton complete, implementing methods incrementally)
-- **Grid (P1-GRID-01 … P1-GRID-08):** ✅ **Complete** — Treat `@backend/simulation/grid.py` as reference-quality code. Do not modify unless a bugfix is explicitly requested and approved.
-- **Pathfinder (P1-PATH-01 … P1-PATH-03):** ✅ **Complete** — Treat `@backend/simulation/pathfinder.py` as reference-quality code. Do not modify unless a bugfix/refinement is explicitly requested.
-- **Vehicle (P1-VEH-01 … P1-VEH-03):** 🟡 **In Progress** — `P1-VEH-01` and `P1-VEH-02` complete, movement task pending
-- **Next task:** **P1-VEH-03** (`VehicleManager.move_vehicles()`; always confirm against `@docs/tasks.md` as source of truth if this handoff drifts)
+- **Phase:** Phase 1 — implement methods incrementally; scope is always the **current task in `tasks.md`.**
+- **Reference-quality modules:** When **`docs/tasks.md`** marks a module’s tasks ✅, treat that implementation as stable unless a bugfix or follow-up task explicitly changes it. Example: Grid and Pathfinder are usually completed before downstream work; **confirm in `tasks.md`,** then treat `grid.py` / `pathfinder.py` as reference code and avoid drive-by edits.
+- **In-progress modules:** Whatever is not yet ✅ in `tasks.md` for your area is where implementation belongs until those tasks are closed.
 
 ---
 
@@ -802,9 +791,7 @@ toward Option A for consistency. Confirm?"
 
 **Your mission:** Implement high-quality methods one task at a time
 
-**Current task:** P1-VEH-03 (`VehicleManager.move_vehicles()` — priority-based movement)
-
-**Active file:** `backend/simulation/vehicle.py`
+**Current task / target file:** **`@docs/tasks.md`** (task row + architecture doc — not duplicated here)
 
 **Quality gate:** `make lint` must pass with zero errors
 
@@ -837,7 +824,7 @@ toward Option A for consistency. Confirm?"
 
 ## Next Steps
 
-1. Open **@docs/tasks.md** and confirm the next open task (expected: **P1-VEH-03**)
+1. Open **@docs/tasks.md** and confirm the next open task (first ⬜ in order, respecting dependencies)
 
 2. Read the task scope:
    - Which methods to implement
@@ -878,3 +865,4 @@ toward Option A for consistency. Confirm?"
 - v1.1 (2026-03-11): Added Pathfinder conventions
 - v1.2 (2026-03-20): Added Vehicle module as active target
 - v1.3 (2026-04-01): Added TL;DR, Common Mistakes, Per-Task Checklist, Troubleshooting, Workflow, Quick Reference Card
+- v1.4 (2026-04-05): Task status / next task removed from handoff; **`docs/tasks.md`** is the single source of truth
