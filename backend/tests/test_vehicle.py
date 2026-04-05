@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from backend.simulation.grid import Grid
 from backend.simulation.vehicle import (
     Vehicle,
     VehicleManager,
@@ -1333,3 +1334,439 @@ class TestVehicleManagerCollectArrived:
         # Assert — WAITING is not ARRIVED; vehicle stays in _vehicles
         assert result == []
         assert vehicle_manager._vehicles == [v_waiting]
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-03 — shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _vehicle_at(
+    vid: str,
+    path: list[tuple[int, int]],
+    path_index: int = 0,
+    vtype: VehicleType = VehicleType.NORMAL,
+    status: VehicleStatus = VehicleStatus.MOVING,
+) -> Vehicle:
+    """Create a Vehicle with consistent path state for move_vehicles tests."""
+    return Vehicle(
+        id=vid,
+        type=vtype,
+        position=path[path_index],
+        origin=path[0],
+        destination=path[-1],
+        path=path,
+        path_index=path_index,
+        status=status,
+    )
+
+
+def _road_cell_mock(occupied: bool = False) -> Mock:
+    """Mock of a traversable road cell (no traffic light)."""
+    cell = Mock()
+    cell.is_occupied.return_value = occupied
+    cell.traffic_light = None
+    return cell
+
+
+def _intersection_cell_mock(occupied: bool = False) -> Mock:
+    """Mock of a traversable intersection cell (has a traffic light object)."""
+    cell = Mock()
+    cell.is_occupied.return_value = occupied
+    cell.traffic_light = Mock()
+    return cell
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-03 — VehicleManager.move_vehicles
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleManagerMoveVehicles:
+    """Tests for VehicleManager.move_vehicles — priority-based tick movement."""
+
+    # --- Empty list and arrived-filter cases ---
+
+    def test_move_vehicles_no_op_with_empty_vehicle_list(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """With no active vehicles the method completes without touching grid or TLM."""
+        # Arrange
+        mock_grid = Mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — grid and TLM never consulted
+        mock_grid.get_cell.assert_not_called()
+        mock_tlm.can_vehicle_enter.assert_not_called()
+
+    def test_move_vehicles_skips_already_arrived_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """ARRIVED vehicles are filtered before movement; grid and ticks untouched."""
+        # Arrange
+        arrived = _vehicle_at(
+            "v1", [(0, 0), (1, 0)], path_index=1, status=VehicleStatus.ARRIVED
+        )
+        vehicle_manager._vehicles = [arrived]
+        mock_grid = Mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        mock_grid.get_cell.assert_not_called()
+        mock_grid.remove_vehicle.assert_not_called()
+        assert arrived.ticks_elapsed == 0
+
+    # --- At-destination cleanup (get_next_position returns None) ---
+
+    def test_move_vehicles_at_destination_releases_cell_and_marks_arrived(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle at final path cell is cleaned up: cell released, status ARRIVED."""
+        # Arrange — vehicle at last cell with MOVING status (not yet synced)
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)], path_index=1)
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        assert vehicle.status is VehicleStatus.ARRIVED
+        mock_grid.remove_vehicle.assert_called_once_with(1, 0)
+        mock_grid.get_cell.assert_not_called()
+
+    def test_move_vehicles_at_destination_does_not_increment_ticks_elapsed(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Destination cleanup is not counted as an elapsed tick."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)], path_index=1)
+        vehicle.ticks_elapsed = 5
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — ticks_elapsed unchanged
+        assert vehicle.ticks_elapsed == 5
+
+    # --- Waiting cases ---
+
+    def test_move_vehicles_occupied_next_cell_sets_waiting_and_increments_ticks(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle whose next cell is occupied is set to WAITING and ticks_elapsed++."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock(occupied=True)
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        assert vehicle.status is VehicleStatus.WAITING
+        assert vehicle.ticks_elapsed == 1
+        assert vehicle.position == (0, 0)
+
+    def test_move_vehicles_none_next_cell_sets_waiting_and_increments_ticks(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Vehicle whose next cell is outside the grid bounds is set to WAITING."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = None  # out-of-bounds path cell
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        assert vehicle.status is VehicleStatus.WAITING
+        assert vehicle.ticks_elapsed == 1
+        assert vehicle.position == (0, 0)
+
+    def test_move_vehicles_traffic_light_denied_sets_waiting_and_increments_ticks(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Intersection with red light sets status WAITING and increments ticks."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _intersection_cell_mock(occupied=False)
+        mock_tlm = Mock()
+        mock_tlm.can_vehicle_enter.return_value = False
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        assert vehicle.status is VehicleStatus.WAITING
+        assert vehicle.ticks_elapsed == 1
+        assert vehicle.position == (0, 0)
+
+    # --- Successful move cases ---
+
+    def test_move_vehicles_road_cell_moves_without_consulting_traffic_light(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Movement into a road cell (traffic_light is None) never consults the TLM."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — TLM not consulted at all; vehicle moved
+        mock_tlm.can_vehicle_enter.assert_not_called()
+        assert vehicle.position == (1, 0)
+
+    def test_move_vehicles_traffic_light_permitted_moves_vehicle(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Intersection with green light results in successful movement."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _intersection_cell_mock()
+        mock_tlm = Mock()
+        mock_tlm.can_vehicle_enter.return_value = True
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        assert vehicle.position == (1, 0)
+        assert vehicle.status is VehicleStatus.ARRIVED  # 2-cell path ends here
+        assert vehicle.ticks_elapsed == 1
+
+    def test_move_vehicles_move_updates_position_path_index_and_ticks(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Successful move advances position, path_index, and ticks_elapsed by one."""
+        # Arrange — 3-cell path so vehicle remains MOVING after one step
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0), (2, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        assert vehicle.position == (1, 0)
+        assert vehicle.path_index == 1
+        assert vehicle.status is VehicleStatus.MOVING
+        assert vehicle.ticks_elapsed == 1
+
+    def test_move_vehicles_move_releases_old_cell_and_claims_new_cell(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Move calls remove_vehicle on old position and place_vehicle on new one."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0), (2, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        mock_grid.remove_vehicle.assert_called_once_with(0, 0)
+        mock_grid.place_vehicle.assert_called_once_with(vehicle, 1, 0)
+
+    def test_move_vehicles_place_fails_rolls_back_position_and_waits(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """When place_vehicle returns False the vehicle is restored and waits.
+
+        The grid removes the vehicle from its old cell first. If placement on
+        the next cell fails (returns False), the vehicle is put back on its
+        original cell and its status is set to WAITING so the grid stays
+        consistent and no path progress is recorded.
+        """
+        # Arrange
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0), (2, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_grid.place_vehicle.return_value = False
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — old cell removed, both place_vehicle calls made, status WAITING
+        mock_grid.remove_vehicle.assert_called_once_with(0, 0)
+        assert mock_grid.place_vehicle.call_count == 2
+        mock_grid.place_vehicle.assert_any_call(vehicle, 1, 0)
+        mock_grid.place_vehicle.assert_any_call(vehicle, 0, 0)
+        assert vehicle.status is VehicleStatus.WAITING
+        assert vehicle.position == (0, 0)
+
+    # --- Direction mapping ---
+
+    @pytest.mark.parametrize(
+        "current_pos, next_pos, expected_direction",
+        [
+            ((0, 0), (1, 0), "east"),
+            ((1, 0), (0, 0), "west"),
+            ((0, 0), (0, 1), "south"),
+            ((0, 1), (0, 0), "north"),
+        ],
+    )
+    def test_move_vehicles_direction_passed_to_can_vehicle_enter(
+        self,
+        vehicle_manager: VehicleManager,
+        current_pos: tuple[int, int],
+        next_pos: tuple[int, int],
+        expected_direction: str,
+    ) -> None:
+        """Correct direction string is derived from position delta and sent to TLM."""
+        # Arrange
+        vehicle = _vehicle_at("v1", [current_pos, next_pos])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _intersection_cell_mock()
+        mock_tlm = Mock()
+        mock_tlm.can_vehicle_enter.return_value = True
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert
+        mock_tlm.can_vehicle_enter.assert_called_once_with(next_pos, expected_direction)
+
+    # --- Priority ordering (real Grid for accurate occupancy tracking) ---
+
+    def test_move_vehicles_releases_destination_cell_when_vehicle_arrives(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Destination cell is released immediately when a move produces ARRIVED status.
+
+        After advance_path() sets status to ARRIVED, move_vehicles calls
+        remove_vehicle on the destination so the cell cannot block future
+        spawns or movement in the same tick.
+        """
+        # Arrange — 2-cell path; vehicle arrives at (1,0) in one step
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 0)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        mock_grid.get_cell.return_value = _road_cell_mock()
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+        # Assert — old cell released, then destination cell released on arrival
+        assert vehicle.status is VehicleStatus.ARRIVED
+        assert mock_grid.remove_vehicle.call_count == 2
+        mock_grid.remove_vehicle.assert_any_call(0, 0)
+        mock_grid.remove_vehicle.assert_any_call(1, 0)
+
+    def test_move_vehicles_raises_on_non_cardinal_path_step(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Non-cardinal step into an intersection raises ValueError."""
+        # Arrange — diagonal step (0,0)→(1,1) is not a single cardinal move
+        vehicle = _vehicle_at("v1", [(0, 0), (1, 1)])
+        vehicle_manager._vehicles = [vehicle]
+        mock_grid = Mock()
+        # Intersection cell triggers the direction check
+        mock_grid.get_cell.return_value = _intersection_cell_mock()
+        mock_tlm = Mock()
+        mock_tlm.can_vehicle_enter.return_value = True
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="not a single cardinal move"):
+            vehicle_manager.move_vehicles(mock_grid, mock_tlm)
+
+    def test_move_vehicles_emergency_processed_before_normal_on_contested_cell(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """EMERGENCY vehicle claims a contested road cell before a NORMAL vehicle can.
+
+        Both vehicles target (2, 0) as an intermediate step. Despite normal
+        being listed first in _vehicles, emergency's lower priority-key tier
+        ensures it moves first and keeps the cell occupied, leaving normal
+        WAITING.
+        """
+        # Arrange — all path steps are single-cell (adjacent) moves so that
+        # _cardinal_direction cannot raise even if direction checking becomes
+        # universal.  Emergency: (1,0)→(2,0)→(3,0); normal: (3,0)→(2,0).
+        # (2,0) is an intermediate step for emergency (destination is (3,0))
+        # so the cell stays occupied after the move, blocking normal.
+        grid = Grid(width=7, height=7)
+        emergency = _vehicle_at(
+            "e1", [(1, 0), (2, 0), (3, 0)], vtype=VehicleType.EMERGENCY
+        )
+        normal = _vehicle_at("n1", [(3, 0), (2, 0)], vtype=VehicleType.NORMAL)
+        grid.place_vehicle(emergency, 1, 0)
+        grid.place_vehicle(normal, 3, 0)
+
+        # List normal first to confirm ordering is not insertion-order dependent
+        vehicle_manager._vehicles = [normal, emergency]
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(grid, mock_tlm)
+
+        # Assert — emergency at (2,0) MOVING; normal still at (3,0) WAITING
+        assert emergency.position == (2, 0)
+        assert emergency.status is VehicleStatus.MOVING
+        assert normal.position == (3, 0)
+        assert normal.status is VehicleStatus.WAITING
+
+    def test_move_vehicles_shorter_remaining_distance_first_among_same_type(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Among NORMAL vehicles the one with fewer steps remaining is processed first.
+
+        v_close (remaining=2) and v_far (remaining=3) both target (2, 0) as
+        their next step. v_close wins the cell and stays MOVING; v_far is
+        left WAITING.
+        """
+        # Arrange — all path steps are single-cell (adjacent) moves.
+        # v_close: (1,0)→(2,0)→(3,0) remaining=2; v_far: (3,0)→(2,0)→(1,0)→(0,0)
+        # remaining=3. (2,0) is an intermediate step for both so it stays occupied
+        # after v_close moves, blocking v_far.
+        grid = Grid(width=7, height=7)
+        v_close = _vehicle_at("vc", [(1, 0), (2, 0), (3, 0)])  # remaining = 2
+        v_far = _vehicle_at("vf", [(3, 0), (2, 0), (1, 0), (0, 0)])  # remaining = 3
+        grid.place_vehicle(v_close, 1, 0)
+        grid.place_vehicle(v_far, 3, 0)
+
+        # List v_far first to confirm ordering is not insertion-order dependent
+        vehicle_manager._vehicles = [v_far, v_close]
+        mock_tlm = Mock()
+
+        # Act
+        vehicle_manager.move_vehicles(grid, mock_tlm)
+
+        # Assert — v_close moved to (2,0) MOVING; v_far blocked at (3,0) WAITING
+        assert v_close.position == (2, 0)
+        assert v_close.status is VehicleStatus.MOVING
+        assert v_far.position == (3, 0)
+        assert v_far.status is VehicleStatus.WAITING
