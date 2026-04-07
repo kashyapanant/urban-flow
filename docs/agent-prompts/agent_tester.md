@@ -1,16 +1,17 @@
 # Urban Flow - QA/Tester Context Handoff
 
-**Last Updated:** 2026-03-30
-**Version:** 1.3  
-**Coverage Status:** Grid 100%, Pathfinder 99%, Vehicle (in progress)
+**Last Updated:** 2026-04-05  
+**Version:** 1.4  
+
+**Single source of truth for task status:** **`@docs/tasks.md`** — which tasks are ✅ (implementation complete) or ⬜ (not done). **This handoff does not duplicate that status.** Use `tasks.md` to decide what implementation is supposed to exist; use **coverage and test discovery** to see what is already tested.
 
 ---
 
 ## TL;DR
 
 - **Your role:** Write comprehensive tests for completed implementation tasks
-- **Current focus:** Vehicle module — P1-VEH-02 needs tests, P1-VEH-03 is next implementation
-- **Coverage target:** 100% statement coverage, zero uncovered lines (report any misses for developer confirmation)
+- **What to work on next:** **`@docs/tasks.md`** — find tasks marked ✅ whose behavior should be covered; compare with `backend/tests/` and `make test-cov` (do not trust a static “completed tests” list in this file for status)
+- **Coverage target:** 100% statement coverage on the code under test for the task, zero uncovered lines (report any misses for developer confirmation)
 - **Quality gate:** `make lint` → focused pytest → `make test` → `make test-cov` must all pass
 
 ---
@@ -26,58 +27,25 @@ Your mission is to ensure **100% test coverage** of all implemented functionalit
 ## How to Determine Next Task
 
 **Process:**
-1. Open **@docs/tasks.md** and find the most recent task marked ✅ (completed)
-2. Check the "Current Testing Status" table below to see if that task already has tests
-3. If **no tests exist** for that completed task → that's your next task
-4. If **tests exist** → wait for developer to implement and mark the next task ✅
+1. Open **`@docs/tasks.md`** — implementation status (⬜/✅) lives **only** there.
+2. Among tasks marked **✅**, decide what still needs tests: search `backend/tests/` for the relevant module, run **`pytest`** / **`make test-cov`** on that file, and compare coverage for the implementation file named in the task (e.g. `vehicle.py`).
+3. If a task is **⬜**, do **not** write tests for that scope yet (implementation may be missing or `NotImplementedError`).
+4. Prefer **testing in task order** when multiple ✅ tasks lack coverage, so coverage matches how the codebase was built — unless the human lead assigns a specific task ID.
 
-**Current status (as of 2026-03-08):**
-- **Last implemented:** P1-VEH-02 (VehicleManager lifecycle: `__init__`, `spawn_vehicles`, `collect_arrived`)
-- **Last tested:** P1-VEH-01 (Vehicle path methods)
-- **Testing gap:** ⚠️ P1-VEH-02 is marked ✅ in tasks.md but has NO test coverage in `test_vehicle.py`
-- **Next implementation:** P1-VEH-03 (`VehicleManager.move_vehicles()`) — not ready for testing yet
-
-**Your immediate next action:** Write tests for **P1-VEH-02** (VehicleManager lifecycle methods) in `backend/tests/test_vehicle.py`.
+**Optional:** To discover existing test classes, run `pytest --collect-only backend/tests/` or search by class name pattern in the repo. **Do not** treat any inventory in this handoff as authoritative for “what is tested”; verify in the test files and coverage report.
 
 ---
 
-## Current Testing Status
+## Test layout (reference only)
 
-### Completed (tests written and passing)
+| Area | Typical implementation module | Primary test file |
+|------|-------------------------------|-------------------|
+| API | `backend/api/` | `backend/tests/test_api.py` |
+| Grid | `backend/simulation/grid.py` | `backend/tests/test_grid.py` |
+| Pathfinder | `backend/simulation/pathfinder.py` | `backend/tests/test_pathfinder.py` |
+| Vehicle | `backend/simulation/vehicle.py` | `backend/tests/test_vehicle.py` |
 
-| Task | Method(s) | Test class | File |
-|------|-----------|------------|------|
-| P1-API-01 | `ConfigUpdateRequest` validation | `TestConfigUpdateRequest` | `test_api.py` |
-| P1-GRID-01 | `Grid.__init__()` | `TestGridInit` | `test_grid.py` |
-| P1-GRID-02 | `Cell.is_traversable()` | `TestCellIsTraversable` | `test_grid.py` |
-| P1-GRID-03 | `Cell.is_occupied()` | `TestCellIsOccupied` | `test_grid.py` |
-| P1-GRID-04 | `Grid.get_cell()` | `TestGridGetCell` | `test_grid.py` |
-| P1-GRID-05 | `Grid.get_neighbors()` | `TestGridGetNeighbors` | `test_grid.py` |
-| P1-GRID-06 | `Grid.place_vehicle()` | `TestGridPlaceVehicle` | `test_grid.py` |
-| P1-GRID-07 | `remove_vehicle`, `get_edge_cells`, `get_intersection_cells` | `TestGridUtilityQueries` | `test_grid.py` |
-| P1-GRID-08 | `Cell.to_dict()`, `Grid.snapshot()` | `TestCellToDict`, `TestGridSnapshot` | `test_grid.py` |
-| *(coverage supplement)* | `Grid.is_traversable()`, `Grid.is_occupied()` | `TestGridStateWrappers` | `test_grid.py` |
-| P1-PATH-01 | `PathNode.f_cost` | `TestPathNodeFCost` | `test_pathfinder.py` |
-| P1-PATH-02 | `PathNode.__lt__()` | `TestPathNodeLt` | `test_pathfinder.py` |
-| P1-PATH-03 | `Pathfinder.find_path()` | `TestPathfinderFindPath` | `test_pathfinder.py` |
-| P1-VEH-01 | `Vehicle.get_next_position()`, `advance_path()`, `get_remaining_distance()`, `to_dict()` | `TestVehicleGetNextPosition`, `TestVehicleAdvancePath`, `TestVehicleGetRemainingDistance`, `TestVehicleToDict` | `test_vehicle.py` |
-
-### Testing gaps (implemented but not yet tested)
-
-| Task | Method(s) | Status | Action Needed |
-|------|-----------|--------|---------------|
-| P1-VEH-02 | `VehicleManager.__init__()`, `spawn_vehicles()`, `collect_arrived()` | ⚠️ **No tests** | Write test classes in `test_vehicle.py` |
-
-### Not ready for testing (not yet implemented)
-
-| Task | Method(s) | Status |
-|------|-----------|--------|
-| P1-VEH-03 | `VehicleManager.move_vehicles()` | Raises `NotImplementedError` — wait for implementation |
-
-**Coverage summary:**
-- **Grid phase:** ✅ Complete — `backend/simulation/grid.py` at 100% statement coverage
-- **Pathfinder phase:** ✅ Complete — `backend/simulation/pathfinder.py` at 99% (line 138 confirmed unreachable, developer will add `# pragma: no cover`)
-- **Vehicle phase:** 🟡 Partial — Path methods tested, lifecycle methods need coverage
+**Coverage:** After adding or extending tests, run `make test-cov` and confirm the implementation file for the task you are testing shows the expected coverage. Any “phase X% complete” narrative belongs in **review notes or CI output**, not in this handoff, so it cannot drift from `tasks.md`.
 
 ---
 
@@ -85,7 +53,7 @@ Your mission is to ensure **100% test coverage** of all implemented functionalit
 
 Before writing tests for any task, read these files in order:
 
-1. **@docs/tasks.md** — Task list, implementation order, progress tracking; tells you which module and test file to work in
+1. **@docs/tasks.md** — **Authoritative** task list and ⬜/✅ status; use it to see which implementations should exist before you test them
 2. **@docs/requirements.md** — MVP scope, user stories, acceptance criteria
 3. **@docs/architecture.md** — Full system design, component interactions, data flow
 4. **@docs/design-decisions.md** — All implementation decisions linked to task IDs
@@ -277,8 +245,7 @@ def test_vehicle_move():
 ### ✅ DO: Check tasks.md first
 
 ```python
-# GOOD - verify task is marked ✅ in tasks.md before writing tests
-# Only test P1-VEH-01 if it's marked complete
+# GOOD - verify the relevant task is marked ✅ in tasks.md before writing tests
 def test_vehicle_get_next_position():
     vehicle = Vehicle(id="v1", position=(0, 0), path=[(0, 1), (1, 1)])
     # Arrange
@@ -709,9 +676,9 @@ uv run pre-commit run --all-files  # Type check
 
 **Your mission:** Write comprehensive tests for completed implementation tasks
 
-**Current task:** P1-VEH-02 (VehicleManager lifecycle methods)
+**Current task:** **`@docs/tasks.md`** — pick a ✅ task that still needs test coverage (verify with tests + coverage, not this handoff)
 
-**Test file:** `backend/tests/test_vehicle.py`
+**Test files:** See [Test layout](#test-layout-reference-only) above; default for Vehicle work is often `backend/tests/test_vehicle.py`
 
 **Quality gates:** `make lint` → focused pytest → `make test` → `make test-cov` → pre-commit
 
@@ -727,4 +694,5 @@ uv run pre-commit run --all-files  # Type check
 - v1.0 (2026-03-05): Initial version
 - v1.1 (2026-03-11): Added Pathfinder learnings
 - v1.2 (2026-03-20): Added Vehicle testing status
-- v1.3 (2026-03-30): Added TL;DR, Common Mistakes, Troubleshooting, Per-Task Checklist
+- v1.3 (2026-04-01): Added TL;DR, Common Mistakes, Troubleshooting, Per-Task Checklist
+- v1.4 (2026-04-05): Removed duplicated task/status tables; **`docs/tasks.md`** is the single source of truth for ⬜/✅

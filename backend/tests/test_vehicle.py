@@ -1,4 +1,4 @@
-"""Tests for the vehicle module — P1-VEH-01, P1-VEH-02."""
+"""Tests for the vehicle module — P1-VEH-01 through P1-VEH-04."""
 
 import json
 from unittest.mock import Mock, patch
@@ -1770,3 +1770,207 @@ class TestVehicleManagerMoveVehicles:
         assert v_close.status is VehicleStatus.MOVING
         assert v_far.position == (3, 0)
         assert v_far.status is VehicleStatus.WAITING
+
+
+# ---------------------------------------------------------------------------
+# P1-VEH-04 — VehicleManager queries (get_all, get_emergency_vehicles, snapshot)
+# ---------------------------------------------------------------------------
+
+
+class TestVehicleManagerGetAll:
+    """Tests for VehicleManager.get_all — shallow copy of active vehicles."""
+
+    def test_get_all_returns_empty_list_when_no_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Fresh manager exposes an empty sequence."""
+        # Act
+        result = vehicle_manager.get_all()
+
+        # Assert
+        assert result == []
+
+    def test_get_all_returns_vehicles_in_insertion_order(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Order matches append order to the internal active list."""
+        # Arrange
+        v1 = _make_moving_vehicle("a")
+        v2 = _make_moving_vehicle("b")
+        vehicle_manager._vehicles = [v1, v2]
+
+        # Act
+        result = vehicle_manager.get_all()
+
+        # Assert
+        assert result == [v1, v2]
+
+    def test_get_all_returns_shallow_copy_not_alias_of_internal_list(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Returned list is a new list object (callers cannot replace internals)."""
+        # Arrange
+        vehicle_manager._vehicles = [_make_moving_vehicle("x")]
+
+        # Act
+        result = vehicle_manager.get_all()
+
+        # Assert
+        assert result is not vehicle_manager._vehicles
+        assert result == vehicle_manager._vehicles
+
+    def test_get_all_appending_to_returned_list_does_not_mutate_manager(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Shallow copy breaks list-level accidental sharing."""
+        # Arrange
+        v1 = _make_moving_vehicle("only")
+        vehicle_manager._vehicles = [v1]
+        extra = _make_moving_vehicle("extra")
+
+        # Act
+        leaked = vehicle_manager.get_all()
+        leaked.append(extra)
+
+        # Assert
+        assert vehicle_manager._vehicles == [v1]
+        assert len(vehicle_manager.get_all()) == 1
+
+
+class TestVehicleManagerGetEmergencyVehicles:
+    """Tests for VehicleManager.get_emergency_vehicles — EMERGENCY filter."""
+
+    def test_get_emergency_vehicles_returns_empty_when_none_present(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """All NORMAL vehicles yields an empty emergency list."""
+        # Arrange
+        vehicle_manager._vehicles = [
+            _make_moving_vehicle("n1"),
+            _make_moving_vehicle("n2"),
+        ]
+
+        # Act
+        result = vehicle_manager.get_emergency_vehicles()
+
+        # Assert
+        assert result == []
+
+    def test_get_emergency_vehicles_returns_only_emergency_in_insertion_order(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Filter preserves relative order among emergency vehicles."""
+        # Arrange
+        e1 = Vehicle(
+            id="e1",
+            type=VehicleType.EMERGENCY,
+            position=(0, 0),
+            origin=(0, 0),
+            destination=(1, 0),
+            path=[(0, 0), (1, 0)],
+            path_index=0,
+            status=VehicleStatus.MOVING,
+        )
+        n1 = _make_moving_vehicle("n1")
+        e2 = Vehicle(
+            id="e2",
+            type=VehicleType.EMERGENCY,
+            position=(2, 0),
+            origin=(2, 0),
+            destination=(3, 0),
+            path=[(2, 0), (3, 0)],
+            path_index=0,
+            status=VehicleStatus.MOVING,
+        )
+        vehicle_manager._vehicles = [e1, n1, e2]
+
+        # Act
+        result = vehicle_manager.get_emergency_vehicles()
+
+        # Assert
+        assert result == [e1, e2]
+
+    def test_get_emergency_vehicles_returns_empty_for_empty_manager(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """No vehicles means no emergency vehicles."""
+        # Act
+        result = vehicle_manager.get_emergency_vehicles()
+
+        # Assert
+        assert result == []
+
+
+class TestVehicleManagerSnapshot:
+    """Tests for VehicleManager.snapshot — serializable list via Vehicle.to_dict."""
+
+    def test_snapshot_returns_empty_list_when_no_vehicles(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """No active vehicles produces an empty snapshot."""
+        # Act
+        result = vehicle_manager.snapshot()
+
+        # Assert
+        assert result == []
+
+    def test_snapshot_matches_per_vehicle_to_dict_in_order(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Each entry equals that vehicle's to_dict(); order is insertion order."""
+        # Arrange
+        v1 = _make_moving_vehicle("snap-1")
+        v2 = _make_moving_vehicle("snap-2")
+        vehicle_manager._vehicles = [v1, v2]
+
+        # Act
+        result = vehicle_manager.snapshot()
+
+        # Assert
+        assert result == [v1.to_dict(), v2.to_dict()]
+
+    def test_snapshot_round_trips_through_json(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Snapshot payloads are JSON-encodable; tuples become arrays on decode."""
+        # Arrange
+        v = _make_moving_vehicle("json-v")
+        vehicle_manager._vehicles = [v]
+
+        # Act
+        snap = vehicle_manager.snapshot()
+        encoded = json.dumps(snap)
+        decoded = json.loads(encoded)
+
+        # Assert — snapshot matches per-vehicle dicts; JSON uses lists for coords
+        assert snap == [v.to_dict()]
+        assert len(decoded) == 1
+        row = decoded[0]
+        assert row["id"] == "json-v"
+        assert row["type"] == "normal"
+        assert row["position"] == [0, 0]
+        assert row["origin"] == [0, 0]
+        assert row["destination"] == [1, 0]
+        assert row["path"] == [[0, 0], [1, 0]]
+        assert row["next_position"] == [1, 0]
+        assert row["remaining_distance"] == 1
+
+    def test_snapshot_propagates_value_error_from_invalid_vehicle_state(
+        self, vehicle_manager: VehicleManager
+    ) -> None:
+        """Inconsistent vehicle state in to_dict() surfaces as ValueError."""
+        # Arrange — empty path fails validation inside to_dict()
+        bad = Vehicle(
+            id="bad-snap",
+            type=VehicleType.NORMAL,
+            position=(0, 0),
+            origin=(0, 0),
+            destination=(1, 0),
+            path=[],
+            path_index=0,
+        )
+        vehicle_manager._vehicles = [bad]
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="empty path"):
+            vehicle_manager.snapshot()

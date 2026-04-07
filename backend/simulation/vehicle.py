@@ -471,25 +471,41 @@ class VehicleManager:
         return arrived
 
     def get_all(self) -> list[Vehicle]:
-        """Get all active vehicles.
+        """Return all active vehicles in insertion order.
+
+        Returns a shallow copy so callers cannot accidentally mutate the
+        manager's internal list.
 
         Returns:
-            List of all vehicles currently in the simulation
+            List of all vehicles currently tracked by the manager.
         """
-        raise NotImplementedError("VehicleManager.get_all(")
+        return list(self._vehicles)
 
     def get_emergency_vehicles(self) -> list[Vehicle]:
-        """Get all active emergency vehicles.
+        """Return all active emergency vehicles in insertion order.
+
+        Filters the active vehicle list for vehicles whose type is
+        ``VehicleType.EMERGENCY``. The relative order of the returned vehicles
+        matches their insertion order in the manager.
 
         Returns:
-            List of emergency vehicles currently in the simulation
+            List of active emergency vehicles; empty list if none are present.
         """
-        raise NotImplementedError("VehicleManager.get_emergency_vehicles(")
+        return [v for v in self._vehicles if v.type is VehicleType.EMERGENCY]
 
     def snapshot(self) -> list[dict[str, Any]]:
-        """Create a serializable snapshot of all vehicles.
+        """Create a serializable snapshot of all active vehicles.
+
+        Delegates serialization to ``Vehicle.to_dict()`` for each vehicle in
+        insertion order. The result is suitable for JSON encoding and frontend
+        delivery.
 
         Returns:
-            List of vehicle dictionaries for frontend
+            List of vehicle state dictionaries, one per active vehicle.
+
+        Raises:
+            ValueError: If any vehicle has an inconsistent
+                ``path``/``path_index``/``position`` state (propagated from
+                ``Vehicle.to_dict()``).
         """
-        raise NotImplementedError("VehicleManager.snapshot(")
+        return [v.to_dict() for v in self._vehicles]
