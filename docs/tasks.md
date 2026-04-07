@@ -98,8 +98,8 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) | ✅ | | |
 | P1-VEH-03 | `VehicleManager.move_vehicles()` | ✅ | | |
 | P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) | ✅ | | |
-| P1-TL-01 | TrafficLight core (`tick`, `can_enter`, `request_preemption`, `release_preemption`) | ⬜ | | |
-| P1-TL-02 | TrafficLightManager (`__init__`, `tick`) | ⬜ | | |
+| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) | ⬜ | | |
+| P1-TL-02 | TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) | ⬜ | | |
 | P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) | ⬜ | | |
 | P1-MET-02 | `Metrics.record_arrival()` | ⬜ | | |
 | P1-ENG-01 | `SimulationEngine.__init__()` | ⬜ | | |
