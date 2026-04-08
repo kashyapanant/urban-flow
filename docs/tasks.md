@@ -57,7 +57,7 @@ Implementation follows a foundation-first approach. Link each task ID to a branc
 
 | ID | Task | Status |
 |----|------|--------|
-| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) - Phase timing, intersection entry rules, and emergency preemption | ⬜ |
+| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) - Phase timing, intersection entry rules, and emergency preemption | ✅ |
 | P1-TL-02 | TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) - Create/update all lights for the grid | ⬜ |
 
 ### 5. Metrics Class (Depends: Vehicle)
@@ -98,7 +98,7 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 | P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) | ✅ | | |
 | P1-VEH-03 | `VehicleManager.move_vehicles()` | ✅ | | |
 | P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) | ✅ | | |
-| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) | ⬜ | | |
+| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) | ✅ | | |
 | P1-TL-02 | TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) | ⬜ | | |
 | P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) | ⬜ | | |
 | P1-MET-02 | `Metrics.record_arrival()` | ⬜ | | |
@@ -110,6 +110,17 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 ---
 
 ## Active issues & bugs
+
+- **DESIGN-WATCH-TL-01 (follow-up):** `TrafficLight.request_preemption()` accepts
+  any `Vehicle` without checking `vehicle.type`. The architecture specifies that
+  only emergency vehicles should trigger preemption, but this guard is not yet
+  enforced. Two possible enforcement points exist: (a) inside
+  `TrafficLight.request_preemption()` itself — raise or return `False` when
+  `vehicle.type is not VehicleType.EMERGENCY`; or (b) in
+  `SimulationEngine.tick()` — only call `request_preemption` for vehicles whose
+  type is `EMERGENCY` (caller-side guard, keeps `TrafficLight` decoupled from
+  `VehicleType`). Decide enforcement point and implement during P1-ENG-01/02 or
+  as a targeted follow-up once the engine is wired up.
 
 - **PERF-WATCH-VEH-01 (follow-up):** `Vehicle._validate_path_state()` is invoked
   from multiple hot-path methods (`get_next_position()`, `advance_path()` via
@@ -124,9 +135,9 @@ Use this table to link each task to a **branch** and/or **design decision**. Upd
 
 ## Phase 1 – Pending / next steps
 
-**Current status:** Implementation in progress (foundation-first). Grid class complete through P1-GRID-08; Pathfinder complete through P1-PATH-03; Vehicle module complete through P1-VEH-04 (`Vehicle` path progression/serialization, `VehicleManager.__init__`, `spawn_vehicles`, `collect_arrived`, `move_vehicles`, `get_all`, `get_emergency_vehicles`, `snapshot`).
+**Current status:** Implementation in progress (foundation-first). Grid complete through P1-GRID-08; Pathfinder complete through P1-PATH-03; Vehicle module complete through P1-VEH-04; TrafficLight core complete through P1-TL-01 (`tick`, `can_enter`, `request_preemption`, `release_preemption`, `to_dict`).
 
-**Next task:** P1-TL-01 – TrafficLight core (`TrafficLight.tick()`, `can_enter()`, `request_preemption()`, `release_preemption()`) (or next unchecked task in [Task registry](#task-registry)).
+**Next task:** P1-TL-02 – TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) (or next unchecked task in [Task registry](#task-registry)).
 
 ---
 
