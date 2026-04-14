@@ -295,7 +295,7 @@ class TestTrafficLightCanEnter:
 
 
 class TestTrafficLightRequestPreemption:
-    """Tests for TrafficLight.request_preemption — FCFS and yellow forcing."""
+    """Tests for TrafficLight.request_preemption — axis match, FCFS, yellow forcing."""
 
     def test_request_preemption_denied_when_other_vehicle_holds(self) -> None:
         """Second vehicle is denied while preempted_by points elsewhere."""
@@ -307,47 +307,295 @@ class TestTrafficLightRequestPreemption:
         light = _light(preempted_by=holder)
 
         # Act
-        result = light.request_preemption(other, 2)
+        result = light.request_preemption(other, Axis.NS, 2)
 
         # Assert
         assert result is False
         assert light.preempted_by is holder
 
-    def test_request_preemption_grants_when_already_in_entry_phase(self) -> None:
-        """GREEN: register vehicle without changing phase."""
-        # Arrange
-        light = _light(current_phase=Phase.GREEN, preempted_by=None)
-        v = Mock(spec=Vehicle)
-        v.id = "em1"
-
-        # Act
-        result = light.request_preemption(v, 5)
-
-        # Assert
-        assert result is True
-        assert light.preempted_by is v
-        assert light.current_phase is Phase.GREEN
-
-    def test_request_preemption_forces_yellow_when_not_in_entry_phase(self) -> None:
-        """RED forces YELLOW and sets ticks_in_phase for remaining yellow ticks."""
+    def test_request_preemption_no_change_when_axis_matches_green(
+        self,
+    ) -> None:
+        """NS GREEN + required_axis NS: register vehicle without forced transition."""
         # Arrange
         light = _light(
-            current_phase=Phase.RED,
-            phase_duration=10,
-            ticks_in_phase=0,
+            active_axis=Axis.NS,
+            current_phase=Phase.GREEN,
             preempted_by=None,
         )
         v = Mock(spec=Vehicle)
         v.id = "em1"
 
         # Act
-        result = light.request_preemption(v, 3)
+        result = light.request_preemption(v, Axis.NS, 3)
+
+        # Assert
+        assert result is True
+        assert light.preempted_by is v
+        assert light.current_phase is Phase.GREEN
+        assert light.active_axis is Axis.NS
+
+    def test_request_preemption_no_change_when_axis_matches_left_turn(
+        self,
+    ) -> None:
+        """EW LEFT_TURN + required_axis EW: already serving that axis."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.EW,
+            current_phase=Phase.LEFT_TURN,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+        v.id = "em-ew"
+
+        # Act
+        result = light.request_preemption(v, Axis.EW, 3)
+
+        # Assert
+        assert result is True
+        assert light.preempted_by is v
+        assert light.current_phase is Phase.LEFT_TURN
+        assert light.active_axis is Axis.EW
+
+    def test_request_preemption_forces_yellow_ns_green_ew_required(
+        self,
+    ) -> None:
+        """NS GREEN + EW required must force YELLOW (axis-aware regression).
+
+        Old bug: entry phase only, True with no transition; east still blocked.
+        """
+        # Arrange — green for North-South; emergency needs East-West
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.GREEN,
+            phase_duration=10,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+        v.id = "ew-ems"
+
+        # Act
+        result = light.request_preemption(v, Axis.EW, 3)
 
         # Assert
         assert result is True
         assert light.preempted_by is v
         assert light.current_phase is Phase.YELLOW
         assert light.ticks_in_phase == 7
+
+    def test_request_preemption_forces_yellow_ew_green_ns_required(
+        self,
+    ) -> None:
+        """EW GREEN + NS required: must force transition (symmetric to NS/EW case)."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.EW,
+            current_phase=Phase.GREEN,
+            phase_duration=8,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+
+        # Act
+        result = light.request_preemption(v, Axis.NS, 2)
+
+        # Assert
+        assert result is True
+        assert light.current_phase is Phase.YELLOW
+        assert light.ticks_in_phase == 6
+
+    def test_request_preemption_forces_yellow_left_turn_wrong_axis(self) -> None:
+        """LEFT_TURN on active axis; other axis still needs forced transition."""
+        # Arrange — NS axis in LEFT_TURN; vehicle needs EW
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.LEFT_TURN,
+            phase_duration=5,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+
+        # Act
+        result = light.request_preemption(v, Axis.EW, 1)
+
+        # Assert
+        assert result is True
+        assert light.current_phase is Phase.YELLOW
+        assert light.ticks_in_phase == 4
+
+    def test_request_preemption_wrong_axis_scenario_east_blocked_on_ns_green(
+        self,
+    ) -> None:
+        """Symptom: east blocked while NS GREEN until axis aligns (wrong axis)."""
+        # Arrange
+        light = _light(active_axis=Axis.NS, current_phase=Phase.GREEN)
+
+        # Assert — vehicle would be blocked if we wrongly skipped transition
+        assert light.can_enter("east") is False
+
+    @pytest.mark.parametrize("phase", [Phase.YELLOW, Phase.RED])
+    def test_request_preemption_same_axis_non_entry_jumps_to_green(
+        self, phase: Phase
+    ) -> None:
+        """If axis already matches but phase is non-entry, preemption jumps to GREEN.
+
+        This prevents the RED-completion axis flip from sending the light to the
+        wrong axis for the requesting emergency vehicle.
+        """
+        # Arrange
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=phase,
+            phase_duration=10,
+            ticks_in_phase=4,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+        v.id = "em1"
+
+        # Act
+        result = light.request_preemption(v, Axis.NS, 3)
+
+        # Assert
+        assert result is True
+        assert light.preempted_by is v
+        assert light.active_axis is Axis.NS
+        assert light.current_phase is Phase.GREEN
+        assert light.ticks_in_phase == 0
+        assert light.can_enter("north") is True
+
+    @pytest.mark.parametrize("phase", [Phase.YELLOW, Phase.RED])
+    def test_request_preemption_cross_axis_non_entry_forces_yellow(
+        self, phase: Phase
+    ) -> None:
+        """Cross-axis requests still force YELLOW with computed remaining ticks."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.EW,
+            current_phase=phase,
+            phase_duration=10,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+        v.id = "em-ew"
+
+        # Act
+        result = light.request_preemption(v, Axis.NS, 3)
+
+        # Assert
+        assert result is True
+        assert light.preempted_by is v
+        assert light.current_phase is Phase.YELLOW
+        assert light.ticks_in_phase == 7
+
+    def test_request_preemption_same_axis_non_entry_ignores_valid_duration(
+        self,
+    ) -> None:
+        """Immediate GREEN path is independent from valid yellow duration values."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.EW,
+            current_phase=Phase.RED,
+            phase_duration=6,
+            ticks_in_phase=5,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+
+        # Act
+        light.request_preemption(v, Axis.EW, 6)
+
+        # Assert
+        assert light.current_phase is Phase.GREEN
+        assert light.ticks_in_phase == 0
+        assert light.active_axis is Axis.EW
+
+    def test_request_preemption_cross_axis_eventually_reaches_required_axis_green(
+        self,
+    ) -> None:
+        """Forced-YELLOW path ends on required axis after RED completion flip."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.GREEN,
+            phase_duration=1,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+
+        # Act — cross-axis request forces YELLOW, then tick through YELLOW->RED->GREEN
+        light.request_preemption(v, Axis.EW, 1)
+        light.tick()
+        light.tick()
+
+        # Assert
+        assert light.current_phase is Phase.GREEN
+        assert light.active_axis is Axis.EW
+        assert light.can_enter("east") is True
+
+    @pytest.mark.parametrize(
+        "yellow_duration,expected_ticks_in_phase",
+        [
+            (1, 2),  # minimum valid
+            (3, 0),  # maximum valid == phase_duration
+        ],
+    )
+    def test_request_preemption_forced_yellow_valid_boundaries_follow_formula(
+        self, yellow_duration: int, expected_ticks_in_phase: int
+    ) -> None:
+        """Boundary values follow formula for forced-YELLOW tick positioning."""
+        # Arrange — cross-axis request to trigger forced-YELLOW branch
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.GREEN,
+            phase_duration=3,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+
+        # Act
+        result = light.request_preemption(v, Axis.EW, yellow_duration)
+
+        # Assert
+        assert result is True
+        assert light.current_phase is Phase.YELLOW
+        assert light.ticks_in_phase == expected_ticks_in_phase
+
+    def test_request_preemption_forced_yellow_leaves_phase_after_exact_duration_ticks(
+        self,
+    ) -> None:
+        """Forced-YELLOW lasts exactly preemption_yellow_duration ticks."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.GREEN,
+            phase_duration=3,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+        yellow_duration = 2
+        light.request_preemption(v, Axis.EW, yellow_duration)
+
+        # Act — first tick remains in YELLOW
+        light.tick()
+
+        # Assert
+        assert light.current_phase is Phase.YELLOW
+        assert light.ticks_in_phase == 2
+
+        # Act — second tick exits YELLOW
+        light.tick()
+
+        # Assert
+        assert light.current_phase is Phase.RED
+        assert light.ticks_in_phase == 0
 
     def test_request_preemption_same_vehicle_can_reenter_when_already_holder(
         self,
@@ -359,16 +607,66 @@ class TestTrafficLightRequestPreemption:
         light = _light(current_phase=Phase.GREEN, preempted_by=v)
 
         # Act
-        result = light.request_preemption(v, 2)
+        result = light.request_preemption(v, Axis.NS, 2)
 
         # Assert
         assert result is True
         assert light.preempted_by is v
 
-    def test_request_preemption_ticks_clamped_when_yellow_longer_than_phase_duration(
-        self,
+    def test_request_preemption_same_holder_rerequest_is_no_op(self) -> None:
+        """Current holder re-request returns True without changing transition state."""
+        # Arrange
+        v = Mock(spec=Vehicle)
+        v.id = "em1"
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.YELLOW,
+            phase_duration=5,
+            ticks_in_phase=3,
+            preempted_by=v,
+        )
+
+        # Act
+        result = light.request_preemption(v, Axis.EW, 2)
+
+        # Assert
+        assert result is True
+        assert light.preempted_by is v
+        assert light.active_axis is Axis.NS
+        assert light.current_phase is Phase.YELLOW
+        assert light.ticks_in_phase == 3
+
+    @pytest.mark.parametrize("invalid_duration", [0, -1, 999])
+    def test_request_preemption_same_holder_skips_duration_validation(
+        self, invalid_duration: int
     ) -> None:
-        """Large preemption_yellow_duration yields ticks_in_phase 0."""
+        """Same holder re-request is unconditional no-op, even with bad duration."""
+        # Arrange
+        v = Mock(spec=Vehicle)
+        v.id = "em1"
+        light = _light(
+            active_axis=Axis.EW,
+            current_phase=Phase.RED,
+            phase_duration=5,
+            ticks_in_phase=4,
+            preempted_by=v,
+        )
+
+        # Act
+        result = light.request_preemption(v, Axis.NS, invalid_duration)
+
+        # Assert
+        assert result is True
+        assert light.preempted_by is v
+        assert light.active_axis is Axis.EW
+        assert light.current_phase is Phase.RED
+        assert light.ticks_in_phase == 4
+
+    @pytest.mark.parametrize("invalid_duration", [0, -1, 6])
+    def test_request_preemption_raises_for_invalid_yellow_duration(
+        self, invalid_duration: int
+    ) -> None:
+        """yellow duration outside 1..phase_duration raises ValueError."""
         # Arrange
         light = _light(
             current_phase=Phase.RED,
@@ -378,12 +676,33 @@ class TestTrafficLightRequestPreemption:
         )
         v = Mock(spec=Vehicle)
 
-        # Act
-        light.request_preemption(v, 99)
+        # Act / Assert
+        with pytest.raises(
+            ValueError,
+            match="preemption_yellow_duration must be between",
+        ):
+            light.request_preemption(v, Axis.EW, invalid_duration)
 
-        # Assert
-        assert light.ticks_in_phase == 0
-        assert light.current_phase is Phase.YELLOW
+    def test_request_preemption_invalid_duration_error_message_format(self) -> None:
+        """Error message includes bounds and received duration value."""
+        # Arrange
+        light = _light(
+            active_axis=Axis.NS,
+            current_phase=Phase.GREEN,
+            phase_duration=3,
+            ticks_in_phase=0,
+            preempted_by=None,
+        )
+        v = Mock(spec=Vehicle)
+
+        # Act / Assert
+        with pytest.raises(ValueError) as exc_info:
+            light.request_preemption(v, Axis.EW, 4)
+
+        assert str(exc_info.value) == (
+            "preemption_yellow_duration must be between 1 and "
+            "phase_duration (3), got 4."
+        )
 
 
 # ---------------------------------------------------------------------------

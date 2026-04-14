@@ -112,67 +112,98 @@ class TrafficLight:
         return axis is self.active_axis and self.current_phase in self._ENTRY_PHASES
 
     def request_preemption(
-        self, vehicle: Vehicle, preemption_yellow_duration: int
+        self,
+        vehicle: Vehicle,
+        required_axis: Axis,
+        preemption_yellow_duration: int,
     ) -> bool:
         """Request emergency preemption for an approaching vehicle.
 
-        Preemption grants the intersection's green phase to the axis that
-        serves ``vehicle``'s direction of travel as quickly as possible:
+        Preemption grants the intersection's green phase to ``required_axis``
+        as quickly as possible:
 
         1. If another vehicle already holds preemption, the request is denied
            (first-come-first-served).
-        2. If the active axis already serves the vehicle's required axis, the
-           vehicle is registered as the preempting vehicle and no phase change
-           is needed — the light is already green for the right direction.
-        3. Otherwise the light is forced into a short YELLOW transition by
-           setting ``ticks_in_phase`` so that exactly
-           ``preemption_yellow_duration`` ticks remain in the YELLOW phase.
-           The normal ``tick()`` loop then advances through YELLOW → RED →
-           (axis flip) → GREEN, putting the correct axis at green automatically.
-
-        The vehicle's required axis is derived from its current direction of
-        travel: north/south → NS, east/west → EW. Because the vehicle's path
-        may be diagonal relative to the intersection, the axis is inferred from
-        the *movement direction toward the intersection*, which the engine must
-        supply via ``vehicle`` context. In this implementation the vehicle
-        object is stored as a reference; the axis is not re-derived here (the
-        caller is responsible for directing the right vehicle to this method).
+        2. If ``active_axis`` already matches ``required_axis`` **and** the
+           current phase is ``GREEN`` or ``LEFT_TURN``, the vehicle is
+           registered and no phase change is needed — the light already serves
+           the right direction.
+        3. If ``active_axis`` already matches ``required_axis`` but the phase
+           is ``YELLOW`` or ``RED``, the phase is immediately reset to
+           ``GREEN`` on the same axis. Going through the normal YELLOW→RED
+           path would flip the axis on RED completion, landing on the wrong
+           axis.
+        4. If ``active_axis`` is the cross-axis, the light is forced into a
+           short YELLOW transition by setting ``ticks_in_phase`` so that
+           exactly ``preemption_yellow_duration`` ticks remain. The normal
+           ``tick()`` loop then advances YELLOW → RED → (axis flip) → GREEN,
+           putting ``required_axis`` at green automatically.
 
         Args:
             vehicle: Emergency vehicle requesting preemption. Stored in
                 ``preempted_by`` when granted.
+            required_axis: The axis that must be green for the vehicle to
+                proceed. Derived by the caller from the vehicle's direction of
+                travel (NS for north/south movement, EW for east/west).
             preemption_yellow_duration: Number of ticks the forced YELLOW phase
-                should last before the axis flips. Must be >= 1.
+                should last before the axis flips. Must be >= 1 and <=
+                ``phase_duration``. Values larger than ``phase_duration`` are
+                rejected with ``ValueError`` because ``tick()`` advances phases
+                in units of ``phase_duration`` — honoring a longer yellow would
+                require state the tick loop does not carry.
 
         Returns:
             ``True`` if preemption was granted (this vehicle is now the
             registered preemptor), ``False`` if another vehicle already holds
             preemption on this intersection.
+
+        Raises:
+            ValueError: If ``preemption_yellow_duration`` is less than 1 or
+                greater than ``phase_duration``. Not raised when the same
+                holder re-requests (no-op path skips validation).
         """
-        if self.preempted_by is not None and self.preempted_by is not vehicle:
+        if self.preempted_by is vehicle:
+            # Same holder re-requesting — transition already in progress, no-op.
+            # Duration argument is irrelevant here; skip validation entirely.
+            return True
+
+        if not 1 <= preemption_yellow_duration <= self.phase_duration:
+            raise ValueError(
+                f"preemption_yellow_duration must be between 1 and "
+                f"phase_duration ({self.phase_duration}), "
+                f"got {preemption_yellow_duration}."
+            )
+
+        if self.preempted_by is not None:
+            # A different vehicle holds preemption — deny.
             return False
 
         self.preempted_by = vehicle
 
-        # Determine the axis needed for this vehicle based on the active_axis.
-        # The engine calls this method only when the vehicle is on the approach
-        # path, so we use the current active axis as a proxy: if the light is
-        # already serving the needed direction, nothing more is required.
-        # A full axis-aware preemption requires the engine to pass the required
-        # axis; for now we use the architecture's cross-axis flip model: if not
-        # already GREEN/LEFT_TURN, force a yellow transition.
-        if self.current_phase in self._ENTRY_PHASES:
-            # Already in an entry phase — no forced transition needed.
+        already_serving = (
+            self.active_axis is required_axis
+            and self.current_phase in self._ENTRY_PHASES
+        )
+        if already_serving:
             return True
 
-        # Force a short YELLOW transition so that the normal tick loop carries
-        # the light through YELLOW → RED → (axis flip) → GREEN.
+        if self.active_axis is required_axis:
+            # Correct axis but phase is YELLOW or RED — the normal YELLOW→RED
+            # path would flip the axis on RED completion, landing on the *wrong*
+            # axis. Instead, immediately restart GREEN on the already-correct
+            # axis so the vehicle can enter on the next tick.
+            self.current_phase = Phase.GREEN
+            self.ticks_in_phase = 0
+            return True
+
+        # Cross-axis case: force a short YELLOW so the normal tick loop carries
+        # the light through YELLOW → RED → (axis flip) → GREEN, putting
+        # required_axis at green automatically.
         self.current_phase = Phase.YELLOW
         # Position ticks_in_phase so exactly preemption_yellow_duration ticks
-        # remain: when tick() runs, it increments first, so set the counter to
+        # remain: tick() increments first, so set the counter to
         # phase_duration - preemption_yellow_duration.
-        remaining = max(1, preemption_yellow_duration)
-        self.ticks_in_phase = max(0, self.phase_duration - remaining)
+        self.ticks_in_phase = self.phase_duration - preemption_yellow_duration
         return True
 
     def release_preemption(self) -> None:
@@ -238,6 +269,7 @@ class TrafficLightManager:
         self,
         position: tuple[int, int],
         vehicle: Vehicle,
+        required_axis: Axis,
         preemption_yellow_duration: int,
     ) -> bool:
         """Request emergency preemption at an intersection.
@@ -245,6 +277,8 @@ class TrafficLightManager:
         Args:
             position: Intersection coordinates
             vehicle: Emergency vehicle requesting preemption
+            required_axis: The axis that must be green for the vehicle to
+                proceed (NS for north/south movement, EW for east/west).
             preemption_yellow_duration: Ticks for yellow transition
 
         Returns:
