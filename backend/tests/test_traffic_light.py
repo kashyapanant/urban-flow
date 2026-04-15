@@ -375,6 +375,9 @@ class TestTrafficLightRequestPreemption:
         v = Mock(spec=Vehicle)
         v.id = "ew-ems"
 
+        # Baseline — wrong-axis entry is blocked before preemption changes state.
+        assert light.can_enter("east") is False
+
         # Act
         result = light.request_preemption(v, Axis.EW, 3)
 
@@ -425,16 +428,6 @@ class TestTrafficLightRequestPreemption:
         assert result is True
         assert light.current_phase is Phase.YELLOW
         assert light.ticks_in_phase == 4
-
-    def test_request_preemption_wrong_axis_scenario_east_blocked_on_ns_green(
-        self,
-    ) -> None:
-        """Symptom: east blocked while NS GREEN until axis aligns (wrong axis)."""
-        # Arrange
-        light = _light(active_axis=Axis.NS, current_phase=Phase.GREEN)
-
-        # Assert — vehicle would be blocked if we wrongly skipped transition
-        assert light.can_enter("east") is False
 
     @pytest.mark.parametrize("phase", [Phase.YELLOW, Phase.RED])
     def test_request_preemption_same_axis_non_entry_jumps_to_green(
