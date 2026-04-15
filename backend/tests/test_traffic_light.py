@@ -304,7 +304,14 @@ class TestTrafficLightRequestPreemption:
         holder.id = "h"
         other = Mock(spec=Vehicle)
         other.id = "o"
-        light = _light(preempted_by=holder)
+        light = _light(
+            active_axis=Axis.EW,
+            current_phase=Phase.YELLOW,
+            phase_duration=5,
+            ticks_in_phase=2,
+            preempted_by=holder,
+        )
+        state_before = (light.active_axis, light.current_phase, light.ticks_in_phase)
 
         # Act
         result = light.request_preemption(other, Axis.NS, 2)
@@ -312,6 +319,8 @@ class TestTrafficLightRequestPreemption:
         # Assert
         assert result is False
         assert light.preempted_by is holder
+        state_after = (light.active_axis, light.current_phase, light.ticks_in_phase)
+        assert state_after == state_before
 
     def test_request_preemption_no_change_when_axis_matches_green(
         self,
