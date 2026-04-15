@@ -218,35 +218,35 @@ class TestTrafficLightTick:
 class TestTrafficLightCanEnter:
     """Tests for TrafficLight.can_enter — axis and phase gating."""
 
+    @pytest.mark.parametrize("phase", [Phase.GREEN, Phase.LEFT_TURN])
     @pytest.mark.parametrize("direction", ["north", "south"])
     def test_can_enter_true_when_ns_active_and_green_or_left_turn(
-        self, direction: str
+        self, direction: str, phase: Phase
     ) -> None:
         """NS directions may enter when axis is NS and phase allows."""
         # Arrange
-        for phase in (Phase.GREEN, Phase.LEFT_TURN):
-            light = _light(active_axis=Axis.NS, current_phase=phase)
+        light = _light(active_axis=Axis.NS, current_phase=phase)
 
-            # Act
-            ok = light.can_enter(direction)
+        # Act
+        ok = light.can_enter(direction)
 
-            # Assert
-            assert ok is True
+        # Assert
+        assert ok is True
 
+    @pytest.mark.parametrize("phase", [Phase.GREEN, Phase.LEFT_TURN])
     @pytest.mark.parametrize("direction", ["east", "west"])
     def test_can_enter_true_when_ew_active_and_green_or_left_turn(
-        self, direction: str
+        self, direction: str, phase: Phase
     ) -> None:
         """EW directions may enter when axis is EW and phase allows."""
         # Arrange
-        for phase in (Phase.GREEN, Phase.LEFT_TURN):
-            light = _light(active_axis=Axis.EW, current_phase=phase)
+        light = _light(active_axis=Axis.EW, current_phase=phase)
 
-            # Act
-            ok = light.can_enter(direction)
+        # Act
+        ok = light.can_enter(direction)
 
-            # Assert
-            assert ok is True
+        # Assert
+        assert ok is True
 
     @pytest.mark.parametrize(
         "phase",
@@ -819,6 +819,26 @@ class TestTrafficLightToDict:
 
         # Assert
         assert d["preempted_by"] == "veh-99"
+
+    @pytest.mark.parametrize(
+        "vehicle_like",
+        [
+            object(),  # no id attribute
+            type("AnonVehicle", (), {"id": None})(),  # explicit None id
+        ],
+    )
+    def test_to_dict_preempted_by_is_none_when_id_missing_or_none(
+        self, vehicle_like: object
+    ) -> None:
+        """Missing/None id on preempted_by serializes as None."""
+        # Arrange
+        light = _light(preempted_by=vehicle_like)  # type: ignore[arg-type]
+
+        # Act
+        d = light.to_dict()
+
+        # Assert
+        assert d["preempted_by"] is None
 
     def test_to_dict_round_trips_through_json(self) -> None:
         """Payload is JSON-serializable; tuples become lists on decode."""
