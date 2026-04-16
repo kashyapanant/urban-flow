@@ -1,180 +1,111 @@
 # Urban Flow - Development Tasks
 
-This document tracks development tasks, issues, and improvements for the Urban Flow project. Each task has a **unique ID** so it can be linked to a git branch, design decision, or PR.
+This file is optimized for **review-sized AI handoffs**.
 
-## Task Status Legend
+Use the **Phase 1 Review-Sized Task Queue** below as the single source of truth for:
 
-- 🔴 **Critical** - Blocks core functionality or security issue
-- 🟡 **High** - Important for robustness/user experience
-- 🟢 **Medium** - Nice to have, improves code quality
-- 🔵 **Low** - Future enhancement, not urgent
+- what is done
+- what is next
+- what size of work should be handed to an agent
+
+The goal is to avoid method-sized tasks. Each open task should be large enough to be worth a focused review, but still small enough to finish in one coherent implementation pass.
+
+---
+
+## Task Sizing Rules
+
+- One task should usually correspond to one coherent code review.
+- A task may span multiple related methods or files when they form one usable slice.
+- Do not split work into tiny method-only tasks unless the change is unusually risky.
+- If older docs mention smaller legacy task IDs, use the mapping in this file instead of creating new micro-tasks.
+
+---
 
 ## ID Format
 
-- **P1-** = Phase 1 (Core Simulation Engine)
-- **GRID** = Grid class · **PATH** = Pathfinder · **VEH** = Vehicle/VehicleManager · **TL** = TrafficLight · **MET** = Metrics · **ENG** = SimulationEngine · **API** = API layer
-- **NN** = Two-digit number (01, 02, …)
+- `P1-` = Phase 1 (Grid Simulation MVP)
+- `GRID`, `PATH`, `VEH`, `TL`, `MET`, `ENG`, `API`, `FE` = major areas
+- `NN` = two-digit sequence number
 
-Example: `P1-GRID-01` = Phase 1, Grid, first task.
-
----
-
-## Phase 1: Core Simulation Engine - Implementation Order
-
-Implementation follows a foundation-first approach. Link each task ID to a branch (e.g. `urb-01`) or design decision in the [Task registry](#task-registry) below.
-
-### 1. Grid Class (Foundation)
-
-| ID | Task | Status |
-|----|------|--------|
-| P1-GRID-01 | `Grid.__init__()` - Initialize grid with city blocks layout | ✅ |
-| P1-GRID-02 | `Cell.is_traversable()` - Check if cell allows vehicle movement | ✅ |
-| P1-GRID-03 | `Cell.is_occupied()` - Check if cell contains vehicle | ✅ |
-| P1-GRID-04 | `Grid.get_cell()` - Get cell at coordinates | ✅ |
-| P1-GRID-05 | `Grid.get_neighbors()` - Get traversable neighboring cells | ✅ |
-| P1-GRID-06 | `Grid.place_vehicle()` - Place vehicle in cell | ✅ |
-| P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()`) - Support vehicle cleanup, spawning, and intersection lookup | ✅ |
-| P1-GRID-08 | Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) - Produce frontend-ready serializable state | ✅ |
-
-### 2. Pathfinder Class (Depends: Grid)
-
-| ID | Task | Status |
-|----|------|--------|
-| P1-PATH-01 | `PathNode.f_cost` - A* total cost calculation | ✅ |
-| P1-PATH-02 | `PathNode.__lt__()` - Priority queue comparison | ✅ |
-| P1-PATH-03 | `Pathfinder.find_path()` - A* pathfinding algorithm | ✅ |
-
-### 3. Vehicle Classes (Depends: Grid, Pathfinder)
-
-| ID | Task | Status |
-|----|------|--------|
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) - Read, advance, measure route progress, and serialize vehicle state | ✅ |
-| P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) - Initialize manager, spawn at grid edges, and remove completed vehicles | ✅ |
-| P1-VEH-03 | `VehicleManager.move_vehicles()` - Priority-based movement | ✅ |
-| P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) - List all active vehicles, filter emergency vehicles, and produce serializable snapshots for the frontend | ✅ |
-
-### 4. TrafficLight Classes (Depends: Vehicle)
-
-| ID | Task | Status |
-|----|------|--------|
-| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) - Phase timing, intersection entry rules, and emergency preemption | ✅ |
-| P1-TL-02 | TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) - Create/update all lights for the grid | ⬜ |
-
-### 5. Metrics Class (Depends: Vehicle)
-
-| ID | Task | Status |
-|----|------|--------|
-| P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) - Compute baseline and emergency performance gains | ⬜ |
-| P1-MET-02 | `Metrics.record_arrival()` - Record vehicle completion | ⬜ |
-
-### 6. SimulationEngine (Orchestrates All)
-
-| ID | Task | Status |
-|----|------|--------|
-| P1-ENG-01 | `SimulationEngine.__init__()` - Initialize all components | ⬜ |
-| P1-ENG-02 | Engine runtime loop (`SimulationEngine.start()`, `SimulationEngine.tick()`) - Start and execute the simulation lifecycle | ⬜ |
-| P1-ENG-03 | `SimulationEngine.snapshot()` - Create complete state | ⬜ |
+Example: `P1-ENG-01`
 
 ---
 
-## Task registry
+## Phase 1 Review-Sized Task Queue
 
-Use this table to link each task to a **branch** and/or **design decision**. Update as you create branches or add entries to `docs/design-decisions.md`.
+This table is the **authoritative queue** for developer and tester handoffs.
 
-| ID | Task (short) | Status | Branch | Design decision |
-|----|--------------|--------|--------|------------------|
-| P1-GRID-01 | `Grid.__init__()` | ✅ | | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01) |
-| P1-GRID-02 | `Cell.is_traversable()` | ✅ | | |
-| P1-GRID-03 | `Cell.is_occupied()` | ✅ | | |
-| P1-GRID-04 | `Grid.get_cell()` | ✅ | | |
-| P1-GRID-05 | `Grid.get_neighbors()` | ✅ | | |
-| P1-GRID-06 | `Grid.place_vehicle()` | ✅ | | [Dual-Level API](design-decisions.md#decision-dual-level-is_traversable--is_occupied-api-task-p1-grid-06) |
-| P1-GRID-07 | Grid utility queries (`Grid.remove_vehicle()`, `Grid.get_edge_cells()`, `Grid.get_intersection_cells()`) | ✅ | | |
-| P1-GRID-08 | Grid serialization (`Grid.snapshot()`, `Cell.to_dict()`) | ✅ | | |
-| P1-PATH-01 | `PathNode.f_cost` | ✅ | | e.g. [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
-| P1-PATH-02 | `PathNode.__lt__()` | ✅ | | |
-| P1-PATH-03 | `Pathfinder.find_path()` | ✅ | | |
-| P1-VEH-01 | Vehicle path progression (`Vehicle.get_next_position()`, `Vehicle.advance_path()`, `Vehicle.get_remaining_distance()`, `Vehicle.to_dict()`) | ✅ | | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
-| P1-VEH-02 | Vehicle manager lifecycle (`VehicleManager.__init__()`, `VehicleManager.spawn_vehicles()`, `VehicleManager.collect_arrived()`) | ✅ | | |
-| P1-VEH-03 | `VehicleManager.move_vehicles()` | ✅ | | |
-| P1-VEH-04 | VehicleManager queries (`VehicleManager.get_all()`, `VehicleManager.get_emergency_vehicles()`, `VehicleManager.snapshot()`) | ✅ | | |
-| P1-TL-01 | TrafficLight core (`TrafficLight.tick()`, `TrafficLight.can_enter()`, `TrafficLight.request_preemption()`, `TrafficLight.release_preemption()`) | ✅ | | |
-| P1-TL-02 | TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) | ⬜ | | |
-| P1-MET-01 | Core KPI calculations (`Metrics.normal_avg_ticks`, `Metrics.emergency_avg_ticks`, `Metrics.improvement`) | ⬜ | | |
-| P1-MET-02 | `Metrics.record_arrival()` | ⬜ | | |
-| P1-ENG-01 | `SimulationEngine.__init__()` | ⬜ | | |
-| P1-ENG-02 | Engine runtime loop (`SimulationEngine.start()`, `SimulationEngine.tick()`) | ⬜ | | |
-| P1-ENG-03 | `SimulationEngine.snapshot()` | ⬜ | | |
-| P1-API-01 | `ConfigUpdateRequest` validation | ✅ | | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
+| ID | Task | Includes | Depends On | Status |
+|----|------|----------|------------|--------|
+| P1-GRID-01 | Grid foundation + serialization | Grid layout, traversal, occupancy helpers, edge/intersection queries, snapshot payloads | - | ✅ |
+| P1-PATH-01 | Pathfinder module | Path node helpers, A* search, emergency light-aware costs | P1-GRID-01 | ✅ |
+| P1-VEH-01 | Vehicle + VehicleManager core | Vehicle path progression, spawning, movement, arrival cleanup, snapshots | P1-GRID-01, P1-PATH-01 | ✅ |
+| P1-TL-01 | TrafficLight core | Phase cycling, entry rules, preemption, serialization | P1-VEH-01 | ✅ |
+| P1-API-01 | Config request validation | `ConfigUpdateRequest` bounds and API-facing validation | - | ✅ |
+| P1-TL-02 | TrafficLightManager + grid light wiring | Create all intersection lights, lookups, movement permission bridge, phase-duration updates, light snapshots | P1-TL-01 | ⬜ |
+| P1-MET-01 | Metrics module complete | KPI calculations, `record_arrival`, batch updates, reset, `to_dict` | P1-VEH-01 | ⬜ |
+| P1-ENG-01 | SimulationEngine complete | Initialization, six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ⬜ |
+| P1-API-02 | Runtime interface layer | REST route wiring, WebSocket manager/handler, app bootstrap, static files, startup lifecycle | P1-ENG-01 | ⬜ |
+| P1-FE-01 | Browser MVP | `index.html`, renderer, controls, metrics panel, `app.js`, end-to-end UI wiring | P1-API-02 | ⬜ |
 
 ---
 
-## Active issues & bugs
+## Current Status
 
-- **DESIGN-WATCH-TL-01 (follow-up):** `TrafficLight.request_preemption()` accepts
-  any `Vehicle` without checking `vehicle.type`. The architecture specifies that
-  only emergency vehicles should trigger preemption, but this guard is not yet
-  enforced. Two possible enforcement points exist: (a) inside
-  `TrafficLight.request_preemption()` itself — raise or return `False` when
-  `vehicle.type is not VehicleType.EMERGENCY`; or (b) in
-  `SimulationEngine.tick()` — only call `request_preemption` for vehicles whose
-  type is `EMERGENCY` (caller-side guard, keeps `TrafficLight` decoupled from
-  `VehicleType`). Decide enforcement point and implement during P1-ENG-01/02 or
-  as a targeted follow-up once the engine is wired up.
+- Phase 1 foundations are complete through `P1-TL-01` plus `P1-API-01`.
+- The remaining work is integration-heavy and should be tackled as the larger slices above.
+- **Next task:** `P1-TL-02`
 
-- **PERF-WATCH-VEH-01 (follow-up):** `Vehicle._validate_path_state()` is invoked
-  from multiple hot-path methods (`get_next_position()`, `advance_path()` via
-  `get_next_position()`, `get_remaining_distance()`, `to_dict()`). Re-check call
-  frequency and runtime impact **after** movement and tick orchestration are
-  integrated (minimum trigger: P1-VEH-03 + P1-ENG-02 complete). Profile at
-  realistic load (e.g., medium/high spawn-rate runs over sustained ticks) and
-  then decide whether to keep current boundary-validation behavior or refactor
-  to a single-validation internal helper for serialization hot paths.
+### What "done" means for an open task
+
+- The full slice in the queue row is implemented, not just one method.
+- Lint passes.
+- Relevant tests pass, or any testing gap is explicitly called out.
+- `docs/tasks.md` is updated before handoff.
 
 ---
 
-## Phase 1 – Pending / next steps
+## Legacy ID Mapping
 
-**Current status:** Implementation in progress (foundation-first). Grid complete through P1-GRID-08; Pathfinder complete through P1-PATH-03; Vehicle module complete through P1-VEH-04; TrafficLight core complete through P1-TL-01 (`tick`, `can_enter`, `request_preemption`, `release_preemption`, `to_dict`).
+Older docs, notes, and design-decision anchors may still reference smaller task IDs. Use this mapping when reading them.
 
-**Next task:** P1-TL-02 – TrafficLightManager (`TrafficLightManager.__init__()`, `TrafficLightManager.tick()`) (or next unchecked task in [Task registry](#task-registry)).
-
----
-
-## Future task categories
-
-- **Testing** – Comprehensive tests
-- **Performance** – Optimization and benchmarking
-- **Documentation** – Docs and examples
-- **Frontend** – Web UI (Phase 1 scope)
-
----
-
-## Completed tasks
-
-### P1-API-01: Add input validation to ConfigUpdateRequest
-
-**Status:** Completed  
-**Priority:** High  
-**Component:** API layer (`backend/api/routes.py`)  
-**Reported:** 2026-02-28  
-**Completed:** 2026-03-05  
-
-**Description:**  
-`ConfigUpdateRequest` had no validation, so invalid values could pass through the API. Validation was added so invalid data does not reach the simulation engine.
-
-**Solution:** Pydantic `Field` with `ge`/`le` for `tick_speed`, `spawn_rate`, `phase_duration` (aligned with `SimulationConfig`).
-
-**Changes:**  
-- Added Field validation to all `ConfigUpdateRequest` fields  
-- Logged decision in `docs/design-decisions.md`  
-
-**Result:** API returns 422 for invalid config; engine no longer receives invalid data.
+| Review-Sized Task | Legacy IDs Rolled Into It |
+|-------------------|---------------------------|
+| P1-GRID-01 | P1-GRID-01 through P1-GRID-08 |
+| P1-PATH-01 | P1-PATH-01 through P1-PATH-03 |
+| P1-VEH-01 | P1-VEH-01 through P1-VEH-04 |
+| P1-TL-01 | P1-TL-01 |
+| P1-API-01 | P1-API-01 |
+| P1-TL-02 | P1-TL-02 |
+| P1-MET-01 | P1-MET-01, P1-MET-02 |
+| P1-ENG-01 | P1-ENG-01, P1-ENG-02, P1-ENG-03 |
+| P1-API-02 | P1-API-02, P1-WS-01, P1-APP-01 |
+| P1-FE-01 | P1-FE-01 through P1-FE-05 |
 
 ---
 
-## Notes
+## Design Decision References
 
-- Each task is atomic and has a unique ID for linking (branch, design decision, PR). TrafficLight Phase 1 uses **P1-TL-01** and **P1-TL-02** only (single-light behavior vs manager); older drafts split those into six IDs — use **P1-TL-01** / **P1-TL-02** going forward.
-- Update the [Task registry](#task-registry) when you create a branch or document a design decision.
-- Prefer referencing tasks by ID (e.g. “Implements P1-GRID-01”) in commits and PRs.
+Use `docs/design-decisions.md` for detailed trade-offs. The links below are the most relevant existing anchors.
+
+| Task | Design Decision References |
+|------|----------------------------|
+| P1-GRID-01 | [Cell Layout](design-decisions.md#decision-grid-initialization--cell-layout-task-p1-grid-01), [Street Spacing](design-decisions.md#decision-grid-streetavenue-spacing-task-p1-grid-01), [Dimension Validation](design-decisions.md#decision-grid-dimension-validation-constants-task-p1-grid-01), [Dual-Level API](design-decisions.md#decision-dual-level-is_traversable--is_occupied-api-task-p1-grid-06) |
+| P1-PATH-01 | [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
+| P1-VEH-01 | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
+| P1-API-01 | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
+
+---
+
+## Active Watches
+
+- **DESIGN-WATCH-TL-01:** During `P1-ENG-01`, explicitly enforce that only emergency vehicles trigger preemption. The enforcement point can live either in `SimulationEngine` or `TrafficLight.request_preemption`, but the choice should be intentional and documented if needed.
+- **PERF-WATCH-VEH-01:** Re-check `Vehicle._validate_path_state()` hot-path cost after `P1-ENG-01` is done and the engine can be profiled under realistic load.
+
+---
+
+## Handoff Notes
+
+- Developer and tester prompts should use the **review-sized queue only**, not the rolled-up legacy IDs, when deciding what to do next.
+- If you finish a task, mark its row `✅` and move the next row into the active slot.
+- If a task grows beyond a sane review size, split it once into two clear slices rather than creating many micro-tasks.
