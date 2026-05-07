@@ -63,6 +63,7 @@ Use the queue and legacy mapping in `tasks.md` instead of older micro-task refer
 - Use parametrization when it makes tests shorter and clearer
 - If order is not part of the contract, do not assert order
 - If uncovered lines remain after testing, report the exact misses instead of hand-waving them away
+- Use **AAA pattern** 
 
 ## Bug Protocol
 

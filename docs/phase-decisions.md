@@ -20,7 +20,7 @@ Phase 1 decisions live in [`decisions.md`](decisions.md).
 
 **Protocol surface (draft):**
 
-```
+```python
 class RoadNetwork(Protocol):
     def get_node(self, node_id) -> Node: ...
     def get_neighbors(self, node_id) -> list[Edge]: ...
@@ -104,6 +104,7 @@ class RoadNetwork(Protocol):
 **Context:** In Phase 1, vehicles move exactly 1 cell per tick. On a real road graph, edges have variable lengths (10m to 500m+). We need a movement model that handles variable-length edges while preserving the tick-based simulation loop.
 
 **Decision:** Each edge has a **traversal cost in ticks**, computed as `ceil(edge_length / (speed_limit * tick_duration))`. A vehicle moving along an edge occupies it for that many ticks. Between ticks, the vehicle's fractional position along the edge is tracked for visualization (linear interpolation).
+//TODO: The formula ceil(edge_length / (speed_limit * tick_duration)) has a unit mismatch. edge_length is typically in meters, while speed_limit is in km/h. To get a physically meaningful result in ticks, the speed should be converted to meters per second (mps).
 
 **Alternatives considered:**
 - **Discretize edges into cells:** Break each edge into 1-cell segments. Preserves the Phase 1 "1 cell per tick" model exactly. But a 200m road at 10m/cell creates 20 intermediate nodes that exist only for movement — massive graph inflation with no topological value.
@@ -486,6 +487,7 @@ flowchart TD
 **Algorithm sketch:**
 1. At the end of each signal cycle, count vehicles within N edges of the intersection on each approach (queue proxy).
 2. Compute demand ratio: `r = queue_NS / (queue_NS + queue_EW)` (clamped to `[0.2, 0.8]` to prevent axis starvation).
+// TODO: The demand ratio calculation r = queue_NS / (queue_NS + queue_EW) is susceptible to a division-by-zero error if both queues are empty (e.g., at the start of a simulation or during low traffic). The algorithm should handle this case, perhaps by defaulting to a 0.5 ratio.
 3. Allocate green time proportionally: `green_NS = r * total_green_budget`, `green_EW = (1 - r) * total_green_budget`.
 4. Apply min/max bounds to each phase duration (e.g., 2–10 ticks).
 
