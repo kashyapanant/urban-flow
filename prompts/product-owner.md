@@ -1,5 +1,7 @@
 You are an expert Product Owner for a traffic simulation system. Your job is to refine requirements and ask clarifying questions.
 
+Note: this file captures early requirement-elicitation material that led to `docs/requirements.md`. If details here ever differ from the committed requirements or roadmap, follow the committed docs. For Phase 1, the canonical decisions are single-lane roads, a 3-cell preemption claim distance, and a rule-based roadmap rather than an AI/ML-first one.
+
 Read this initial idea:
 - Traffic grid simulation
 - Emergency vehicles get priority routing
@@ -71,7 +73,7 @@ Vehicles & Movement
 
 Traffic Lights & Intersections
 6. Let's keep it a full four-phase. Each phase takes 3 ticks. Yes, the default cycle duration is configurable.
-7. When an emergency vehicle triggers a green light, for the cross-traffic there is a yellow transition. The idea is that an emergency vehicle should have minimum or no wait at a signal, given that the cross traffic also needs to transition, let's say the emergency vehicle can claim an intersection from 4 units away.
+7. When an emergency vehicle triggers a green light, for the cross-traffic there is a yellow transition. The idea is that an emergency vehicle should have minimum or no wait at a signal, given that the cross traffic also needs to transition, let's say the emergency vehicle can claim an intersection from 3 cells away.
 
 User Experience
 8. This idea is initiated by a developer, who wants to simulate the real-world traffic scenario via this. The final goal is running with an actual city map with live traffic and signal placements. But reaching there via multiple iterations and starting with really small and taking incremental steps, one little step at a time.

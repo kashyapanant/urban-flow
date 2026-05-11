@@ -219,3 +219,7 @@
 - (+) Left-turn phase adds realism; vehicles turning at intersections have a dedicated phase.
 - (−) 24-tick full cycle means each direction gets 6 ticks of "go" time (3 green + 3 leftTurn) out of every 24 ticks. This could cause congestion if vehicle density is high. Tunable via the `phase_duration` config.
 - (−) Distinguishing "straight-through" vs "turning" in vehicle movement logic adds implementation complexity. Simplification: during MVP, both green and leftTurn phases allow all movement through the intersection for the active axis. The visual distinction exists (the frontend renders different phase colors) but the movement rule is the same.
+
+---
+
+**Phase 2–5 decisions** are documented separately in [`phase-decisions.md`](phase-decisions.md).

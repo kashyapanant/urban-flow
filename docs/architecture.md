@@ -400,23 +400,25 @@ There is a single authoritative state object inside the Simulation Engine. The r
 
 ## 8. Project Structure
 
+Current repo note: `main.py` currently lives at the repository root, and the browser frontend is still a planned Phase 1 deliverable. The tree below shows the intended layout once the remaining Phase 1 app wiring is complete.
+
 ```
 urban-flow/
+├── main.py                    # FastAPI app, startup, CORS, static files
 ├── backend/
-│   ├── main.py                  # FastAPI app, startup, CORS, static files
-│   ├── config.py                # SimulationConfig defaults and validation
+│   ├── config.py              # SimulationConfig defaults and validation
 │   ├── simulation/
 │   │   ├── __init__.py
-│   │   ├── engine.py            # SimulationEngine (tick loop + orchestration)
-│   │   ├── grid.py              # Grid, Cell, CellType
-│   │   ├── vehicle.py           # Vehicle, VehicleManager, VehicleType
-│   │   ├── traffic_light.py     # TrafficLight, TrafficLightManager, Phase, Axis
-│   │   ├── pathfinder.py        # A* implementation
-│   │   └── metrics.py           # Metrics accumulator
+│   │   ├── engine.py          # SimulationEngine (tick loop + orchestration)
+│   │   ├── grid.py            # Grid, Cell, CellType
+│   │   ├── vehicle.py         # Vehicle, VehicleManager, VehicleType
+│   │   ├── traffic_light.py   # TrafficLight, TrafficLightManager, Phase, Axis
+│   │   ├── pathfinder.py      # A* implementation
+│   │   └── metrics.py         # Metrics accumulator
 │   ├── api/
 │   │   ├── __init__.py
-│   │   ├── routes.py            # REST endpoints
-│   │   └── websocket.py         # WebSocket handler
+│   │   ├── routes.py          # REST endpoints
+│   │   └── websocket.py       # WebSocket handler
 │   └── tests/
 │       ├── test_grid.py
 │       ├── test_vehicle.py
@@ -424,20 +426,22 @@ urban-flow/
 │       ├── test_pathfinder.py
 │       ├── test_engine.py
 │       └── test_api.py
-├── frontend/
-│   ├── index.html               # Single HTML page
+├── frontend/                   # Planned in remaining Phase 1 work
+│   ├── index.html             # Single HTML page
 │   ├── css/
-│   │   └── style.css
+│   │   └── style.css          # Optional styling if needed
 │   └── js/
-│       ├── app.js               # WebSocket lifecycle, message dispatch
-│       ├── renderer.js          # Canvas-based grid rendering
-│       ├── controls.js          # UI controls (pause, speed, config)
-│       └── metrics.js           # Metrics display panel
+│       ├── app.js              # WebSocket lifecycle, message dispatch
+│       ├── renderer.js         # Canvas-based grid rendering
+│       ├── controls.js         # UI controls (pause, speed, config)
+│       └── metrics.js          # Metrics display panel
 ├── docs/
 │   ├── requirements.md
-│   ├── architecture.md          # (this document)
-│   └── decisions.md             # Architectural Decision Records
-├── requirements.txt
+│   ├── architecture.md        # (this document)
+│   └── decisions.md           # Architectural Decision Records
+├── prompts/
+│   └── product-owner.md       # Requirement elicitation history / notes
+├── pyproject.toml             # Project configuration and dependencies
 └── README.md
 ```
 
