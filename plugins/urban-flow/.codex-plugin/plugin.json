@@ -1,0 +1,33 @@
+{
+  "name": "urban-flow",
+  "version": "0.1.0",
+  "description": "Repo-local skills for working on the Urban Flow project.",
+  "author": {
+    "name": "Urban Flow"
+  },
+  "license": "Proprietary",
+  "keywords": [
+    "urban-flow",
+    "traffic-simulation",
+    "skills",
+    "testing",
+    "review"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Urban Flow",
+    "shortDescription": "Repo-local executor, developer, tester, and reviewer workflows for Urban Flow",
+    "longDescription": "Use the Urban Flow plugin for project-specific implementation, testing, and PR review workflows tied to the Phase 1 task queue and simulation invariants.",
+    "developerName": "Urban Flow",
+    "category": "Coding",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use urban-flow-executor and implement the next task.",
+      "Use urban-flow-developer and implement the next task.",
+      "Use urban-flow-reviewer and prepare a fix plan from the current PR."
+    ]
+  }
+}
