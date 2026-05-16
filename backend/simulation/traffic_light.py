@@ -271,7 +271,7 @@ class TrafficLightManager:
         """
         self._validate_phase_duration(phase_duration)
         self._lights_by_position: dict[tuple[int, int], TrafficLight] = {}
-        self._ordered_positions: list[tuple[int, int]] = []
+        self._lights: list[TrafficLight] = []
 
         for intersection in intersections:
             if isinstance(intersection, Cell):
@@ -289,14 +289,14 @@ class TrafficLightManager:
                 phase_duration=phase_duration,
             )
             self._lights_by_position[position] = light
-            self._ordered_positions.append(position)
+            self._lights.append(light)
 
             if cell is not None:
                 cell.traffic_light = light
 
     def tick(self) -> None:
         """Advance all traffic lights by one tick."""
-        for light in self.get_all():
+        for light in self._lights:
             light.tick()
 
     def request_preemption(
@@ -366,9 +366,7 @@ class TrafficLightManager:
         Returns:
             List of all traffic lights in the simulation
         """
-        return [
-            self._lights_by_position[position] for position in self._ordered_positions
-        ]
+        return list(self._lights)
 
     def set_phase_duration(self, duration: int) -> None:
         """Update phase duration for all traffic lights.
@@ -377,7 +375,7 @@ class TrafficLightManager:
             duration: New phase duration in ticks
         """
         self._validate_phase_duration(duration)
-        for light in self.get_all():
+        for light in self._lights:
             light.phase_duration = duration
 
     def snapshot(self) -> list[dict[str, Any]]:
@@ -386,7 +384,7 @@ class TrafficLightManager:
         Returns:
             List of traffic light dictionaries for frontend
         """
-        return [light.to_dict() for light in self.get_all()]
+        return [light.to_dict() for light in self._lights]
 
     @classmethod
     def _validate_phase_duration(cls, duration: int) -> None:
