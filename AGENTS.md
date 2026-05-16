@@ -13,7 +13,6 @@ The current project is in Phase 1 integration. The core deterministic simulation
 
 The remaining Phase 1 goal is to complete the runnable end-to-end MVP:
 
-- TrafficLightManager
 - Metrics
 - SimulationEngine
 - REST API wiring
