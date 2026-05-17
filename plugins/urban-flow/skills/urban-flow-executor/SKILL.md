@@ -70,6 +70,7 @@ If the task appears to require changing one of these assumptions, stop and call 
 - Keep scope to one task slice
 - Do not add speculative future work
 - Avoid drive-by refactors in completed modules
+- Use `uv` as the package manager and run project dependencies and Python commands through `uv`
 - Prefer explicit validation and simple control flow
 - Reject invalid bounded parameters clearly instead of silently clamping them unless the contract says otherwise
 - If testing reveals a real implementation bug outside the assigned scope, stop and report it instead of folding it into the task silently

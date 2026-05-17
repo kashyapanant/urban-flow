@@ -78,6 +78,7 @@ If a proposed fix would alter one of these assumptions, call it out explicitly b
 - Collapse duplicate comments into one shared fix when appropriate
 - Mark comments as already addressed if the local code already resolves them
 - Prefer one coherent internal refactor over several repetitive micro-fixes when behavior is unchanged
+- Use `uv` as the package manager and run project dependencies and Python commands through `uv`
 - Keep planned fixes concrete: file, function, change
 
 ## Planning Output

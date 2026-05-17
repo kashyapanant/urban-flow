@@ -58,6 +58,7 @@ Use the queue and legacy mapping in `docs/tasks.md` instead of older micro-task 
 - Test the whole completed task slice, not future behavior
 - Prefer boundary cases, non-mutation checks, serialization checks, and contract-level assertions
 - Use parametrization when it makes tests shorter and clearer
+- Use `uv` as the package manager and run project dependencies and Python commands through `uv`
 - If order is not part of the contract, do not assert order
 - If uncovered lines remain after testing, report the exact misses
 - Use the AAA pattern

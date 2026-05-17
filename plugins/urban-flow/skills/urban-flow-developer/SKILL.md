@@ -59,6 +59,7 @@ If the task appears to require changing one of these assumptions, stop and call 
 - Implement the whole task slice, not a partial method-level subset
 - Avoid drive-by refactors in completed modules
 - Keep public APIs typed and documented
+- Use `uv` as the package manager and run project dependencies and Python commands through `uv`
 - Prefer simple control flow and explicit validation
 - If a bounded parameter is invalid, reject it clearly instead of silently clamping it unless the contract explicitly says otherwise
 
@@ -68,9 +69,10 @@ Minimum after each implementation task:
 
 ```bash
 make lint
+uv run pytest <focused test selection>
 ```
 
-Also run the most relevant focused tests for the touched area when they exist. If no meaningful focused tests exist yet, say so in handoff notes.
+If no meaningful focused tests exist yet, say so in handoff notes.
 
 ## Docs Updates
 
