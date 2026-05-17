@@ -5,7 +5,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from backend.simulation.traffic_light import Axis, Phase, TrafficLight
+from backend.simulation.grid import Grid
+from backend.simulation.traffic_light import (
+    Axis,
+    Phase,
+    TrafficLight,
+    TrafficLightManager,
+)
 from backend.simulation.vehicle import Vehicle
 
 
@@ -854,3 +860,213 @@ class TestTrafficLightToDict:
         assert decoded["position"] == [1, 1]
         assert decoded["active_axis"] == "north_south"
         assert decoded["preempted_by"] is None
+
+
+# ---------------------------------------------------------------------------
+# TrafficLightManager
+# ---------------------------------------------------------------------------
+
+
+class TestTrafficLightManager:
+    """Tests for TrafficLightManager — creation, routing, and snapshots."""
+
+    def test_init_creates_and_wires_one_light_per_intersection(self) -> None:
+        """Intersection cells receive traffic lights in row-major order."""
+        # Arrange
+        grid = Grid(width=4, height=4)
+        intersections = grid.get_intersection_cells()
+
+        # Act
+        manager = TrafficLightManager(intersections, phase_duration=4)
+
+        # Assert
+        assert [cell.traffic_light for cell in intersections] == manager.get_all()
+        assert [light.position for light in manager.get_all()] == [
+            (0, 0),
+            (3, 0),
+            (0, 3),
+            (3, 3),
+        ]
+        assert all(light.phase_duration == 4 for light in manager.get_all())
+
+    def test_init_accepts_coordinate_tuples_without_grid_wiring(self) -> None:
+        """Tuple-based construction still creates deterministic light IDs/positions."""
+        # Arrange / Act
+        manager = TrafficLightManager([(3, 0), (0, 0)], phase_duration=3)
+
+        # Assert
+        assert [light.id for light in manager.get_all()] == ["tl-3-0", "tl-0-0"]
+        assert [light.position for light in manager.get_all()] == [(3, 0), (0, 0)]
+
+    def test_get_light_returns_none_for_unknown_position(self) -> None:
+        """Lookup uses intersection coordinates as the key."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0)])
+
+        # Act / Assert
+        assert manager.get_light((1, 1)) is None
+
+    def test_tick_advances_all_lights(self) -> None:
+        """Manager tick delegates to every managed light exactly once."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0), (3, 0)], phase_duration=1)
+
+        # Act
+        manager.tick()
+
+        # Assert
+        assert [light.current_phase for light in manager.get_all()] == [
+            Phase.LEFT_TURN,
+            Phase.LEFT_TURN,
+        ]
+
+    def test_can_vehicle_enter_returns_false_when_no_light_exists(self) -> None:
+        """Unknown intersections are treated as blocked for movement checks."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0)])
+
+        # Act / Assert
+        assert manager.can_vehicle_enter((1, 1), "north") is False
+
+    def test_can_vehicle_enter_delegates_to_light_state(self) -> None:
+        """Movement permission matches the underlying traffic light phase/axis."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0)])
+        light = manager.get_light((0, 0))
+        assert light is not None
+        light.active_axis = Axis.EW
+        light.current_phase = Phase.GREEN
+
+        # Act / Assert
+        assert manager.can_vehicle_enter((0, 0), "east") is True
+        assert manager.can_vehicle_enter((0, 0), "north") is False
+
+    def test_request_and_release_preemption_route_to_correct_intersection(self) -> None:
+        """Preemption only affects the addressed light, not sibling intersections."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0), (3, 0)], phase_duration=3)
+        vehicle = Mock(spec=Vehicle)
+        vehicle.id = "em-1"
+
+        # Act
+        granted = manager.request_preemption((3, 0), vehicle, Axis.EW, 2)
+        preempted_light = manager.get_light((3, 0))
+        sibling_light = manager.get_light((0, 0))
+        assert preempted_light is not None
+        assert sibling_light is not None
+
+        # Assert
+        assert granted is True
+        assert preempted_light.preempted_by is vehicle
+        assert sibling_light.preempted_by is None
+
+        # Act
+        manager.release_preemption((3, 0))
+        released_light = manager.get_light((3, 0))
+        assert released_light is not None
+
+        # Assert
+        assert released_light.preempted_by is None
+
+    @pytest.mark.parametrize(
+        "method_name",
+        ["request_preemption", "release_preemption"],
+    )
+    def test_unknown_intersection_routing_raises_key_error(
+        self, method_name: str
+    ) -> None:
+        """Explicit intersection-only operations fail clearly for unknown positions."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0)])
+        vehicle = Mock(spec=Vehicle)
+        vehicle.id = "em-1"
+
+        # Act / Assert
+        with pytest.raises(KeyError, match=r"No traffic light found at intersection"):
+            if method_name == "request_preemption":
+                manager.request_preemption((9, 9), vehicle, Axis.NS, 1)
+            else:
+                manager.release_preemption((9, 9))
+
+    def test_set_phase_duration_updates_all_lights_without_resetting_state(
+        self,
+    ) -> None:
+        """Duration updates preserve axis, phase, and elapsed ticks."""
+        # Arrange
+        manager = TrafficLightManager([(0, 0), (3, 0)], phase_duration=3)
+        first_light = manager.get_light((0, 0))
+        assert first_light is not None
+        first_light.active_axis = Axis.EW
+        first_light.current_phase = Phase.YELLOW
+        first_light.ticks_in_phase = 2
+
+        # Act
+        manager.set_phase_duration(5)
+
+        # Assert
+        assert [light.phase_duration for light in manager.get_all()] == [5, 5]
+        assert first_light.active_axis is Axis.EW
+        assert first_light.current_phase is Phase.YELLOW
+        assert first_light.ticks_in_phase == 2
+
+    @pytest.mark.parametrize("duration", [0, 21])
+    @pytest.mark.parametrize("operation", ["init", "set"])
+    def test_phase_duration_rejects_out_of_range_values(
+        self, duration: int, operation: str
+    ) -> None:
+        """Manager enforces the configured phase-duration bounds consistently."""
+        manager = TrafficLightManager([(0, 0)], phase_duration=3)
+
+        # Act / Assert
+        with pytest.raises(
+            ValueError,
+            match="phase_duration must be between 1 and 20",
+        ):
+            if operation == "init":
+                TrafficLightManager([(0, 0)], phase_duration=duration)
+            else:
+                manager.set_phase_duration(duration)
+
+    def test_snapshot_returns_serializable_lights_in_deterministic_order(self) -> None:
+        """Snapshot preserves order and serializes each light's current values."""
+        # Arrange
+        manager = TrafficLightManager([(3, 0), (0, 0)], phase_duration=3)
+        first_light = manager.get_light((3, 0))
+        second_light = manager.get_light((0, 0))
+        assert first_light is not None
+        assert second_light is not None
+
+        first_light.active_axis = Axis.EW
+        first_light.current_phase = Phase.LEFT_TURN
+        first_light.ticks_in_phase = 2
+
+        vehicle = Mock(spec=Vehicle)
+        vehicle.id = "em-7"
+        second_light.current_phase = Phase.YELLOW
+        second_light.preempted_by = vehicle
+
+        # Act
+        snapshot = manager.snapshot()
+
+        # Assert
+        assert snapshot == [
+            {
+                "id": "tl-3-0",
+                "position": (3, 0),
+                "active_axis": Axis.EW.value,
+                "current_phase": Phase.LEFT_TURN.value,
+                "phase_duration": 3,
+                "ticks_in_phase": 2,
+                "preempted_by": None,
+            },
+            {
+                "id": "tl-0-0",
+                "position": (0, 0),
+                "active_axis": Axis.NS.value,
+                "current_phase": Phase.YELLOW.value,
+                "phase_duration": 3,
+                "ticks_in_phase": 0,
+                "preempted_by": "em-7",
+            },
+        ]
+        json.dumps(snapshot)

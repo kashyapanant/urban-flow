@@ -42,7 +42,7 @@ This table is the **authoritative queue** for developer and tester handoffs.
 | P1-VEH-01 | Vehicle + VehicleManager core | Vehicle path progression, spawning, movement, arrival cleanup, snapshots | P1-GRID-01, P1-PATH-01 | ✅ |
 | P1-TL-01 | TrafficLight core | Phase cycling, entry rules, preemption, serialization | P1-VEH-01 | ✅ |
 | P1-API-01 | Config request validation | `ConfigUpdateRequest` bounds and API-facing validation | - | ✅ |
-| P1-TL-02 | TrafficLightManager + grid light wiring | Create all intersection lights, lookups, movement permission bridge, phase-duration updates, light snapshots | P1-TL-01 | ⬜ |
+| P1-TL-02 | TrafficLightManager + grid light wiring | Create all intersection lights, lookups, movement permission bridge, phase-duration updates, light snapshots | P1-TL-01 | ✅ |
 | P1-MET-01 | Metrics module complete | KPI calculations, `record_arrival`, batch updates, reset, `to_dict` | P1-VEH-01 | ⬜ |
 | P1-ENG-01 | SimulationEngine complete | Initialization, six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ⬜ |
 | P1-API-02 | Runtime interface layer | REST route wiring, WebSocket manager/handler, app bootstrap, static files, startup lifecycle | P1-ENG-01 | ⬜ |
@@ -52,9 +52,9 @@ This table is the **authoritative queue** for developer and tester handoffs.
 
 ## Current Status
 
-- Phase 1 foundations are complete through `P1-TL-01` plus `P1-API-01`.
+- Phase 1 foundations are complete through `P1-TL-02` plus `P1-API-01`.
 - The remaining work is integration-heavy and should be tackled as the larger slices above.
-- **Next task:** `P1-TL-02`
+- **Next task:** `P1-MET-01`
 
 ### What "done" means for an open task
 

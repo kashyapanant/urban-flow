@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from .grid import Cell
 
 if TYPE_CHECKING:
     from .vehicle import Vehicle
@@ -252,18 +255,49 @@ class TrafficLightManager:
     Handles traffic light updates, preemption requests, and movement permissions.
     """
 
-    def __init__(self, intersections: list[tuple[int, int]], phase_duration: int = 3):
+    _MIN_PHASE_DURATION: ClassVar[int] = 1
+    _MAX_PHASE_DURATION: ClassVar[int] = 20
+
+    def __init__(
+        self,
+        intersections: Sequence[tuple[int, int] | Cell],
+        phase_duration: int = 3,
+    ):
         """Initialize traffic lights at all intersections.
 
         Args:
             intersections: List of (x, y) coordinates for intersections
             phase_duration: Default ticks per phase
         """
-        raise NotImplementedError("TrafficLightManager.__init__()")
+        self._validate_phase_duration(phase_duration)
+        self._lights_by_position: dict[tuple[int, int], TrafficLight] = {}
+        self._lights: list[TrafficLight] = []
+
+        for intersection in intersections:
+            if isinstance(intersection, Cell):
+                position = (intersection.x, intersection.y)
+                cell = intersection
+            else:
+                position = intersection
+                cell = None
+
+            light = TrafficLight(
+                id=f"tl-{position[0]}-{position[1]}",
+                position=position,
+                active_axis=Axis.NS,
+                current_phase=Phase.GREEN,
+                phase_duration=phase_duration,
+            )
+            self._lights_by_position[position] = light
+            self._lights.append(light)
+
+            if cell is not None:
+                cell.traffic_light = light
 
     def tick(self) -> None:
         """Advance all traffic lights by one tick."""
-        raise NotImplementedError("TrafficLightManager.tick(")
+        for light in self._lights:
+            light.tick()
 
     def request_preemption(
         self,
@@ -284,7 +318,12 @@ class TrafficLightManager:
         Returns:
             True if preemption was granted
         """
-        raise NotImplementedError("TrafficLightManager.request_preemption(")
+        light = self._require_light(position)
+        return light.request_preemption(
+            vehicle,
+            required_axis,
+            preemption_yellow_duration,
+        )
 
     def release_preemption(self, position: tuple[int, int]) -> None:
         """Release emergency preemption at an intersection.
@@ -292,7 +331,8 @@ class TrafficLightManager:
         Args:
             position: Intersection coordinates
         """
-        raise NotImplementedError("TrafficLightManager.release_preemption(")
+        light = self._require_light(position)
+        light.release_preemption()
 
     def can_vehicle_enter(self, position: tuple[int, int], direction: str) -> bool:
         """Check if a vehicle can enter an intersection.
@@ -304,7 +344,10 @@ class TrafficLightManager:
         Returns:
             True if vehicle can proceed
         """
-        raise NotImplementedError("TrafficLightManager.can_vehicle_enter(")
+        light = self.get_light(position)
+        if light is None:
+            return False
+        return light.can_enter(direction)
 
     def get_light(self, position: tuple[int, int]) -> TrafficLight | None:
         """Get the traffic light at a specific position.
@@ -315,7 +358,7 @@ class TrafficLightManager:
         Returns:
             TrafficLight or None if no light exists
         """
-        raise NotImplementedError("TrafficLightManager.get_light(")
+        return self._lights_by_position.get(position)
 
     def get_all(self) -> list[TrafficLight]:
         """Get all traffic lights.
@@ -323,7 +366,7 @@ class TrafficLightManager:
         Returns:
             List of all traffic lights in the simulation
         """
-        raise NotImplementedError("TrafficLightManager.get_all(")
+        return list(self._lights)
 
     def set_phase_duration(self, duration: int) -> None:
         """Update phase duration for all traffic lights.
@@ -331,7 +374,9 @@ class TrafficLightManager:
         Args:
             duration: New phase duration in ticks
         """
-        raise NotImplementedError("TrafficLightManager.set_phase_duration(")
+        self._validate_phase_duration(duration)
+        for light in self._lights:
+            light.phase_duration = duration
 
     def snapshot(self) -> list[dict[str, Any]]:
         """Create a serializable snapshot of all traffic lights.
@@ -339,4 +384,21 @@ class TrafficLightManager:
         Returns:
             List of traffic light dictionaries for frontend
         """
-        raise NotImplementedError("TrafficLightManager.snapshot(")
+        return [light.to_dict() for light in self._lights]
+
+    @classmethod
+    def _validate_phase_duration(cls, duration: int) -> None:
+        """Validate manager-wide phase duration bounds."""
+        if not cls._MIN_PHASE_DURATION <= duration <= cls._MAX_PHASE_DURATION:
+            raise ValueError(
+                "phase_duration must be between "
+                f"{cls._MIN_PHASE_DURATION} and {cls._MAX_PHASE_DURATION}, "
+                f"got {duration}."
+            )
+
+    def _require_light(self, position: tuple[int, int]) -> TrafficLight:
+        """Return the light at position or raise for an unknown intersection."""
+        light = self.get_light(position)
+        if light is None:
+            raise KeyError(f"No traffic light found at intersection {position}.")
+        return light
