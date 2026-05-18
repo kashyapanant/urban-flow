@@ -45,7 +45,12 @@ make lint
 uv run pytest <focused test selection>
 ```
 
-8. Run broader checks when the scope warrants it
+8. Run broader checks when the scope warrants it:
+
+```bash
+uv run pytest --cov --cov-report=term-missing
+```
+
 9. Mark the task complete in `docs/tasks.md`
 10. Return a short handoff with files changed, commands run, and any risks
 
