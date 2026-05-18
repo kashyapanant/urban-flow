@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from .vehicle import Vehicle
+from .vehicle import Vehicle, VehicleType
 
 
 @dataclass
@@ -27,7 +27,9 @@ class Metrics:
         Returns:
             Average ticks to destination for normal vehicles
         """
-        raise NotImplementedError("Metrics.normal_avg_ticks calculation")
+        if self.normal_vehicle_count == 0:
+            return 0.0
+        return self.normal_total_ticks / self.normal_vehicle_count
 
     @property
     def emergency_avg_ticks(self) -> float:
@@ -36,7 +38,9 @@ class Metrics:
         Returns:
             Average ticks to destination for emergency vehicles
         """
-        raise NotImplementedError("Metrics.emergency_avg_ticks calculation")
+        if self.emergency_vehicle_count == 0:
+            return 0.0
+        return self.emergency_total_ticks / self.emergency_vehicle_count
 
     @property
     def improvement(self) -> float:
@@ -46,7 +50,12 @@ class Metrics:
             Percentage fewer ticks for emergency vs normal vehicles
             Positive values indicate emergency vehicles are faster
         """
-        raise NotImplementedError("Metrics.improvement calculation")
+        normal_avg = self.normal_avg_ticks
+        emergency_avg = self.emergency_avg_ticks
+
+        if normal_avg == 0.0 or self.emergency_vehicle_count == 0:
+            return 0.0
+        return ((normal_avg - emergency_avg) / normal_avg) * 100.0
 
     def record_arrival(self, vehicle: Vehicle) -> None:
         """Record the arrival of a vehicle for metrics calculation.
@@ -54,7 +63,16 @@ class Metrics:
         Args:
             vehicle: Vehicle that completed its journey
         """
-        raise NotImplementedError("Metrics.record_arrival(")
+        if vehicle.type is VehicleType.NORMAL:
+            self.normal_total_ticks += vehicle.ticks_elapsed
+            self.normal_vehicle_count += 1
+        elif vehicle.type is VehicleType.EMERGENCY:
+            self.emergency_total_ticks += vehicle.ticks_elapsed
+            self.emergency_vehicle_count += 1
+        else:
+            raise ValueError(f"Unsupported vehicle type: {vehicle.type!r}")
+
+        self.total_completed += 1
 
     def record_multiple_arrivals(self, vehicles: list[Vehicle]) -> None:
         """Record arrivals for multiple vehicles.
@@ -62,14 +80,19 @@ class Metrics:
         Args:
             vehicles: List of vehicles that completed their journeys
         """
-        raise NotImplementedError("Metrics.record_multiple_arrivals(")
+        for vehicle in vehicles:
+            self.record_arrival(vehicle)
 
     def reset(self) -> None:
         """Reset all metrics to initial state.
 
         Useful for restarting simulations or clearing data.
         """
-        raise NotImplementedError("Metrics.reset(")
+        self.normal_total_ticks = 0
+        self.normal_vehicle_count = 0
+        self.emergency_total_ticks = 0
+        self.emergency_vehicle_count = 0
+        self.total_completed = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary for serialization.
@@ -77,4 +100,9 @@ class Metrics:
         Returns:
             Dictionary representation for API responses and frontend
         """
-        raise NotImplementedError("Metrics.to_dict(")
+        return {
+            "normal_avg_ticks": self.normal_avg_ticks,
+            "emergency_avg_ticks": self.emergency_avg_ticks,
+            "improvement": self.improvement,
+            "total_completed": self.total_completed,
+        }
