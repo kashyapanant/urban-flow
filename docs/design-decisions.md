@@ -252,6 +252,27 @@ profiling once vehicle movement and engine tick orchestration are implemented
 
 ---
 
+## Decision: Metrics Improvement Requires Both Comparison Groups (Task: P1-MET-01)
+
+**Date:** 2026-05-18
+**Context:** The Phase 1 metrics task needed a precise rule for `Metrics.improvement`
+when only normal vehicles or only emergency vehicles had completed trips.
+Without a guard, the formula could report a misleading non-zero percentage before
+both groups had data.
+**Decision:** Return `0.0` for `Metrics.improvement` until at least one normal
+vehicle and one emergency vehicle have both completed trips. Once both groups
+exist, compute improvement as the percentage delta between average normal and
+average emergency travel time.
+**Rationale:**
+- Avoids reporting a misleading partial-baseline improvement value during early
+  simulation ticks.
+- Keeps the metric interpretable as a comparison rather than a single-group
+  placeholder.
+- Preserves deterministic, aggregate-only Phase 1 behavior without adding
+  historical pairing or route-level normalization.
+
+---
+
 ## Implementation Decision Template
 
 For future implementation decisions, use this format and link to task ID from docs/tasks.md:
