@@ -87,6 +87,12 @@ This document records design decisions made during the implementation of the bac
 - Extensible for future message types
 - Clear separation of message metadata and payload
 
+**Deferred performance note (2026-05-24):**
+- The current Phase 1 contract sends a full simulation snapshot on each tick, including `grid.cells`.
+- This is acceptable for the fixed `10x10` MVP and keeps the engine/API/frontend contract simple while `P1-API-02` and `P1-FE-01` are still open.
+- If grid size or tick frequency grows, revisit the transport shape and consider sending static grid layout once and per-tick dynamic state separately.
+- Track this follow-up under `PERF-WATCH-SNAP-01` in `docs/tasks.md`.
+
 ---
 
 ## Decision: Error Handling Strategy

@@ -101,6 +101,7 @@ Use `docs/design-decisions.md` for detailed trade-offs. The links below are the 
 
 - **DESIGN-WATCH-TL-01:** During `P1-ENG-01`, explicitly enforce that only emergency vehicles trigger preemption. The enforcement point can live either in `SimulationEngine` or `TrafficLight.request_preemption`, but the choice should be intentional and documented if needed.
 - **PERF-WATCH-VEH-01:** Re-check `Vehicle._validate_path_state()` hot-path cost after `P1-ENG-01` is done and the engine can be profiled under realistic load.
+- **PERF-WATCH-SNAP-01:** Re-evaluate per-tick snapshot payload size during `P1-API-02` / `P1-FE-01`. The current full-grid snapshot is acceptable for the Phase 1 `10x10` MVP, but larger grids may require splitting static grid layout from dynamic tick state instead of serializing the full `cells` matrix every tick.
 
 ---
 
