@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -113,6 +114,54 @@ class TestSimulationEngine:
         assert result.message == "Cannot resume a stopped simulation. Start it first."
         assert engine.state is SimulationState.STOPPED
 
+    @pytest.mark.asyncio
+    async def test_start_rejects_when_live_task_is_running(self) -> None:
+        """start() does not create a second loop when one is already active."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        release_task = asyncio.Event()
+
+        async def wait_forever() -> None:
+            await release_task.wait()
+
+        live_task = asyncio.create_task(wait_forever())
+        engine._run_task = live_task
+
+        try:
+            result = await engine.start()
+        finally:
+            release_task.set()
+            await live_task
+
+        assert result.action == "start"
+        assert result.applied is False
+        assert result.state is SimulationState.RUNNING
+        assert result.message == "Simulation is already running."
+
+    @pytest.mark.asyncio
+    async def test_start_rejects_when_live_task_is_paused(self) -> None:
+        """start() requires resume when a paused run loop is still alive."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.PAUSED
+        release_task = asyncio.Event()
+
+        async def wait_forever() -> None:
+            await release_task.wait()
+
+        live_task = asyncio.create_task(wait_forever())
+        engine._run_task = live_task
+
+        try:
+            result = await engine.start()
+        finally:
+            release_task.set()
+            await live_task
+
+        assert result.action == "start"
+        assert result.applied is False
+        assert result.state is SimulationState.PAUSED
+        assert result.message == "Simulation is paused. Use resume instead of start."
+
     def test_pause_and_resume_are_idempotent_in_same_state(self) -> None:
         """Same-state control calls are harmless."""
         engine = SimulationEngine()
@@ -139,6 +188,33 @@ class TestSimulationEngine:
         assert second_resume.applied is False
         assert second_resume.state is SimulationState.RUNNING
         assert second_resume.message == "Simulation is already running."
+
+    def test_stop_is_idempotent_when_already_stopped(self) -> None:
+        """stop() returns an informational result when already stopped."""
+        engine = SimulationEngine()
+
+        result = asyncio.run(engine.stop())
+
+        assert result.action == "stop"
+        assert result.applied is False
+        assert result.state is SimulationState.STOPPED
+        assert result.message == "Simulation is already stopped."
+
+    def test_pause_raises_on_unhandled_state(self) -> None:
+        """pause() raises only for unexpected internal state corruption."""
+        engine = SimulationEngine()
+        engine.state = cast(SimulationState, "invalid")
+
+        with pytest.raises(RuntimeError, match="Unhandled simulation state"):
+            engine.pause()
+
+    def test_resume_raises_on_unhandled_state(self) -> None:
+        """resume() raises only for unexpected internal state corruption."""
+        engine = SimulationEngine()
+        engine.state = cast(SimulationState, "invalid")
+
+        with pytest.raises(RuntimeError, match="Unhandled simulation state"):
+            engine.resume()
 
     def test_tick_execution_order(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """One engine tick runs the deterministic six-phase order."""
@@ -294,6 +370,44 @@ class TestSimulationEngine:
 
         assert light.preempted_by is None
 
+    def test_cleanup_reuses_upcoming_intersections_for_shared_holder(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Cleanup computes upcoming intersections once per shared holder."""
+        engine = SimulationEngine()
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0)],
+            path_index=2,
+        )
+        engine.vehicle_manager._vehicles = [emergency]
+
+        first_light = engine.traffic_light_manager.get_light((3, 0))
+        second_light = engine.traffic_light_manager.get_light((6, 0))
+        assert first_light is not None
+        assert second_light is not None
+        first_light.preempted_by = emergency
+        second_light.preempted_by = emergency
+
+        calls: list[str] = []
+
+        def fake_upcoming_positions(vehicle: Vehicle) -> set[tuple[int, int]]:
+            calls.append(vehicle.id)
+            return {(3, 0)}
+
+        monkeypatch.setattr(
+            engine,
+            "_upcoming_intersection_positions",
+            fake_upcoming_positions,
+        )
+
+        engine._cleanup_and_record_metrics()
+
+        assert calls == ["e-1"]
+        assert first_light.preempted_by is emergency
+        assert second_light.preempted_by is None
+
     def test_state_snapshot(self) -> None:
         """Snapshot contains the complete frontend-facing simulation state."""
         engine = SimulationEngine()
@@ -349,35 +463,38 @@ class TestSimulationEngine:
         assert result.state is SimulationState.PAUSED
         assert result.message == "Simulation is paused. Use resume instead of start."
         assert engine.state is SimulationState.PAUSED
+        assert engine._run_task is None
 
     @pytest.mark.asyncio
-    async def test_start_breaks_before_sleep_when_tick_stops_engine(
+    async def test_start_returns_immediately_and_tracks_background_task(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The loop breaks without the tick-speed sleep when tick stops the engine."""
+        """start() schedules the run loop and returns before the loop exits."""
         engine = SimulationEngine()
-        sleep_calls: list[float] = []
+        run_started = asyncio.Event()
+        release_loop = asyncio.Event()
 
-        async def fake_tick():
-            engine.tick_count += 1
-            await engine.stop()
-            return engine.snapshot()
+        async def fake_run_tick_loop() -> None:
+            run_started.set()
+            await release_loop.wait()
 
-        async def fake_sleep(delay: float) -> None:
-            sleep_calls.append(delay)
-
-        monkeypatch.setattr(engine, "tick", fake_tick)
-        monkeypatch.setattr("backend.simulation.engine.asyncio.sleep", fake_sleep)
+        monkeypatch.setattr(engine, "_run_tick_loop", fake_run_tick_loop)
 
         result = await engine.start()
 
-        assert engine.tick_count == 1
-        assert sleep_calls == []
-        assert engine.state is SimulationState.STOPPED
         assert result.action == "start"
         assert result.applied is True
         assert result.state is SimulationState.RUNNING
         assert result.message == "Simulation started."
+        assert engine.state is SimulationState.RUNNING
+        assert engine._run_task is not None
+
+        await run_started.wait()
+        assert not engine._run_task.done()
+
+        release_loop.set()
+        await engine._run_task
+        assert engine._run_task is None
 
     @pytest.mark.asyncio
     async def test_start_stop_simulation(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -402,15 +519,96 @@ class TestSimulationEngine:
         monkeypatch.setattr("backend.simulation.engine.asyncio.sleep", fake_sleep)
 
         result = await engine.start()
+        assert result.action == "start"
+        assert result.applied is True
+        assert result.state is SimulationState.RUNNING
+        assert result.message == "Simulation started."
+
+        assert engine._run_task is not None
+        await engine._run_task
 
         assert broadcasts == [1, 2]
         assert 0.05 in sleeps
         assert 1.0 / engine.config.tick_speed in sleeps
         assert engine.state is SimulationState.STOPPED
-        assert result.action == "start"
-        assert result.applied is True
-        assert result.state is SimulationState.RUNNING
-        assert result.message == "Simulation started."
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_returns_immediately_and_clears_background_task(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """stop() signals the loop immediately and the managed task cleans up."""
+        engine = SimulationEngine()
+        tick_entered = asyncio.Event()
+        allow_tick_exit = asyncio.Event()
+
+        async def fake_tick():
+            tick_entered.set()
+            await allow_tick_exit.wait()
+            return engine.snapshot()
+
+        monkeypatch.setattr(engine, "tick", fake_tick)
+
+        start_result = await engine.start()
+        assert start_result.applied is True
+        assert engine._run_task is not None
+
+        await tick_entered.wait()
+
+        stop_result = await engine.stop()
+
+        assert stop_result.action == "stop"
+        assert stop_result.applied is True
+        assert stop_result.state is SimulationState.STOPPED
+        assert stop_result.message == "Simulation stopped."
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is not None
+
+        allow_tick_exit.set()
+        await engine._run_task
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_finalize_run_task_handles_cancelled_task(self) -> None:
+        """Cancelled run tasks reset engine state and clear the task handle."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        release_task = asyncio.Event()
+
+        async def wait_forever() -> None:
+            await release_task.wait()
+
+        task = asyncio.create_task(wait_forever())
+        engine._run_task = task
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        engine._finalize_run_task(task)
+
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_finalize_run_task_handles_failed_task(self) -> None:
+        """Failed run tasks reset engine state and clear the task handle."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+
+        async def fail() -> None:
+            raise RuntimeError("boom")
+
+        task = asyncio.create_task(fail())
+        engine._run_task = task
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await task
+
+        engine._finalize_run_task(task)
+
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
 
     @pytest.mark.asyncio
     async def test_broadcast_state_noops_without_callback(self) -> None:

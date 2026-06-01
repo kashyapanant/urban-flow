@@ -81,9 +81,24 @@ class SimulationEngine:
         self.tick_count = 0
         self.state = SimulationState.STOPPED
         self._broadcast_callback = broadcast_callback
+        self._run_task: asyncio.Task[None] | None = None
 
     async def start(self) -> ControlResult:
         """Start the simulation tick loop."""
+        if self._run_task is not None and not self._run_task.done():
+            if self.state is SimulationState.PAUSED:
+                return ControlResult(
+                    action="start",
+                    applied=False,
+                    state=self.state,
+                    message="Simulation is paused. Use resume instead of start.",
+                )
+            return ControlResult(
+                action="start",
+                applied=False,
+                state=SimulationState.RUNNING,
+                message="Simulation is already running.",
+            )
         if self.state is SimulationState.RUNNING:
             return ControlResult(
                 action="start",
@@ -100,22 +115,14 @@ class SimulationEngine:
             )
 
         self.state = SimulationState.RUNNING
-        result = ControlResult(
+        self._run_task = asyncio.create_task(self._run_tick_loop())
+        self._run_task.add_done_callback(self._finalize_run_task)
+        return ControlResult(
             action="start",
             applied=True,
-            state=SimulationState.RUNNING,
+            state=self.state,
             message="Simulation started.",
         )
-        while self.state is not SimulationState.STOPPED:
-            if self.state is SimulationState.PAUSED:
-                await asyncio.sleep(self._PAUSED_SLEEP_SECONDS)
-                continue
-
-            await self.tick()
-            if self.state is SimulationState.STOPPED:
-                break
-            await asyncio.sleep(1.0 / self.config.tick_speed)
-        return result
 
     async def stop(self) -> ControlResult:
         """Stop the simulation and clean up."""
@@ -134,6 +141,29 @@ class SimulationEngine:
             state=SimulationState.STOPPED,
             message="Simulation stopped.",
         )
+
+    async def _run_tick_loop(self) -> None:
+        """Execute the simulation tick loop until stopped."""
+        while self.state is not SimulationState.STOPPED:
+            if self.state is SimulationState.PAUSED:
+                await asyncio.sleep(self._PAUSED_SLEEP_SECONDS)
+                continue
+
+            await self.tick()
+            if self.state is SimulationState.STOPPED:
+                break
+            await asyncio.sleep(1.0 / self.config.tick_speed)
+
+    def _finalize_run_task(self, task: asyncio.Task[None]) -> None:
+        """Clear the managed run task when the background loop exits."""
+        if task.cancelled():
+            self.state = SimulationState.STOPPED
+        else:
+            exception = task.exception()
+            if exception is not None:
+                self.state = SimulationState.STOPPED
+        if self._run_task is task:
+            self._run_task = None
 
     def pause(self) -> ControlResult:
         """Pause the simulation (can be resumed)."""
@@ -279,6 +309,7 @@ class SimulationEngine:
 
         active_vehicles = self.vehicle_manager.get_all()
         active_vehicle_ids = {vehicle.id for vehicle in active_vehicles}
+        upcoming_positions_by_vehicle_id: dict[str, set[tuple[int, int]]] = {}
         for light in self.traffic_light_manager.get_all():
             holder = light.preempted_by
             if holder is None:
@@ -286,7 +317,13 @@ class SimulationEngine:
             if holder.id not in active_vehicle_ids:
                 light.release_preemption()
                 continue
-            if light.position not in self._upcoming_intersection_positions(holder):
+
+            upcoming_positions = upcoming_positions_by_vehicle_id.get(holder.id)
+            if upcoming_positions is None:
+                upcoming_positions = self._upcoming_intersection_positions(holder)
+                upcoming_positions_by_vehicle_id[holder.id] = upcoming_positions
+
+            if light.position not in upcoming_positions:
                 light.release_preemption()
 
     def _scan_preemptions(self) -> None:
