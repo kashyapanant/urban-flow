@@ -279,6 +279,25 @@ average emergency travel time.
 
 ---
 
+## Decision: Fixed Emergency Preemption Yellow Duration for Phase 1 (Task: P1-ENG-01)
+
+**Date:** 2026-06-02
+**Context:** Emergency preemption currently uses a small engine-level default
+yellow duration before a cross-axis traffic light transitions toward the required
+green axis.
+**Decision:** Keep `_PREEMPTION_YELLOW_DURATION = 2` as the Phase 1 default, but
+bound it by the configured `phase_duration` before requesting preemption.
+**Rationale:**
+- A two-tick yellow keeps emergency priority responsive while preserving a
+  visible transition instead of instantly changing axes.
+- Bounding the value keeps the default compatible with short test-oriented phase
+  durations such as `phase_duration = 1`.
+- This should be revisited after Phase 1. A better long-term policy would derive
+  the preemption yellow duration dynamically from signal timing, tick speed, or a
+  configurable preemption profile instead of relying on a fixed engine constant.
+
+---
+
 ## Implementation Decision Template
 
 For future implementation decisions, use this format and link to task ID from docs/tasks.md:
