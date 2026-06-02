@@ -376,9 +376,9 @@ class SimulationEngine:
         """Map a one-cell path step onto its traffic-light axis."""
         dx = next_position[0] - current_position[0]
         dy = next_position[1] - current_position[1]
-        if dx != 0 and dy == 0:
+        if abs(dx) == 1 and dy == 0:
             return Axis.EW
-        if dy != 0 and dx == 0:
+        if abs(dy) == 1 and dx == 0:
             return Axis.NS
         raise ValueError(
             "Vehicle path steps must be one-cell cardinal moves; "

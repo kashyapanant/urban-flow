@@ -645,3 +645,5 @@ class TestSimulationEngine:
         """Axis resolution rejects diagonal or zero-length path steps."""
         with pytest.raises(ValueError, match="one-cell cardinal moves"):
             SimulationEngine._axis_for_step((0, 0), (1, 1))
+        with pytest.raises(ValueError, match="one-cell cardinal moves"):
+            SimulationEngine._axis_for_step((0, 0), (2, 0))
