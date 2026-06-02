@@ -307,6 +307,28 @@ class TestSimulationEngine:
 
         request_preemption.assert_called_once_with((0, 3), emergency, Axis.NS, 2)
 
+    def test_preemption_yellow_duration_is_bounded_by_phase_duration(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Preemption yellow duration is capped by phase duration."""
+        engine = SimulationEngine(SimulationConfig(phase_duration=1))
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0)],
+        )
+        engine.vehicle_manager._vehicles = [emergency]
+        request_preemption = Mock()
+        monkeypatch.setattr(
+            engine.traffic_light_manager,
+            "request_preemption",
+            request_preemption,
+        )
+
+        engine._scan_preemptions()
+
+        request_preemption.assert_called_once_with((3, 0), emergency, Axis.EW, 1)
+
     def test_metrics_collection(self) -> None:
         """Arrivals are recorded into metrics and removed from active vehicles."""
         engine = SimulationEngine()

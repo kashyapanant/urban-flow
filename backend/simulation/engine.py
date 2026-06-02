@@ -328,14 +328,19 @@ class SimulationEngine:
 
     def _scan_preemptions(self) -> None:
         """Request preemption for intersections ahead of active emergency vehicles."""
+        preemption_yellow_duration = self._preemption_yellow_duration()
         for vehicle in self.vehicle_manager.get_emergency_vehicles():
             for position, axis in self._upcoming_intersections(vehicle):
                 self.traffic_light_manager.request_preemption(
                     position,
                     vehicle,
                     axis,
-                    self._PREEMPTION_YELLOW_DURATION,
+                    preemption_yellow_duration,
                 )
+
+    def _preemption_yellow_duration(self) -> int:
+        """Return a preemption yellow duration valid for current phase timing."""
+        return min(self._PREEMPTION_YELLOW_DURATION, self.config.phase_duration)
 
     def _upcoming_intersections(
         self, vehicle: Vehicle
