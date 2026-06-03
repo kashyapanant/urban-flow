@@ -52,7 +52,7 @@ This table is the **authoritative queue** for developer and tester handoffs.
 
 ## Current Status
 
-- Phase 1 foundations are complete through `P1-TL-02` plus `P1-API-01`.
+- Phase 1 foundations are complete through `P1-ENG-01`, including `P1-TL-02`, `P1-MET-01`, and `P1-API-01`.
 - The remaining work is integration-heavy and should be tackled as the larger slices above.
 - **Next task:** `P1-API-02`
 
