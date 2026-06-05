@@ -1,40 +1,651 @@
 """Tests for the simulation engine."""
 
+from __future__ import annotations
+
+import asyncio
+from typing import cast
+from unittest.mock import Mock
+
 import pytest
+
+from backend.config import SimulationConfig
+from backend.simulation.engine import SimulationEngine, SimulationState
+from backend.simulation.traffic_light import Axis
+from backend.simulation.vehicle import Vehicle, VehicleStatus, VehicleType
+
+
+def _vehicle(
+    vehicle_id: str,
+    vehicle_type: VehicleType,
+    path: list[tuple[int, int]],
+    *,
+    path_index: int = 0,
+    status: VehicleStatus = VehicleStatus.MOVING,
+    ticks_elapsed: int = 0,
+) -> Vehicle:
+    """Build a vehicle with path/position aligned for engine tests."""
+    return Vehicle(
+        id=vehicle_id,
+        type=vehicle_type,
+        position=path[path_index],
+        origin=path[0],
+        destination=path[-1],
+        path=path,
+        path_index=path_index,
+        status=status,
+        ticks_elapsed=ticks_elapsed,
+    )
 
 
 class TestSimulationEngine:
     """Test cases for the SimulationEngine class."""
 
-    def test_engine_initialization(self):
-        """Test simulation engine initialization."""
-        pass
+    def test_engine_initialization(self) -> None:
+        """Engine initializes all core subsystems from config."""
+        engine = SimulationEngine()
+
+        assert engine.config == SimulationConfig()
+        assert engine.grid.width == 10
+        assert engine.grid.height == 10
+        assert engine.tick_count == 0
+        assert engine.state is SimulationState.STOPPED
+        assert engine.vehicle_manager.get_all() == []
+        assert engine.metrics.total_completed == 0
+        assert len(engine.traffic_light_manager.get_all()) == len(
+            engine.grid.get_intersection_cells()
+        )
+
+    def test_configuration_updates(self) -> None:
+        """Runtime config setters update engine config and light timing."""
+        engine = SimulationEngine()
+
+        engine.set_tick_speed(5)
+        engine.set_spawn_rate(0.4)
+        engine.set_phase_duration(7)
+
+        assert engine.config.tick_speed == 5
+        assert engine.config.spawn_rate == 0.4
+        assert engine.config.phase_duration == 7
+        phase_durations = {
+            light.phase_duration for light in engine.traffic_light_manager.get_all()
+        }
+        assert phase_durations == {7}
+
+    def test_pause_resume_simulation(self) -> None:
+        """Pause/resume only transition between running and paused."""
+        engine = SimulationEngine()
+
+        engine.state = SimulationState.RUNNING
+        pause_result = engine.pause()
+        assert engine.state is SimulationState.PAUSED
+        assert pause_result.action == "pause"
+        assert pause_result.applied is True
+        assert pause_result.state is SimulationState.PAUSED
+        assert pause_result.message == "Simulation paused."
+
+        resume_result = engine.resume()
+        assert engine.state is SimulationState.RUNNING
+        assert resume_result.action == "resume"
+        assert resume_result.applied is True
+        assert resume_result.state is SimulationState.RUNNING
+        assert resume_result.message == "Simulation resumed."
+
+    def test_pause_rejects_when_stopped(self) -> None:
+        """Paused and stopped are distinct lifecycle states."""
+        engine = SimulationEngine()
+
+        result = engine.pause()
+
+        assert result.action == "pause"
+        assert result.applied is False
+        assert result.state is SimulationState.STOPPED
+        assert result.message == "Cannot pause a stopped simulation. Start it first."
+        assert engine.state is SimulationState.STOPPED
+
+    def test_resume_rejects_when_stopped(self) -> None:
+        """Stopped simulations must be started, not resumed."""
+        engine = SimulationEngine()
+
+        result = engine.resume()
+
+        assert result.action == "resume"
+        assert result.applied is False
+        assert result.state is SimulationState.STOPPED
+        assert result.message == "Cannot resume a stopped simulation. Start it first."
+        assert engine.state is SimulationState.STOPPED
 
     @pytest.mark.asyncio
-    async def test_start_stop_simulation(self):
-        """Test starting and stopping the simulation."""
-        pass
+    async def test_start_rejects_when_live_task_is_running(self) -> None:
+        """start() does not create a second loop when one is already active."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        release_task = asyncio.Event()
 
-    def test_pause_resume_simulation(self):
-        """Test pausing and resuming the simulation."""
-        pass
+        async def wait_forever() -> None:
+            await release_task.wait()
 
-    def test_configuration_updates(self):
-        """Test runtime configuration updates."""
-        pass
+        live_task = asyncio.create_task(wait_forever())
+        engine._run_task = live_task
 
-    def test_tick_execution_order(self):
-        """Test that tick phases execute in correct order."""
-        pass
+        try:
+            result = await engine.start()
+        finally:
+            release_task.set()
+            await live_task
 
-    def test_preemption_handling(self):
-        """Test emergency vehicle preemption logic."""
-        pass
+        assert result.action == "start"
+        assert result.applied is False
+        assert result.state is SimulationState.RUNNING
+        assert result.message == "Simulation is already running."
 
-    def test_state_snapshot(self):
-        """Test simulation state snapshot creation."""
-        pass
+    @pytest.mark.asyncio
+    async def test_start_rejects_when_live_task_is_paused(self) -> None:
+        """start() requires resume when a paused run loop is still alive."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.PAUSED
+        release_task = asyncio.Event()
 
-    def test_metrics_collection(self):
-        """Test metrics collection and calculation."""
-        pass
+        async def wait_forever() -> None:
+            await release_task.wait()
+
+        live_task = asyncio.create_task(wait_forever())
+        engine._run_task = live_task
+
+        try:
+            result = await engine.start()
+        finally:
+            release_task.set()
+            await live_task
+
+        assert result.action == "start"
+        assert result.applied is False
+        assert result.state is SimulationState.PAUSED
+        assert result.message == "Simulation is paused. Use resume instead of start."
+
+    def test_pause_and_resume_are_idempotent_in_same_state(self) -> None:
+        """Same-state control calls are harmless."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+
+        first_pause = engine.pause()
+        assert engine.state is SimulationState.PAUSED
+        assert first_pause.applied is True
+
+        second_pause = engine.pause()
+        assert engine.state is SimulationState.PAUSED
+        assert second_pause.action == "pause"
+        assert second_pause.applied is False
+        assert second_pause.state is SimulationState.PAUSED
+        assert second_pause.message == "Simulation is already paused."
+
+        first_resume = engine.resume()
+        assert engine.state is SimulationState.RUNNING
+        assert first_resume.applied is True
+
+        second_resume = engine.resume()
+        assert engine.state is SimulationState.RUNNING
+        assert second_resume.action == "resume"
+        assert second_resume.applied is False
+        assert second_resume.state is SimulationState.RUNNING
+        assert second_resume.message == "Simulation is already running."
+
+    def test_stop_is_idempotent_when_already_stopped(self) -> None:
+        """stop() returns an informational result when already stopped."""
+        engine = SimulationEngine()
+
+        result = asyncio.run(engine.stop())
+
+        assert result.action == "stop"
+        assert result.applied is False
+        assert result.state is SimulationState.STOPPED
+        assert result.message == "Simulation is already stopped."
+
+    def test_pause_raises_on_unhandled_state(self) -> None:
+        """pause() raises only for unexpected internal state corruption."""
+        engine = SimulationEngine()
+        engine.state = cast(SimulationState, "invalid")
+
+        with pytest.raises(RuntimeError, match="Unhandled simulation state"):
+            engine.pause()
+
+    def test_resume_raises_on_unhandled_state(self) -> None:
+        """resume() raises only for unexpected internal state corruption."""
+        engine = SimulationEngine()
+        engine.state = cast(SimulationState, "invalid")
+
+        with pytest.raises(RuntimeError, match="Unhandled simulation state"):
+            engine.resume()
+
+    def test_tick_execution_order(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """One engine tick runs the deterministic six-phase order."""
+        engine = SimulationEngine()
+        call_order: list[str] = []
+
+        monkeypatch.setattr(
+            engine,
+            "_scan_preemptions",
+            lambda: call_order.append("preemption_scan"),
+        )
+        monkeypatch.setattr(
+            engine,
+            "_update_traffic_lights",
+            lambda: call_order.append("traffic_light_update"),
+        )
+        monkeypatch.setattr(
+            engine,
+            "_move_vehicles",
+            lambda: call_order.append("vehicle_movement"),
+        )
+        monkeypatch.setattr(
+            engine,
+            "_spawn_vehicles",
+            lambda: call_order.append("vehicle_spawning"),
+        )
+        monkeypatch.setattr(
+            engine,
+            "_cleanup_and_record_metrics",
+            lambda: call_order.append("cleanup_metrics"),
+        )
+
+        async def fake_broadcast() -> None:
+            call_order.append("broadcast")
+
+        monkeypatch.setattr(engine, "_broadcast_state", fake_broadcast)
+
+        asyncio.run(engine.tick())
+
+        assert call_order == [
+            "preemption_scan",
+            "traffic_light_update",
+            "vehicle_movement",
+            "vehicle_spawning",
+            "cleanup_metrics",
+            "broadcast",
+        ]
+        assert engine.tick_count == 1
+
+    def test_preemption_handling(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Only emergency vehicles request preemption on upcoming intersections."""
+        engine = SimulationEngine()
+        normal = _vehicle("n-1", VehicleType.NORMAL, [(0, 0), (1, 0), (2, 0), (3, 0)])
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0), (3, 1), (3, 2), (3, 3)],
+        )
+        engine.vehicle_manager._vehicles = [normal, emergency]
+        request_preemption = Mock()
+        monkeypatch.setattr(
+            engine.traffic_light_manager,
+            "request_preemption",
+            request_preemption,
+        )
+
+        engine._scan_preemptions()
+
+        request_preemption.assert_called_once_with((3, 0), emergency, Axis.EW, 2)
+
+    def test_preemption_handling_uses_ns_axis_for_vertical_approach(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Emergency vehicles request NS preemption for vertical approach steps."""
+        engine = SimulationEngine()
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (0, 1), (0, 2), (0, 3)],
+        )
+        engine.vehicle_manager._vehicles = [emergency]
+        request_preemption = Mock()
+        monkeypatch.setattr(
+            engine.traffic_light_manager,
+            "request_preemption",
+            request_preemption,
+        )
+
+        engine._scan_preemptions()
+
+        request_preemption.assert_called_once_with((0, 3), emergency, Axis.NS, 2)
+
+    def test_preemption_yellow_duration_is_bounded_by_phase_duration(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Preemption yellow duration is capped by phase duration."""
+        engine = SimulationEngine(SimulationConfig(phase_duration=1))
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0)],
+        )
+        engine.vehicle_manager._vehicles = [emergency]
+        request_preemption = Mock()
+        monkeypatch.setattr(
+            engine.traffic_light_manager,
+            "request_preemption",
+            request_preemption,
+        )
+
+        engine._scan_preemptions()
+
+        request_preemption.assert_called_once_with((3, 0), emergency, Axis.EW, 1)
+
+    def test_metrics_collection(self) -> None:
+        """Arrivals are recorded into metrics and removed from active vehicles."""
+        engine = SimulationEngine()
+        arrived_normal = _vehicle(
+            "n-1",
+            VehicleType.NORMAL,
+            [(0, 0)],
+            status=VehicleStatus.ARRIVED,
+            ticks_elapsed=12,
+        )
+        arrived_emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(3, 3)],
+            status=VehicleStatus.ARRIVED,
+            ticks_elapsed=6,
+        )
+        active = _vehicle("n-2", VehicleType.NORMAL, [(0, 3), (1, 3)])
+        engine.vehicle_manager._vehicles = [arrived_normal, arrived_emergency, active]
+
+        engine._cleanup_and_record_metrics()
+
+        assert engine.metrics.total_completed == 2
+        assert engine.metrics.normal_vehicle_count == 1
+        assert engine.metrics.emergency_vehicle_count == 1
+        assert engine.metrics.normal_avg_ticks == 12.0
+        assert engine.metrics.emergency_avg_ticks == 6.0
+        assert engine.vehicle_manager.get_all() == [active]
+
+    def test_cleanup_releases_stale_preemptions(self) -> None:
+        """Cleanup releases preemption held by vehicles no longer approaching."""
+        engine = SimulationEngine()
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0)],
+            path_index=1,
+        )
+        engine.vehicle_manager._vehicles = [emergency]
+        light = engine.traffic_light_manager.get_light((0, 0))
+        assert light is not None
+        light.preempted_by = emergency
+
+        engine._cleanup_and_record_metrics()
+
+        assert light.preempted_by is None
+
+    def test_cleanup_releases_preemption_for_vehicle_no_longer_active(self) -> None:
+        """Cleanup clears holders that are no longer in the active vehicle list."""
+        engine = SimulationEngine()
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0)],
+        )
+        light = engine.traffic_light_manager.get_light((3, 0))
+        assert light is not None
+        light.preempted_by = emergency
+
+        engine._cleanup_and_record_metrics()
+
+        assert light.preempted_by is None
+
+    def test_cleanup_reuses_upcoming_intersections_for_shared_holder(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Cleanup computes upcoming intersections once per shared holder."""
+        engine = SimulationEngine()
+        emergency = _vehicle(
+            "e-1",
+            VehicleType.EMERGENCY,
+            [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0)],
+            path_index=2,
+        )
+        engine.vehicle_manager._vehicles = [emergency]
+
+        first_light = engine.traffic_light_manager.get_light((3, 0))
+        second_light = engine.traffic_light_manager.get_light((6, 0))
+        assert first_light is not None
+        assert second_light is not None
+        first_light.preempted_by = emergency
+        second_light.preempted_by = emergency
+
+        calls: list[str] = []
+
+        def fake_upcoming_positions(vehicle: Vehicle) -> set[tuple[int, int]]:
+            calls.append(vehicle.id)
+            return {(3, 0)}
+
+        monkeypatch.setattr(
+            engine,
+            "_upcoming_intersection_positions",
+            fake_upcoming_positions,
+        )
+
+        engine._cleanup_and_record_metrics()
+
+        assert calls == ["e-1"]
+        assert first_light.preempted_by is emergency
+        assert second_light.preempted_by is None
+
+    def test_state_snapshot(self) -> None:
+        """Snapshot contains the complete frontend-facing simulation state."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        snapshot = engine.snapshot()
+
+        assert snapshot.tick_count == 0
+        assert snapshot.state == "running"
+        assert snapshot.config == engine.config.model_dump()
+        assert snapshot.grid["width"] == engine.grid.width
+        assert isinstance(snapshot.vehicles, list)
+        assert isinstance(snapshot.traffic_lights, list)
+        assert snapshot.metrics == engine.metrics.to_dict()
+
+    def test_get_metrics_returns_live_metrics_instance(self) -> None:
+        """get_metrics returns the engine-owned metrics object."""
+        engine = SimulationEngine()
+
+        assert engine.get_metrics() is engine.metrics
+
+    @pytest.mark.asyncio
+    async def test_start_returns_immediately_when_already_running(self) -> None:
+        """Calling start while already running exits without an extra tick loop."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+
+        result = await engine.start()
+
+        assert engine.state is SimulationState.RUNNING
+        assert engine.tick_count == 0
+        assert result.action == "start"
+        assert result.applied is False
+        assert result.state is SimulationState.RUNNING
+        assert result.message == "Simulation is already running."
+
+    @pytest.mark.asyncio
+    async def test_start_rejects_when_paused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A paused simulation must be resumed, not started again."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.PAUSED
+
+        async def fake_tick():
+            pytest.fail("start() should reject a paused state before ticking")
+
+        monkeypatch.setattr(engine, "tick", fake_tick)
+
+        result = await engine.start()
+
+        assert result.action == "start"
+        assert result.applied is False
+        assert result.state is SimulationState.PAUSED
+        assert result.message == "Simulation is paused. Use resume instead of start."
+        assert engine.state is SimulationState.PAUSED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_start_returns_immediately_and_tracks_background_task(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """start() schedules the run loop and returns before the loop exits."""
+        engine = SimulationEngine()
+        run_started = asyncio.Event()
+        release_loop = asyncio.Event()
+
+        async def fake_run_tick_loop() -> None:
+            run_started.set()
+            await release_loop.wait()
+
+        monkeypatch.setattr(engine, "_run_tick_loop", fake_run_tick_loop)
+
+        result = await engine.start()
+
+        assert result.action == "start"
+        assert result.applied is True
+        assert result.state is SimulationState.RUNNING
+        assert result.message == "Simulation started."
+        assert engine.state is SimulationState.RUNNING
+        assert engine._run_task is not None
+
+        await run_started.wait()
+        assert not engine._run_task.done()
+
+        release_loop.set()
+        await engine._run_task
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_start_stop_simulation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Start loop ticks while running, idles while paused, and exits cleanly."""
+        broadcasts: list[int] = []
+        sleeps: list[float] = []
+
+        async def broadcast_callback(snapshot) -> None:
+            broadcasts.append(snapshot.tick_count)
+
+        engine = SimulationEngine(broadcast_callback=broadcast_callback)
+
+        async def fake_sleep(delay: float) -> None:
+            sleeps.append(delay)
+            if len(broadcasts) == 1 and engine.state is SimulationState.RUNNING:
+                engine.pause()
+            elif engine.state is SimulationState.PAUSED:
+                engine.resume()
+            elif len(broadcasts) >= 2:
+                await engine.stop()
+
+        monkeypatch.setattr("backend.simulation.engine.asyncio.sleep", fake_sleep)
+
+        result = await engine.start()
+        assert result.action == "start"
+        assert result.applied is True
+        assert result.state is SimulationState.RUNNING
+        assert result.message == "Simulation started."
+
+        assert engine._run_task is not None
+        await engine._run_task
+
+        assert broadcasts == [1, 2]
+        assert 0.05 in sleeps
+        assert 1.0 / engine.config.tick_speed in sleeps
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_returns_immediately_and_clears_background_task(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """stop() signals the loop immediately and the managed task cleans up."""
+        engine = SimulationEngine()
+        tick_entered = asyncio.Event()
+        allow_tick_exit = asyncio.Event()
+
+        async def fake_tick():
+            tick_entered.set()
+            await allow_tick_exit.wait()
+            return engine.snapshot()
+
+        monkeypatch.setattr(engine, "tick", fake_tick)
+
+        start_result = await engine.start()
+        assert start_result.applied is True
+        assert engine._run_task is not None
+
+        await tick_entered.wait()
+
+        stop_result = await engine.stop()
+
+        assert stop_result.action == "stop"
+        assert stop_result.applied is True
+        assert stop_result.state is SimulationState.STOPPED
+        assert stop_result.message == "Simulation stopped."
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is not None
+
+        allow_tick_exit.set()
+        await engine._run_task
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_finalize_run_task_handles_cancelled_task(self) -> None:
+        """Cancelled run tasks reset engine state and clear the task handle."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        release_task = asyncio.Event()
+
+        async def wait_forever() -> None:
+            await release_task.wait()
+
+        task = asyncio.create_task(wait_forever())
+        engine._run_task = task
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        engine._finalize_run_task(task)
+
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_finalize_run_task_handles_failed_task(self) -> None:
+        """Failed run tasks reset engine state and clear the task handle."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+
+        async def fail() -> None:
+            raise RuntimeError("boom")
+
+        task = asyncio.create_task(fail())
+        engine._run_task = task
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await task
+
+        engine._finalize_run_task(task)
+
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_broadcast_state_noops_without_callback(self) -> None:
+        """Broadcast helper returns cleanly when no callback is configured."""
+        engine = SimulationEngine()
+
+        await engine._broadcast_state()
+
+        assert engine.tick_count == 0
+
+    def test_axis_for_step_raises_on_non_cardinal_move(self) -> None:
+        """Axis resolution rejects diagonal or zero-length path steps."""
+        with pytest.raises(ValueError, match="one-cell cardinal moves"):
+            SimulationEngine._axis_for_step((0, 0), (1, 1))
+        with pytest.raises(ValueError, match="one-cell cardinal moves"):
+            SimulationEngine._axis_for_step((0, 0), (2, 0))
+        with pytest.raises(ValueError, match="one-cell cardinal moves"):
+            SimulationEngine._axis_for_step((0, 0), (0, 0))

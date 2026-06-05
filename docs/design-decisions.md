@@ -87,6 +87,12 @@ This document records design decisions made during the implementation of the bac
 - Extensible for future message types
 - Clear separation of message metadata and payload
 
+**Deferred performance note (2026-05-24):**
+- The current Phase 1 contract sends a full simulation snapshot on each tick, including `grid.cells`.
+- This is acceptable for the fixed `10x10` MVP and keeps the engine/API/frontend contract simple while `P1-API-02` and `P1-FE-01` are still open.
+- If grid size or tick frequency grows, revisit the transport shape and consider sending static grid layout once and per-tick dynamic state separately.
+- Track this follow-up under `PERF-WATCH-SNAP-01` in `docs/tasks.md`.
+
 ---
 
 ## Decision: Error Handling Strategy
@@ -270,6 +276,25 @@ average emergency travel time.
   placeholder.
 - Preserves deterministic, aggregate-only Phase 1 behavior without adding
   historical pairing or route-level normalization.
+
+---
+
+## Decision: Fixed Emergency Preemption Yellow Duration for Phase 1 (Task: P1-ENG-01)
+
+**Date:** 2026-06-02
+**Context:** Emergency preemption currently uses a small engine-level default
+yellow duration before a cross-axis traffic light transitions toward the required
+green axis.
+**Decision:** Keep `_PREEMPTION_YELLOW_DURATION = 2` as the Phase 1 default, but
+bound it by the configured `phase_duration` before requesting preemption.
+**Rationale:**
+- A two-tick yellow keeps emergency priority responsive while preserving a
+  visible transition instead of instantly changing axes.
+- Bounding the value keeps the default compatible with short test-oriented phase
+  durations such as `phase_duration = 1`.
+- This should be revisited after Phase 1. A better long-term policy would derive
+  the preemption yellow duration dynamically from signal timing, tick speed, or a
+  configurable preemption profile instead of relying on a fixed engine constant.
 
 ---
 

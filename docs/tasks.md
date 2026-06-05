@@ -44,7 +44,7 @@ This table is the **authoritative queue** for developer and tester handoffs.
 | P1-API-01 | Config request validation | `ConfigUpdateRequest` bounds and API-facing validation | - | ✅ |
 | P1-TL-02 | TrafficLightManager + grid light wiring | Create all intersection lights, lookups, movement permission bridge, phase-duration updates, light snapshots | P1-TL-01 | ✅ |
 | P1-MET-01 | Metrics module complete | KPI calculations, `record_arrival`, batch updates, reset, `to_dict` | P1-VEH-01 | ✅ |
-| P1-ENG-01 | SimulationEngine complete | Initialization, six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ⬜ |
+| P1-ENG-01 | SimulationEngine complete | Initialization, six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ✅ |
 | P1-API-02 | Runtime interface layer | REST route wiring, WebSocket manager/handler, app bootstrap, static files, startup lifecycle | P1-ENG-01 | ⬜ |
 | P1-FE-01 | Browser MVP | `index.html`, renderer, controls, metrics panel, `app.js`, end-to-end UI wiring | P1-API-02 | ⬜ |
 
@@ -52,9 +52,9 @@ This table is the **authoritative queue** for developer and tester handoffs.
 
 ## Current Status
 
-- Phase 1 foundations are complete through `P1-TL-02` plus `P1-API-01`.
+- Phase 1 foundations are complete through `P1-ENG-01`, including `P1-TL-02`, `P1-MET-01`, and `P1-API-01`.
 - The remaining work is integration-heavy and should be tackled as the larger slices above.
-- **Next task:** `P1-ENG-01`
+- **Next task:** `P1-API-02`
 
 ### What "done" means for an open task
 
@@ -101,6 +101,7 @@ Use `docs/design-decisions.md` for detailed trade-offs. The links below are the 
 
 - **DESIGN-WATCH-TL-01:** During `P1-ENG-01`, explicitly enforce that only emergency vehicles trigger preemption. The enforcement point can live either in `SimulationEngine` or `TrafficLight.request_preemption`, but the choice should be intentional and documented if needed.
 - **PERF-WATCH-VEH-01:** Re-check `Vehicle._validate_path_state()` hot-path cost after `P1-ENG-01` is done and the engine can be profiled under realistic load.
+- **PERF-WATCH-SNAP-01:** Re-evaluate per-tick snapshot payload size during `P1-API-02` / `P1-FE-01`. The current full-grid snapshot is acceptable for the Phase 1 `10x10` MVP, but larger grids may require splitting static grid layout from dynamic tick state instead of serializing the full `cells` matrix every tick.
 
 ---
 
