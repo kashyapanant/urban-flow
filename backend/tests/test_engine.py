@@ -647,3 +647,5 @@ class TestSimulationEngine:
             SimulationEngine._axis_for_step((0, 0), (1, 1))
         with pytest.raises(ValueError, match="one-cell cardinal moves"):
             SimulationEngine._axis_for_step((0, 0), (2, 0))
+        with pytest.raises(ValueError, match="one-cell cardinal moves"):
+            SimulationEngine._axis_for_step((0, 0), (0, 0))
