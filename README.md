@@ -14,14 +14,17 @@ See [`docs/project_phases.md`](docs/project_phases.md) for the full roadmap and 
 
 ## Current Status
 
-Urban Flow is still in Phase 1 integration. The foundational simulation modules are implemented and tested:
+Urban Flow is still in Phase 1 integration. The deterministic simulation core and backend runtime interface are implemented and tested:
 
 - `Grid`
 - `Pathfinder`
 - `Vehicle` / `VehicleManager`
-- `TrafficLight`
+- `TrafficLight` / `TrafficLightManager`
+- `Metrics`
+- `SimulationEngine`
+- FastAPI REST/WebSocket runtime wiring
 
-The runnable end-to-end application is still under active development. `TrafficLightManager`, `Metrics`, `SimulationEngine`, REST/WebSocket wiring, app bootstrap, and the browser frontend are not finished yet.
+The remaining Phase 1 slice is the browser frontend MVP.
 
 ## Local-First Principles
 
@@ -68,23 +71,23 @@ uv run ruff format --check .
 
 ### Application Startup
 
-The full browser app startup path is part of the remaining Phase 1 work. Once `P1-APP-01` is complete, the intended entrypoint is:
+Run the local FastAPI app with REST endpoints and the WebSocket stream:
 
 ```bash
 uv run python main.py
 ```
 
-Until then, the most reliable validation path is the automated test suite plus the documentation in `docs/`.
+The browser frontend files are still part of the remaining Phase 1 work.
 
 ## Project Structure
 
 ```text
 urban-flow/
-├── main.py                    # Planned FastAPI app entry point
+├── main.py                    # FastAPI app entry point
 ├── backend/
 │   ├── config.py              # Simulation configuration
 │   ├── simulation/            # Core simulation modules
-│   ├── api/                   # REST and WebSocket stubs/integration points
+│   ├── api/                   # REST and WebSocket runtime interface
 │   └── tests/                 # Test suite
 ├── docs/                      # Requirements, architecture, roadmap, tasks
 ├── prompts/                   # Historical requirement elicitation notes
