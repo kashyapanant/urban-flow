@@ -15,7 +15,7 @@ class WebSocketManager:
 
     def __init__(self) -> None:
         """Initialize the WebSocket manager."""
-        self.active_connections: list[Any] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket) -> None:
         """Accept a new WebSocket connection."""
@@ -29,7 +29,7 @@ class WebSocketManager:
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         """Broadcast a message to all connected clients."""
-        stale_connections: list[Any] = []
+        stale_connections: list[WebSocket] = []
         for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
