@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from ..simulation.engine import SimulationEngine
+from .serialization import serialize_snapshot
 
 
 class WebSocketManager:
@@ -111,7 +111,9 @@ async def handle_client_message(
 
 async def broadcast_simulation_state(engine: SimulationEngine) -> None:
     """Broadcast current simulation state to all connected clients."""
-    await manager.broadcast({"type": "tick", "data": asdict(engine.snapshot())})
+    await manager.broadcast(
+        {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
+    )
 
 
 def _error_message(message: str) -> dict[str, Any]:

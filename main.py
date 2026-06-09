@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import asdict
 from pathlib import Path
 
 import uvicorn
@@ -13,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.routes import router, set_engine
+from backend.api.serialization import serialize_snapshot
 from backend.api.websocket import manager, websocket_endpoint
 from backend.simulation.engine import SimulationEngine, SimulationSnapshot
 
@@ -21,7 +21,7 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
 
     async def broadcast_snapshot(snapshot: SimulationSnapshot) -> None:
-        await manager.broadcast({"type": "tick", "data": asdict(snapshot)})
+        await manager.broadcast({"type": "tick", "data": serialize_snapshot(snapshot)})
 
     engine = SimulationEngine(broadcast_callback=broadcast_snapshot)
 

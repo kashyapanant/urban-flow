@@ -1,12 +1,12 @@
 """REST API endpoints for simulation control."""
 
-from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..simulation.engine import ControlResult, SimulationEngine
+from .serialization import serialize_snapshot
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -99,7 +99,7 @@ def update_config(config: ConfigUpdateRequest) -> dict[str, Any]:
 @router.get("/state")
 def get_state() -> dict[str, Any]:
     """Return current state snapshot as a polling fallback."""
-    return asdict(get_engine().snapshot())
+    return serialize_snapshot(get_engine().snapshot())
 
 
 @router.get("/metrics")
