@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -45,10 +46,19 @@ def create_app() -> FastAPI:
 
 
 def setup_cors(app: FastAPI) -> None:
-    """Configure CORS middleware for local browser development."""
+    """Configure CORS middleware.
+
+    Origins are read from CORS_ORIGINS environment variable.
+    Defaults to localhost:3000 for local frontend development.
+    """
+    raw_origins = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000, http://127.0.0.1:3000",
+    )
+    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
