@@ -11,17 +11,20 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.api.routes import router, set_engine
+from backend.api.routes import router
 from backend.api.serialization import serialize_snapshot
-from backend.api.websocket import manager, websocket_endpoint
+from backend.api.websocket import WebSocketManager, websocket_endpoint
 from backend.simulation.engine import SimulationEngine, SimulationSnapshot
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    ws_manager = WebSocketManager()
 
     async def broadcast_snapshot(snapshot: SimulationSnapshot) -> None:
-        await manager.broadcast({"type": "tick", "data": serialize_snapshot(snapshot)})
+        await ws_manager.broadcast(
+            {"type": "tick", "data": serialize_snapshot(snapshot)}
+        )
 
     engine = SimulationEngine(broadcast_callback=broadcast_snapshot)
 
@@ -32,8 +35,9 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Urban Flow", lifespan=lifespan)
     app.state.engine = engine
+    app.state.ws_manager = ws_manager
     setup_cors(app)
-    setup_routes(app, engine)
+    setup_routes(app, engine, ws_manager)
     setup_static_files(app)
     return app
 
@@ -49,14 +53,15 @@ def setup_cors(app: FastAPI) -> None:
     )
 
 
-def setup_routes(app: FastAPI, engine: SimulationEngine) -> None:
+def setup_routes(
+    app: FastAPI, engine: SimulationEngine, ws_manager: WebSocketManager
+) -> None:
     """Setup API routes and WebSocket endpoints."""
-    set_engine(engine)
     app.include_router(router)
 
     @app.websocket("/ws")
     async def simulation_websocket(websocket: WebSocket) -> None:
-        await websocket_endpoint(websocket, engine)
+        await websocket_endpoint(websocket, engine, ws_manager)
 
 
 def setup_static_files(app: FastAPI) -> None:

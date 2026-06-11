@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -46,15 +47,17 @@ class WebSocketManager:
         await websocket.send_json(message)
 
 
-# Global WebSocket manager instance
-manager = WebSocketManager()
-
-
-async def websocket_endpoint(websocket: WebSocket, engine: SimulationEngine) -> None:
+async def websocket_endpoint(
+    websocket: WebSocket,
+    engine: SimulationEngine,
+    manager: WebSocketManager,
+) -> None:
     """WebSocket endpoint for real-time simulation communication."""
     await manager.connect(websocket)
     try:
-        await broadcast_simulation_state(engine)
+        await manager.send_personal_message(
+            {"type": "tick", "data": serialize_snapshot(engine.snapshot())}, websocket
+        )
         while True:
             message = await websocket.receive_json()
             response = await handle_client_message(message, engine)
@@ -63,6 +66,7 @@ async def websocket_endpoint(websocket: WebSocket, engine: SimulationEngine) -> 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as exc:
+        logging.error("WebSocket error: %s", exc, exc_info=True)
         await manager.send_personal_message(_error_message(str(exc)), websocket)
         manager.disconnect(websocket)
 
@@ -109,7 +113,9 @@ async def handle_client_message(
     return None
 
 
-async def broadcast_simulation_state(engine: SimulationEngine) -> None:
+async def broadcast_simulation_state(
+    engine: SimulationEngine, manager: WebSocketManager
+) -> None:
     """Broadcast current simulation state to all connected clients."""
     await manager.broadcast(
         {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
