@@ -31,7 +31,9 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
-        await app.state.engine.stop()
+        sim_engine = getattr(app.state, "engine", None)
+        if sim_engine is not None:
+            await sim_engine.stop()
 
     app = FastAPI(title="Urban Flow", lifespan=lifespan)
     app.state.engine = engine
