@@ -18,6 +18,12 @@ class ConfigUpdateRequest(BaseModel):
     spawn_rate: float | None = Field(
         None, ge=0.0, le=1.0, description="Probability per edge cell per tick"
     )
+    emergency_probability: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Probability that spawned vehicle is emergency",
+    )
     phase_duration: int | None = Field(
         None, ge=1, le=20, description="Ticks per traffic light phase"
     )
@@ -94,18 +100,34 @@ def update_config(
     engine: EngineDependency,
     config: ConfigUpdateBody,
 ) -> dict[str, Any]:
-    """Update runtime configuration."""
+    """Update runtime simulation configuration.
+
+    Accepts partial updates; only provided fields are changed.
+    """
     updates = config.model_dump(exclude_none=True)
 
-    if "tick_speed" in updates:
-        engine.set_tick_speed(updates["tick_speed"])
-    if "spawn_rate" in updates:
-        engine.set_spawn_rate(updates["spawn_rate"])
-    if "phase_duration" in updates:
-        engine.set_phase_duration(updates["phase_duration"])
+    if not updates:
+        return {
+            "message": "No configuration changes provided.",
+            "config": engine.config.model_dump(),
+        }
+    try:
+        if "tick_speed" in updates:
+            engine.set_tick_speed(updates["tick_speed"])
+        if "spawn_rate" in updates:
+            engine.set_spawn_rate(updates["spawn_rate"])
+        if "phase_duration" in updates:
+            engine.set_phase_duration(updates["phase_duration"])
+        if "emergency_probability" in updates:
+            engine.set_emergency_probability(updates["emergency_probability"])
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
 
     return {
-        "message": "Simulation configuration updated.",
+        "message": f"Updated: {', '.join(updates.keys())}.",
         "config": engine.config.model_dump(),
     }
 

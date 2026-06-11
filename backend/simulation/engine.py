@@ -242,6 +242,14 @@ class SimulationEngine:
         self.config = self._validated_config_copy(phase_duration=duration)
         self.traffic_light_manager.set_phase_duration(duration)
 
+    def set_emergency_probability(self, probability: float) -> None:
+        """Set emergency vehicle spawn probability (takes effect next tick).
+
+        Args:
+            probability: Probability that a spawned vehicle is emergency (0.0-1.0)
+        """
+        self.config = self._validated_config_copy(emergency_probability=probability)
+
     def snapshot(self) -> SimulationSnapshot:
         """Create a complete state snapshot for frontend consumption.
 
