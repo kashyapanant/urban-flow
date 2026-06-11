@@ -29,12 +29,28 @@ class WebSocketManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict[str, Any]) -> None:
-        """Broadcast a message to all connected clients."""
+        """Broadcast message to all connected clients.
+
+        Automatically removes stale connections that fail to receive.
+
+        Args:
+            message: JSON-serializable dict to broadcast.
+        """
         stale_connections: list[WebSocket] = []
         for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
-            except Exception:
+            except WebSocketDisconnect:
+                logging.debug("Client disconnected during broadcast.")
+                stale_connections.append(connection)
+            except RuntimeError as exc:
+                # Raised when WebSocket is closed but not formally disconnected
+                logging.warning("WebSocket send failed (connection closed): %s", exc)
+                stale_connections.append(connection)
+            except Exception as exc:
+                logging.error(
+                    "Unexpected error broadcasting to WebSocket: %s", exc, exc_info=True
+                )
                 stale_connections.append(connection)
 
         for connection in stale_connections:
