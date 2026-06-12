@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Protocol
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocketDisconnect
 
 from ..simulation.engine import SimulationEngine
 from .serialization import serialize_snapshot
+
+
+class WebSocketConnection(Protocol):
+    """Minimal WebSocket interface used by the API layer."""
+
+    async def accept(self) -> None: ...
+
+    async def send_json(self, message: dict[str, Any]) -> None: ...
+
+    async def receive_json(self) -> dict[str, Any]: ...
 
 
 class WebSocketManager:
@@ -16,14 +26,14 @@ class WebSocketManager:
 
     def __init__(self) -> None:
         """Initialize the WebSocket manager."""
-        self.active_connections: list[WebSocket] = []
+        self.active_connections: list[WebSocketConnection] = []
 
-    async def connect(self, websocket: WebSocket) -> None:
+    async def connect(self, websocket: WebSocketConnection) -> None:
         """Accept a new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
 
-    def disconnect(self, websocket: WebSocket) -> None:
+    def disconnect(self, websocket: WebSocketConnection) -> None:
         """Remove a WebSocket connection."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
@@ -36,7 +46,7 @@ class WebSocketManager:
         Args:
             message: JSON-serializable dict to broadcast.
         """
-        stale_connections: list[WebSocket] = []
+        stale_connections: list[WebSocketConnection] = []
         for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
@@ -57,14 +67,14 @@ class WebSocketManager:
             self.disconnect(connection)
 
     async def send_personal_message(
-        self, message: dict[str, Any], websocket: WebSocket
+        self, message: dict[str, Any], websocket: WebSocketConnection
     ) -> None:
         """Send a message to a specific client."""
         await websocket.send_json(message)
 
 
 async def websocket_endpoint(
-    websocket: WebSocket,
+    websocket: WebSocketConnection,
     engine: SimulationEngine,
     manager: WebSocketManager,
 ) -> None:
