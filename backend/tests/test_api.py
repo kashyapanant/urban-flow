@@ -304,35 +304,48 @@ class TestAPIRoutes:
         assert "traffic_lights" in data
         assert "metrics" in data
 
-    def test_control_routes_return_engine_results(
-        self, wired_client: TestClient
-    ) -> None:
-        """Control routes expose the engine's lifecycle result shape."""
+    def test_start_route_returns_started_result(self, wired_client: TestClient) -> None:
+        """Start returns the engine lifecycle response for a stopped simulation."""
         engine = app_for(wired_client).state.engine
 
-        start_response = wired_client.post("/api/simulation/start")
-        engine.state = SimulationState.STOPPED
+        response = wired_client.post("/api/simulation/start")
 
-        engine.state = SimulationState.RUNNING
-        pause_response = wired_client.post("/api/simulation/pause")
-        resume_response = wired_client.post("/api/simulation/resume")
-
-        assert start_response.status_code == 200
-        assert start_response.json() == {
+        assert response.status_code == 200
+        assert response.json() == {
             "action": "start",
             "applied": True,
             "state": "running",
             "message": "Simulation started.",
         }
-        assert pause_response.status_code == 200
-        assert pause_response.json() == {
+        engine.state = SimulationState.STOPPED
+
+    def test_pause_route_returns_paused_result(self, wired_client: TestClient) -> None:
+        """Pause returns the engine lifecycle response for a running simulation."""
+        engine = app_for(wired_client).state.engine
+        engine.state = SimulationState.RUNNING
+
+        response = wired_client.post("/api/simulation/pause")
+
+        assert response.status_code == 200
+        assert response.json() == {
             "action": "pause",
             "applied": True,
             "state": "paused",
             "message": "Simulation paused.",
         }
-        assert resume_response.status_code == 200
-        assert resume_response.json() == {
+        engine.state = SimulationState.STOPPED
+
+    def test_resume_route_returns_resumed_result(
+        self, wired_client: TestClient
+    ) -> None:
+        """Resume returns the engine lifecycle response for a paused simulation."""
+        engine = app_for(wired_client).state.engine
+        engine.state = SimulationState.PAUSED
+
+        response = wired_client.post("/api/simulation/resume")
+
+        assert response.status_code == 200
+        assert response.json() == {
             "action": "resume",
             "applied": True,
             "state": "running",
