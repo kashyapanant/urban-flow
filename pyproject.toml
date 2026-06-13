@@ -39,3 +39,6 @@ select = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.coverage.report]
+omit=["backend/tests/*",]
