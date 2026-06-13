@@ -435,25 +435,51 @@ class TestAPIRoutes:
         }
         assert engine.config.emergency_probability == 0.4
 
-    def test_update_config_returns_422_when_runtime_validation_fails(
-        self, wired_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize(
+        ("setter_name", "payload", "error_message"),
+        [
+            ("set_tick_speed", {"tick_speed": 6}, "tick speed update failed"),
+            ("set_spawn_rate", {"spawn_rate": 0.3}, "spawn rate update failed"),
+            (
+                "set_phase_duration",
+                {"phase_duration": 4},
+                "phase duration update failed",
+            ),
+            (
+                "set_emergency_probability",
+                {"emergency_probability": 0.4},
+                "emergency probability update failed",
+            ),
+        ],
+    )
+    def test_update_config_returns_422_when_runtime_validation_fails_for_each_setter(
+        self,
+        wired_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+        setter_name: str,
+        payload: dict[str, int | float],
+        error_message: str,
     ) -> None:
-        """Runtime setter errors are surfaced as API validation errors."""
+        """Any runtime setter ValueError is surfaced as an API validation error."""
         engine = app_for(wired_client).state.engine
 
-        def fail_spawn_rate(_: float) -> None:
-            raise ValueError("spawn rate update failed")
+        def fail_update(_: object) -> None:
+            raise ValueError(error_message)
 
-        monkeypatch.setattr(engine, "set_spawn_rate", fail_spawn_rate)
+        monkeypatch.setattr(engine, setter_name, fail_update)
 
-        response = wired_client.put(
-            "/api/simulation/config",
-            json={"spawn_rate": 0.3},
-        )
+        response = wired_client.put("/api/simulation/config", json=payload)
 
         assert response.status_code == 422
-        assert response.json() == {"detail": "spawn rate update failed"}
-        assert engine.config.spawn_rate == 0.1
+        assert response.json() == {"detail": error_message}
+        assert engine.config.model_dump() == {
+            "grid_width": 10,
+            "grid_height": 10,
+            "tick_speed": 1,
+            "spawn_rate": 0.1,
+            "emergency_probability": 0.1,
+            "phase_duration": 3,
+        }
 
     def test_get_metrics_returns_metrics_payload(
         self, wired_client: TestClient
