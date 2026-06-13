@@ -24,10 +24,19 @@ from backend.simulation.engine import SimulationEngine, SimulationState
 
 
 @pytest.fixture
-def api_client() -> TestClient:
+def bare_client() -> TestClient:
     """Build a minimal app with the simulation router mounted."""
     app = FastAPI()
     app.include_router(router)
+    return TestClient(app)
+
+
+@pytest.fixture
+def wired_client() -> TestClient:
+    """Build an app with the simulation engine pre-wired on app.state."""
+    app = FastAPI()
+    app.include_router(router)
+    app.state.engine = SimulationEngine()
     return TestClient(app)
 
 
@@ -269,22 +278,19 @@ class TestAPIRoutes:
     """Test cases for REST API endpoints."""
 
     def test_routes_return_503_when_engine_is_not_configured(
-        self, api_client: TestClient
+        self, bare_client: TestClient
     ) -> None:
         """Endpoints fail clearly before app bootstrap injects the engine."""
-        response = api_client.get("/api/simulation/state")
+        response = bare_client.get("/api/simulation/state")
 
         assert response.status_code == 503
         assert response.json() == {"detail": "Simulation engine is not configured."}
 
     def test_app_state_engine_makes_state_available(
-        self, api_client: TestClient
+        self, wired_client: TestClient
     ) -> None:
         """app.state.engine wires a shared engine into REST routes."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
-
-        response = api_client.get("/api/simulation/state")
+        response = wired_client.get("/api/simulation/state")
 
         assert response.status_code == 200
         data = response.json()
@@ -296,17 +302,18 @@ class TestAPIRoutes:
         assert "traffic_lights" in data
         assert "metrics" in data
 
-    def test_control_routes_return_engine_results(self, api_client: TestClient) -> None:
+    def test_control_routes_return_engine_results(
+        self, wired_client: TestClient
+    ) -> None:
         """Control routes expose the engine's lifecycle result shape."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
+        engine = app_for(wired_client).state.engine
 
-        start_response = api_client.post("/api/simulation/start")
+        start_response = wired_client.post("/api/simulation/start")
         engine.state = SimulationState.STOPPED
 
         engine.state = SimulationState.RUNNING
-        pause_response = api_client.post("/api/simulation/pause")
-        resume_response = api_client.post("/api/simulation/resume")
+        pause_response = wired_client.post("/api/simulation/pause")
+        resume_response = wired_client.post("/api/simulation/resume")
 
         assert start_response.status_code == 200
         assert start_response.json() == {
@@ -332,13 +339,12 @@ class TestAPIRoutes:
         engine.state = SimulationState.STOPPED
 
     def test_update_config_applies_only_provided_fields(
-        self, api_client: TestClient
+        self, wired_client: TestClient
     ) -> None:
         """Partial config updates preserve omitted runtime values."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
+        engine = app_for(wired_client).state.engine
 
-        response = api_client.put(
+        response = wired_client.put(
             "/api/simulation/config",
             json={"tick_speed": 7, "phase_duration": 4},
         )
@@ -360,13 +366,12 @@ class TestAPIRoutes:
         assert engine.config.phase_duration == 4
 
     def test_update_config_returns_current_config_for_empty_payload(
-        self, api_client: TestClient
+        self, wired_client: TestClient
     ) -> None:
         """Empty config updates return the current config without changes."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
+        engine = app_for(wired_client).state.engine
 
-        response = api_client.put("/api/simulation/config", json={})
+        response = wired_client.put("/api/simulation/config", json={})
 
         assert response.status_code == 200
         assert response.json() == {
@@ -390,13 +395,12 @@ class TestAPIRoutes:
         }
 
     def test_update_config_applies_emergency_probability(
-        self, api_client: TestClient
+        self, wired_client: TestClient
     ) -> None:
         """Emergency vehicle spawn probability can be updated at runtime."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
+        engine = app_for(wired_client).state.engine
 
-        response = api_client.put(
+        response = wired_client.put(
             "/api/simulation/config",
             json={"emergency_probability": 0.4},
         )
@@ -416,18 +420,17 @@ class TestAPIRoutes:
         assert engine.config.emergency_probability == 0.4
 
     def test_update_config_returns_422_when_runtime_validation_fails(
-        self, api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+        self, wired_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Runtime setter errors are surfaced as API validation errors."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
+        engine = app_for(wired_client).state.engine
 
         def fail_spawn_rate(_: float) -> None:
             raise ValueError("spawn rate update failed")
 
         monkeypatch.setattr(engine, "set_spawn_rate", fail_spawn_rate)
 
-        response = api_client.put(
+        response = wired_client.put(
             "/api/simulation/config",
             json={"spawn_rate": 0.3},
         )
@@ -436,12 +439,11 @@ class TestAPIRoutes:
         assert response.json() == {"detail": "spawn rate update failed"}
         assert engine.config.spawn_rate == 0.1
 
-    def test_get_metrics_returns_metrics_payload(self, api_client: TestClient) -> None:
+    def test_get_metrics_returns_metrics_payload(
+        self, wired_client: TestClient
+    ) -> None:
         """The metrics route serializes the engine's metrics object."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
-
-        response = api_client.get("/api/simulation/metrics")
+        response = wired_client.get("/api/simulation/metrics")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -451,12 +453,11 @@ class TestAPIRoutes:
             "total_completed": 0,
         }
 
-    def test_config_route_rejects_invalid_payload(self, api_client: TestClient) -> None:
+    def test_config_route_rejects_invalid_payload(
+        self, wired_client: TestClient
+    ) -> None:
         """FastAPI/Pydantic validation protects the runtime config endpoint."""
-        engine = SimulationEngine()
-        app_for(api_client).state.engine = engine
-
-        response = api_client.put(
+        response = wired_client.put(
             "/api/simulation/config",
             json={"tick_speed": 11, "unknown": True},
         )
