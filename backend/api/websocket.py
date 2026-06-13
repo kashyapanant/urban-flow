@@ -124,6 +124,13 @@ async def handle_client_message(
             if not isinstance(rate, int | float):
                 return _error_message("set_spawn_rate requires numeric data.rate.")
             engine.set_spawn_rate(float(rate))
+        case "set_emergency_probability":
+            probability = data.get("probability")
+            if not isinstance(probability, int | float):
+                return _error_message(
+                    "set_emergency_probability requires numeric data.probability."
+                )
+            engine.set_emergency_probability(float(probability))
         case "set_phase_duration":
             duration = data.get("duration")
             if not isinstance(duration, int):

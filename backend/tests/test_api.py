@@ -615,54 +615,90 @@ class TestWebSocketManager:
         assert payload["state"] == "running"
 
     @pytest.mark.asyncio
-    async def test_handle_client_message_applies_runtime_commands(self) -> None:
-        """Client command messages forward to engine controls and config setters."""
+    @pytest.mark.parametrize(
+        ("message", "initial_state", "expected_state"),
+        [
+            ({"type": "pause"}, SimulationState.RUNNING, SimulationState.PAUSED),
+            ({"type": "resume"}, SimulationState.PAUSED, SimulationState.RUNNING),
+        ],
+    )
+    async def test_handle_client_message_applies_control_commands(
+        self,
+        message: dict[str, Any],
+        initial_state: SimulationState,
+        expected_state: SimulationState,
+    ) -> None:
+        """Client control messages forward to the engine lifecycle methods."""
         engine = SimulationEngine()
-        engine.state = SimulationState.RUNNING
+        engine.state = initial_state
 
-        assert await handle_client_message({"type": "pause"}, engine) is None
-        assert engine.state is SimulationState.PAUSED
-
-        assert await handle_client_message({"type": "resume"}, engine) is None
-        assert engine.state is SimulationState.RUNNING
-
-        assert (
-            await handle_client_message(
-                {"type": "set_speed", "data": {"speed": 6}}, engine
-            )
-            is None
-        )
-        assert (
-            await handle_client_message(
-                {"type": "set_spawn_rate", "data": {"rate": 0.25}}, engine
-            )
-            is None
-        )
-        assert (
-            await handle_client_message(
-                {"type": "set_phase_duration", "data": {"duration": 5}}, engine
-            )
-            is None
-        )
-
-        assert engine.config.tick_speed == 6
-        assert engine.config.spawn_rate == 0.25
-        assert engine.config.phase_duration == 5
+        assert await handle_client_message(message, engine) is None
+        assert engine.state is expected_state
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("message", "field_name", "expected_value"),
+        [
+            ({"type": "set_speed", "data": {"speed": 6}}, "tick_speed", 6),
+            (
+                {"type": "set_spawn_rate", "data": {"rate": 0.25}},
+                "spawn_rate",
+                0.25,
+            ),
+            (
+                {"type": "set_phase_duration", "data": {"duration": 5}},
+                "phase_duration",
+                5,
+            ),
+            (
+                {
+                    "type": "set_emergency_probability",
+                    "data": {"probability": 0.4},
+                },
+                "emergency_probability",
+                0.4,
+            ),
+        ],
+    )
+    async def test_handle_client_message_applies_config_commands(
+        self,
+        message: dict[str, Any],
+        field_name: str,
+        expected_value: int | float,
+    ) -> None:
+        """Client config messages forward to the matching engine setters."""
+        engine = SimulationEngine()
+
+        assert await handle_client_message(message, engine) is None
+        assert getattr(engine.config, field_name) == expected_value
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("message", "expected_message"),
+        [
+            (
+                {"type": "set_speed", "data": {}},
+                "set_speed requires integer data.speed.",
+            ),
+            (
+                {"type": "set_emergency_probability", "data": {}},
+                "set_emergency_probability requires numeric data.probability.",
+            ),
+        ],
+    )
     async def test_handle_client_message_returns_error_for_invalid_message(
         self,
+        message: dict[str, Any],
+        expected_message: str,
     ) -> None:
         """Invalid client messages produce an error payload for the caller to send."""
         engine = SimulationEngine()
 
-        response = await handle_client_message(
-            {"type": "set_speed", "data": {}}, engine
-        )
+        response = await handle_client_message(message, engine)
 
         assert response == {
             "type": "error",
-            "data": {"message": "set_speed requires integer data.speed."},
+            "data": {"message": expected_message},
         }
 
     @pytest.mark.asyncio
