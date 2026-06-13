@@ -513,14 +513,12 @@ class FakeWebSocket:
     def __init__(
         self,
         *,
-        fail_send: bool = False,
         send_exception: Exception | None = None,
         received_messages: list[dict[str, Any]] | None = None,
         receive_exception: Exception | None = None,
     ) -> None:
         self.accepted = False
         self.sent_messages: list[dict[str, Any]] = []
-        self.fail_send = fail_send
         self.send_exception = send_exception
         self.received_messages = list(received_messages or [])
         self.receive_exception = receive_exception
@@ -531,8 +529,6 @@ class FakeWebSocket:
     async def send_json(self, message: dict[str, Any]) -> None:
         if self.send_exception is not None:
             raise self.send_exception
-        if self.fail_send:
-            raise RuntimeError("client disconnected")
         self.sent_messages.append(message)
 
     async def receive_json(self) -> dict[str, Any]:
@@ -584,7 +580,7 @@ class TestWebSocketManager:
         """Broadcast removes sockets that fail while sending."""
         websocket_manager = WebSocketManager()
         healthy = FakeWebSocket()
-        failing = FakeWebSocket(fail_send=True)
+        failing = FakeWebSocket(send_exception=RuntimeError("client disconnected"))
         await websocket_manager.connect(healthy)
         await websocket_manager.connect(failing)
 
