@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import runpy
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, cast
 
 import pytest
+import uvicorn
 from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
@@ -746,6 +748,22 @@ class TestAppBootstrap:
             "https://urban-flow.local",
             "http://localhost:5173",
         ]
+
+    def test_main_module_uses_project_root_uvicorn_target(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Running main.py uses the actual module path for the app import string."""
+        captured: dict[str, Any] = {}
+
+        def fake_run(app_target: str, **kwargs: Any) -> None:
+            captured["app_target"] = app_target
+            captured["kwargs"] = kwargs
+
+        monkeypatch.setattr(uvicorn, "run", fake_run)
+
+        runpy.run_module("main", run_name="__main__")
+
+        assert captured["app_target"] == "main:app"
 
     def test_app_shutdown_stops_shared_engine(
         self, monkeypatch: pytest.MonkeyPatch
