@@ -8,10 +8,12 @@ from typing import Any
 
 import pytest
 from fastapi import WebSocketDisconnect
+from pydantic import BaseModel, Field, ValidationError
 
 from backend.api.serialization import serialize_snapshot
 from backend.api.websocket import (
     WebSocketManager,
+    _format_runtime_config_error,
     broadcast_simulation_state,
     handle_client_message,
     websocket_endpoint,
@@ -384,6 +386,31 @@ class TestWebSocketManager:
             "type": "error",
             "data": {"message": expected_message},
         }
+
+    def test_format_runtime_config_error_falls_back_for_unknown_validation_field(
+        self,
+    ) -> None:
+        """Unknown validation fields return the generic client-facing message."""
+
+        class UnknownConfigModel(BaseModel):
+            unknown_rate: int = Field(ge=1)
+
+        with pytest.raises(ValidationError) as exc_info:
+            UnknownConfigModel.model_validate({"unknown_rate": 0})
+
+        assert (
+            _format_runtime_config_error(exc_info.value)
+            == "Invalid simulation config value."
+        )
+
+    def test_format_runtime_config_error_falls_back_for_blank_value_error(
+        self,
+    ) -> None:
+        """Blank ValueError messages fall back to the generic client-facing text."""
+        assert (
+            _format_runtime_config_error(ValueError("   "))
+            == "Invalid simulation config value."
+        )
 
     @pytest.mark.asyncio
     async def test_websocket_endpoint_sends_error_payload_on_unexpected_exception(

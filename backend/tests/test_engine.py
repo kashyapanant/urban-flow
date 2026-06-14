@@ -556,17 +556,19 @@ class TestSimulationEngine:
         assert engine._run_task is None
 
     @pytest.mark.asyncio
-    async def test_stop_returns_immediately_and_clears_background_task(
+    async def test_stop_cancels_and_awaits_background_task(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """stop() signals the loop immediately and the managed task cleans up."""
+        """stop() cancels the managed run task and waits for cleanup."""
         engine = SimulationEngine()
-        tick_entered = asyncio.Event()
-        allow_tick_exit = asyncio.Event()
+        tick_cancelled = asyncio.Event()
 
         async def fake_tick():
-            tick_entered.set()
-            await allow_tick_exit.wait()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                tick_cancelled.set()
+                raise
             return engine.snapshot()
 
         monkeypatch.setattr(engine, "tick", fake_tick)
@@ -575,7 +577,8 @@ class TestSimulationEngine:
         assert start_result.applied is True
         assert engine._run_task is not None
 
-        await tick_entered.wait()
+        await asyncio.sleep(0)
+        run_task = engine._run_task
 
         stop_result = await engine.stop()
 
@@ -584,10 +587,70 @@ class TestSimulationEngine:
         assert stop_result.state is SimulationState.STOPPED
         assert stop_result.message == "Simulation stopped."
         assert engine.state is SimulationState.STOPPED
+        assert await asyncio.wait_for(tick_cancelled.wait(), timeout=1.0) is True
+        assert run_task is not None
+        assert run_task.cancelled()
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_clears_task_handle_when_callback_has_not_run(self) -> None:
+        """stop() clears the task handle if callback-based cleanup has not happened."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+
+        class PendingFinalizeTask:
+            def __init__(self) -> None:
+                self.cancel_called = False
+
+            def done(self) -> bool:
+                return False
+
+            def cancel(self) -> None:
+                self.cancel_called = True
+
+            def __await__(self):
+                async def _cancelled() -> None:
+                    raise asyncio.CancelledError
+
+                return _cancelled().__await__()
+
+        run_task = PendingFinalizeTask()
+        engine._run_task = cast(asyncio.Task[None], run_task)
+
+        stop_result = await engine.stop()
+
+        assert stop_result.action == "stop"
+        assert stop_result.applied is True
+        assert stop_result.state is SimulationState.STOPPED
+        assert run_task.cancel_called is True
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_run_loop_breaks_after_tick_stops_engine(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The run loop exits immediately when a tick stops the engine."""
+        engine = SimulationEngine()
+        sleeps: list[float] = []
+
+        async def fake_tick():
+            await engine.stop()
+            return engine.snapshot()
+
+        async def fake_sleep(delay: float) -> None:
+            sleeps.append(delay)
+
+        monkeypatch.setattr(engine, "tick", fake_tick)
+        monkeypatch.setattr("backend.simulation.engine.asyncio.sleep", fake_sleep)
+
+        start_result = await engine.start()
+        assert start_result.applied is True
         assert engine._run_task is not None
 
-        allow_tick_exit.set()
         await engine._run_task
+
+        assert sleeps == []
+        assert engine.state is SimulationState.STOPPED
         assert engine._run_task is None
 
     @pytest.mark.asyncio

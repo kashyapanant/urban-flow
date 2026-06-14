@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
@@ -135,6 +136,16 @@ class SimulationEngine:
             )
 
         self.state = SimulationState.STOPPED
+        run_task = self._run_task
+        if run_task is not None and not run_task.done():
+            current_task = asyncio.current_task()
+            if run_task is not current_task:
+                run_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await run_task
+                if self._run_task is run_task:
+                    self._run_task = None
+
         return ControlResult(
             action="stop",
             applied=True,
