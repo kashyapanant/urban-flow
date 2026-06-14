@@ -366,6 +366,40 @@ class TestWebSocketManager:
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio
+    async def test_websocket_endpoint_disconnects_when_error_reporting_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Unexpected endpoint errors still clean up the socket
+        if error reporting fails."""
+        websocket_manager = WebSocketManager()
+        websocket = FakeWebSocket(receive_exception=RuntimeError("boom"))
+        engine = SimulationEngine()
+
+        send_count = 0
+        original_send = websocket_manager.send_personal_message
+
+        async def send_then_fail(
+            message: dict[str, Any],
+            target_websocket: FakeWebSocket,
+        ) -> None:
+            nonlocal send_count
+            send_count += 1
+            if send_count == 2:
+                raise RuntimeError("send failed")
+            await original_send(message, target_websocket)
+
+        monkeypatch.setattr(websocket_manager, "send_personal_message", send_then_fail)
+
+        await websocket_endpoint(websocket, engine, websocket_manager)
+
+        assert websocket.accepted is True
+        assert websocket.sent_messages == [
+            {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
+        ]
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
     async def test_websocket_endpoint_returns_handler_error_payloads(self) -> None:
         """Invalid client messages are returned through the endpoint send path."""
         websocket_manager = WebSocketManager()

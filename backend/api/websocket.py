@@ -90,10 +90,14 @@ async def websocket_endpoint(
             if response is not None:
                 await manager.send_personal_message(response, websocket)
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        logging.debug("WebSocket client disconnected.")
     except Exception as exc:
         logging.error("WebSocket error: %s", exc, exc_info=True)
-        await manager.send_personal_message(_error_message(str(exc)), websocket)
+        try:
+            await manager.send_personal_message(_error_message(str(exc)), websocket)
+        except Exception:
+            logging.debug("Failed to send WebSocket error payload.", exc_info=True)
+    finally:
         manager.disconnect(websocket)
 
 
