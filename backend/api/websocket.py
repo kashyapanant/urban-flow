@@ -6,6 +6,7 @@ import logging
 from typing import Any, Protocol
 
 from fastapi import WebSocketDisconnect
+from pydantic import ValidationError
 
 from ..simulation.engine import SimulationEngine
 from .serialization import serialize_snapshot
@@ -19,6 +20,14 @@ class WebSocketConnection(Protocol):
     async def send_json(self, message: dict[str, Any]) -> None: ...
 
     async def receive_json(self) -> dict[str, Any]: ...
+
+
+_RUNTIME_CONFIG_ERROR_MESSAGES = {
+    "tick_speed": "tick_speed must be between 1 and 10.",
+    "spawn_rate": "spawn_rate must be between 0.0 and 1.0.",
+    "phase_duration": "phase_duration must be between 1 and 20.",
+    "emergency_probability": "emergency_probability must be between 0.0 and 1.0.",
+}
 
 
 class WebSocketManager:
@@ -113,41 +122,61 @@ async def handle_client_message(
     if not isinstance(data, dict):
         return _error_message("WebSocket message data must be an object.")
 
-    match message_type:
-        case "pause":
-            engine.pause()
-        case "resume":
-            engine.resume()
-        case "set_speed":
-            speed = data.get("speed")
-            if not isinstance(speed, int):
-                return _error_message("set_speed requires integer data.speed.")
-            engine.set_tick_speed(speed)
-        case "set_spawn_rate":
-            rate = data.get("rate")
-            if not isinstance(rate, int | float):
-                return _error_message("set_spawn_rate requires numeric data.rate.")
-            engine.set_spawn_rate(float(rate))
-        case "set_emergency_probability":
-            probability = data.get("probability")
-            if not isinstance(probability, int | float):
+    try:
+        match message_type:
+            case "pause":
+                engine.pause()
+            case "resume":
+                engine.resume()
+            case "set_speed":
+                speed = data.get("speed")
+                if not isinstance(speed, int):
+                    return _error_message("set_speed requires integer data.speed.")
+                engine.set_tick_speed(speed)
+            case "set_spawn_rate":
+                rate = data.get("rate")
+                if not isinstance(rate, int | float):
+                    return _error_message("set_spawn_rate requires numeric data.rate.")
+                engine.set_spawn_rate(float(rate))
+            case "set_emergency_probability":
+                probability = data.get("probability")
+                if not isinstance(probability, int | float):
+                    return _error_message(
+                        "set_emergency_probability requires numeric data.probability."
+                    )
+                engine.set_emergency_probability(float(probability))
+            case "set_phase_duration":
+                duration = data.get("duration")
+                if not isinstance(duration, int):
+                    return _error_message(
+                        "set_phase_duration requires integer data.duration."
+                    )
+                engine.set_phase_duration(duration)
+            case _:
                 return _error_message(
-                    "set_emergency_probability requires numeric data.probability."
+                    f"Unsupported WebSocket message type: {message_type!r}."
                 )
-            engine.set_emergency_probability(float(probability))
-        case "set_phase_duration":
-            duration = data.get("duration")
-            if not isinstance(duration, int):
-                return _error_message(
-                    "set_phase_duration requires integer data.duration."
-                )
-            engine.set_phase_duration(duration)
-        case _:
-            return _error_message(
-                f"Unsupported WebSocket message type: {message_type!r}."
-            )
+    except (ValidationError, ValueError) as exc:
+        return _error_message(_format_runtime_config_error(exc))
 
     return None
+
+
+def _format_runtime_config_error(exc: ValidationError | ValueError) -> str:
+    """Return a stable client-facing message for runtime config errors."""
+    if isinstance(exc, ValidationError):
+        for error in exc.errors():
+            loc = error.get("loc")
+            if isinstance(loc, tuple) and loc:
+                field_name = loc[0]
+                if isinstance(field_name, str):
+                    message = _RUNTIME_CONFIG_ERROR_MESSAGES.get(field_name)
+                    if message is not None:
+                        return message
+        return "Invalid simulation config value."
+
+    message = str(exc).strip()
+    return message or "Invalid simulation config value."
 
 
 async def broadcast_simulation_state(

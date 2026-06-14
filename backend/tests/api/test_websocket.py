@@ -346,6 +346,46 @@ class TestWebSocketManager:
         }
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("message", "expected_message"),
+        [
+            (
+                {"type": "set_speed", "data": {"speed": 0}},
+                "tick_speed must be between 1 and 10.",
+            ),
+            (
+                {"type": "set_spawn_rate", "data": {"rate": 2.0}},
+                "spawn_rate must be between 0.0 and 1.0.",
+            ),
+            (
+                {"type": "set_phase_duration", "data": {"duration": 0}},
+                "phase_duration must be between 1 and 20.",
+            ),
+            (
+                {
+                    "type": "set_emergency_probability",
+                    "data": {"probability": 2.0},
+                },
+                "emergency_probability must be between 0.0 and 1.0.",
+            ),
+        ],
+    )
+    async def test_handle_client_message_returns_error_for_runtime_validation_failure(
+        self,
+        message: dict[str, Any],
+        expected_message: str,
+    ) -> None:
+        """Invalid runtime config values return an error payload instead of raising."""
+        engine = SimulationEngine()
+
+        response = await handle_client_message(message, engine)
+
+        assert response == {
+            "type": "error",
+            "data": {"message": expected_message},
+        }
+
+    @pytest.mark.asyncio
     async def test_websocket_endpoint_sends_error_payload_on_unexpected_exception(
         self,
     ) -> None:
@@ -397,6 +437,31 @@ class TestWebSocketManager:
         assert websocket.sent_messages == [
             {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
         ]
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_websocket_endpoint_keeps_session_alive_after_invalid_config(
+        self,
+    ) -> None:
+        """Invalid config commands report an error and do not end the session."""
+        websocket_manager = WebSocketManager()
+        websocket = FakeWebSocket(
+            received_messages=[
+                {"type": "set_speed", "data": {"speed": 0}},
+                {"type": "set_speed", "data": {"speed": 2}},
+            ]
+        )
+        engine = SimulationEngine()
+
+        await websocket_endpoint(websocket, engine, websocket_manager)
+
+        assert websocket.accepted is True
+        assert websocket.sent_messages[0]["type"] == "tick"
+        assert websocket.sent_messages[1] == {
+            "type": "error",
+            "data": {"message": "tick_speed must be between 1 and 10."},
+        }
+        assert engine.config.tick_speed == 2
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio
