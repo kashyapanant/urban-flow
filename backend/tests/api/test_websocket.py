@@ -317,6 +317,18 @@ class TestWebSocketManager:
                 "WebSocket message must be a JSON object.",
             ),
             (
+                {"type": "pause", "data": []},
+                "WebSocket message data must be an object.",
+            ),
+            (
+                {"type": "pause", "data": 0},
+                "WebSocket message data must be an object.",
+            ),
+            (
+                {"type": "pause", "data": ""},
+                "WebSocket message data must be an object.",
+            ),
+            (
                 {"type": "pause", "data": [1]},
                 "WebSocket message data must be an object.",
             ),

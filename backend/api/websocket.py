@@ -116,7 +116,8 @@ async def handle_client_message(
         return _error_message("WebSocket message must be a JSON object.")
 
     message_type = message.get("type")
-    data = message.get("data") or {}
+    raw_data = message.get("data")
+    data = {} if raw_data is None else raw_data
     if not isinstance(data, dict):
         return _error_message("WebSocket message data must be an object.")
 
