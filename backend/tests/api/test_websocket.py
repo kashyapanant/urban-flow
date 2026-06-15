@@ -254,12 +254,17 @@ class TestWebSocketManager:
         initial_state: SimulationState,
         expected_state: SimulationState,
     ) -> None:
-        """Client control messages forward to the engine lifecycle methods."""
+        """Client control messages return an updated simulation snapshot."""
         engine = SimulationEngine()
         engine.state = initial_state
 
-        assert await handle_client_message(message, engine) is None
+        response = await handle_client_message(message, engine)
+
         assert engine.state is expected_state
+        assert response == {
+            "type": "tick",
+            "data": serialize_snapshot(engine.snapshot()),
+        }
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -292,11 +297,16 @@ class TestWebSocketManager:
         field_name: str,
         expected_value: int | float,
     ) -> None:
-        """Client config messages forward to the matching engine setters."""
+        """Client config messages return an updated simulation snapshot."""
         engine = SimulationEngine()
 
-        assert await handle_client_message(message, engine) is None
+        response = await handle_client_message(message, engine)
+
         assert getattr(engine.config, field_name) == expected_value
+        assert response == {
+            "type": "tick",
+            "data": serialize_snapshot(engine.snapshot()),
+        }
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -464,6 +474,25 @@ class TestWebSocketManager:
         assert websocket.sent_messages == [
             {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
         ]
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_websocket_endpoint_sends_updated_snapshot_after_pause(self) -> None:
+        """Successful control messages are acknowledged with a fresh tick snapshot."""
+        websocket_manager = WebSocketManager()
+        websocket = FakeWebSocket(received_messages=[{"type": "pause"}])
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        initial_snapshot = serialize_snapshot(engine.snapshot())
+
+        await websocket_endpoint(websocket, engine, websocket_manager)
+
+        assert websocket.accepted is True
+        assert websocket.sent_messages == [
+            {"type": "tick", "data": initial_snapshot},
+            {"type": "tick", "data": serialize_snapshot(engine.snapshot())},
+        ]
+        assert websocket.sent_messages[1]["data"]["state"] == "paused"
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio

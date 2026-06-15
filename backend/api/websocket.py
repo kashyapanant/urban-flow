@@ -90,9 +90,7 @@ async def websocket_endpoint(
     """WebSocket endpoint for real-time simulation communication."""
     await manager.connect(websocket)
     try:
-        await manager.send_personal_message(
-            {"type": "tick", "data": serialize_snapshot(engine.snapshot())}, websocket
-        )
+        await manager.send_personal_message(_tick_message(engine), websocket)
         while True:
             message = await websocket.receive_json()
             response = await handle_client_message(message, engine)
@@ -159,7 +157,12 @@ async def handle_client_message(
     except (ValidationError, ValueError) as exc:
         return _error_message(_format_runtime_config_error(exc))
 
-    return None
+    return _tick_message(engine)
+
+
+def _tick_message(engine: SimulationEngine) -> dict[str, Any]:
+    """Return a standard WebSocket tick payload for the current engine state."""
+    return {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
 
 
 def _format_runtime_config_error(exc: ValidationError | ValueError) -> str:
@@ -183,9 +186,7 @@ async def broadcast_simulation_state(
     engine: SimulationEngine, manager: WebSocketManager
 ) -> None:
     """Broadcast current simulation state to all connected clients."""
-    await manager.broadcast(
-        {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
-    )
+    await manager.broadcast(_tick_message(engine))
 
 
 def _error_message(message: str) -> dict[str, Any]:
