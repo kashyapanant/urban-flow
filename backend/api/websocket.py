@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Protocol
 
@@ -21,6 +22,8 @@ class WebSocketConnection(Protocol):
 
     async def receive_json(self) -> dict[str, Any]: ...
 
+
+_SEND_TIMEOUT_SECONDS = 1.0
 
 _RUNTIME_CONFIG_ERROR_MESSAGES = {
     "tick_speed": "tick_speed must be between 1 and 10.",
@@ -58,7 +61,13 @@ class WebSocketManager:
         stale_connections: list[WebSocketConnection] = []
         for connection in list(self.active_connections):
             try:
-                await connection.send_json(message)
+                await asyncio.wait_for(
+                    connection.send_json(message),
+                    timeout=_SEND_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
+                logging.warning("WebSocket send timed out; dropping connection.")
+                stale_connections.append(connection)
             except WebSocketDisconnect:
                 logging.debug("Client disconnected during broadcast.")
                 stale_connections.append(connection)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -10,6 +11,7 @@ import pytest
 from fastapi import WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
+import backend.api.websocket as websocket_module
 from backend.api.serialization import serialize_snapshot
 from backend.api.websocket import (
     WebSocketManager,
@@ -29,12 +31,14 @@ class FakeWebSocket:
         self,
         *,
         send_exception: Exception | None = None,
+        send_delay: float = 0.0,
         received_messages: list[dict[str, Any]] | None = None,
         receive_exception: Exception | None = None,
     ) -> None:
         self.accepted = False
         self.sent_messages: list[dict[str, Any]] = []
         self.send_exception = send_exception
+        self.send_delay = send_delay
         self.received_messages = list(received_messages or [])
         self.receive_exception = receive_exception
 
@@ -42,6 +46,8 @@ class FakeWebSocket:
         self.accepted = True
 
     async def send_json(self, message: dict[str, Any]) -> None:
+        if self.send_delay:
+            await asyncio.sleep(self.send_delay)
         if self.send_exception is not None:
             raise self.send_exception
         self.sent_messages.append(message)
@@ -134,6 +140,24 @@ class TestWebSocketManager:
         await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 4}})
 
         assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 4}}]
+        assert websocket_manager.active_connections == [healthy]
+
+    @pytest.mark.asyncio
+    async def test_manager_drops_timed_out_connections_during_broadcast(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Broadcast drops stalled sockets after the send timeout expires."""
+        websocket_manager = WebSocketManager()
+        healthy = FakeWebSocket()
+        stalled = FakeWebSocket(send_delay=0.05)
+        await websocket_manager.connect(healthy)
+        await websocket_manager.connect(stalled)
+        monkeypatch.setattr(websocket_module, "_SEND_TIMEOUT_SECONDS", 0.01)
+
+        await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 5}})
+
+        assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 5}}]
         assert websocket_manager.active_connections == [healthy]
 
     @pytest.mark.asyncio
