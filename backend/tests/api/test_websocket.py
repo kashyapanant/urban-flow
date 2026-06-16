@@ -361,7 +361,15 @@ class TestWebSocketManager:
                 "set_speed requires integer data.speed.",
             ),
             (
+                {"type": "set_speed", "data": {"speed": True}},
+                "set_speed requires integer data.speed.",
+            ),
+            (
                 {"type": "set_spawn_rate", "data": {}},
+                "set_spawn_rate requires numeric data.rate.",
+            ),
+            (
+                {"type": "set_spawn_rate", "data": {"rate": False}},
                 "set_spawn_rate requires numeric data.rate.",
             ),
             (
@@ -369,7 +377,18 @@ class TestWebSocketManager:
                 "set_emergency_probability requires numeric data.probability.",
             ),
             (
+                {
+                    "type": "set_emergency_probability",
+                    "data": {"probability": True},
+                },
+                "set_emergency_probability requires numeric data.probability.",
+            ),
+            (
                 {"type": "set_phase_duration", "data": {}},
+                "set_phase_duration requires integer data.duration.",
+            ),
+            (
+                {"type": "set_phase_duration", "data": {"duration": False}},
                 "set_phase_duration requires integer data.duration.",
             ),
             (

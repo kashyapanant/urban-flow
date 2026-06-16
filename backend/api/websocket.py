@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeGuard
 
 from fastapi import WebSocketDisconnect
 from pydantic import ValidationError
@@ -138,24 +138,24 @@ async def handle_client_message(
                 engine.resume()
             case "set_speed":
                 speed = data.get("speed")
-                if not isinstance(speed, int):
+                if not _is_strict_int(speed):
                     return _error_message("set_speed requires integer data.speed.")
                 engine.set_tick_speed(speed)
             case "set_spawn_rate":
                 rate = data.get("rate")
-                if not isinstance(rate, int | float):
+                if not _is_strict_number(rate):
                     return _error_message("set_spawn_rate requires numeric data.rate.")
                 engine.set_spawn_rate(float(rate))
             case "set_emergency_probability":
                 probability = data.get("probability")
-                if not isinstance(probability, int | float):
+                if not _is_strict_number(probability):
                     return _error_message(
                         "set_emergency_probability requires numeric data.probability."
                     )
                 engine.set_emergency_probability(float(probability))
             case "set_phase_duration":
                 duration = data.get("duration")
-                if not isinstance(duration, int):
+                if not _is_strict_int(duration):
                     return _error_message(
                         "set_phase_duration requires integer data.duration."
                     )
@@ -168,6 +168,16 @@ async def handle_client_message(
         return _error_message(_format_runtime_config_error(exc))
 
     return _tick_message(engine)
+
+
+def _is_strict_int(value: Any) -> TypeGuard[int]:
+    """Return whether the value is exactly an int, excluding bool."""
+    return type(value) is int
+
+
+def _is_strict_number(value: Any) -> TypeGuard[int | float]:
+    """Return whether the value is exactly an int or float, excluding bool."""
+    return type(value) in (int, float)
 
 
 def _tick_message(engine: SimulationEngine) -> dict[str, Any]:
