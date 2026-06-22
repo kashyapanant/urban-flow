@@ -77,6 +77,15 @@ async def start_simulation(
     return _control_response(result)
 
 
+@router.post("/reset")
+async def reset_simulation(
+    engine: EngineDependency,
+) -> dict[str, Any]:
+    """Reset the simulation world and leave it stopped."""
+    result = await engine.reset()
+    return _control_response(result)
+
+
 @router.post("/pause")
 def pause_simulation(
     engine: EngineDependency,

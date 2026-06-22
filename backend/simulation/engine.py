@@ -41,7 +41,7 @@ class SimulationSnapshot:
 class ControlResult:
     """Outcome of a user-driven simulation control request."""
 
-    action: Literal["start", "pause", "resume", "stop"]
+    action: Literal["start", "pause", "resume", "stop", "reset"]
     applied: bool
     state: SimulationState
     message: str
@@ -72,6 +72,13 @@ class SimulationEngine:
             config: Simulation configuration (uses defaults if None)
         """
         self.config = config or SimulationConfig()
+        self._broadcast_callback = broadcast_callback
+        self._run_task: asyncio.Task[None] | None = None
+        self.state = SimulationState.STOPPED
+        self._build_runtime_state()
+
+    def _build_runtime_state(self) -> None:
+        """Rebuild simulation world state from the current config."""
         self.grid = Grid(self.config.grid_width, self.config.grid_height)
         self.vehicle_manager = VehicleManager()
         self.traffic_light_manager = TrafficLightManager(
@@ -80,13 +87,14 @@ class SimulationEngine:
         )
         self.metrics = Metrics()
         self.tick_count = 0
-        self.state = SimulationState.STOPPED
-        self._broadcast_callback = broadcast_callback
-        self._run_task: asyncio.Task[None] | None = None
+
+    def _has_live_run_task(self) -> bool:
+        """Return whether the engine still owns a live background loop task."""
+        return self._run_task is not None and not self._run_task.done()
 
     async def start(self) -> ControlResult:
         """Start the simulation tick loop."""
-        if self._run_task is not None and not self._run_task.done():
+        if self._has_live_run_task():
             if self.state is SimulationState.PAUSED:
                 return ControlResult(
                     action="start",
@@ -127,7 +135,7 @@ class SimulationEngine:
 
     async def stop(self) -> ControlResult:
         """Stop the simulation and clean up."""
-        if self.state is SimulationState.STOPPED:
+        if self.state is SimulationState.STOPPED and not self._has_live_run_task():
             return ControlResult(
                 action="stop",
                 applied=False,
@@ -151,6 +159,21 @@ class SimulationEngine:
             applied=True,
             state=SimulationState.STOPPED,
             message="Simulation stopped.",
+        )
+
+    async def reset(self) -> ControlResult:
+        """Rebuild simulation state and leave the engine stopped."""
+        if self.state is not SimulationState.STOPPED or self._has_live_run_task():
+            await self.stop()
+
+        self._build_runtime_state()
+        self.state = SimulationState.STOPPED
+        self._run_task = None
+        return ControlResult(
+            action="reset",
+            applied=True,
+            state=SimulationState.STOPPED,
+            message="Simulation reset.",
         )
 
     async def _run_tick_loop(self) -> None:

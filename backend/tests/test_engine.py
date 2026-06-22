@@ -115,6 +115,115 @@ class TestSimulationEngine:
         assert engine.state is SimulationState.STOPPED
 
     @pytest.mark.asyncio
+    async def test_reset_rebuilds_clean_state_while_stopped(self) -> None:
+        """reset() rebuilds world state and leaves the engine ready to start."""
+        engine = SimulationEngine()
+        original_grid = engine.grid
+        original_vehicle_manager = engine.vehicle_manager
+        original_light_manager = engine.traffic_light_manager
+        original_metrics = engine.metrics
+
+        engine.tick_count = 12
+        engine.set_tick_speed(7)
+        engine.set_spawn_rate(0.4)
+        engine.set_phase_duration(5)
+        engine.set_emergency_probability(0.25)
+        engine.metrics.record_arrival(
+            _vehicle(
+                "completed-1",
+                VehicleType.NORMAL,
+                [(0, 0)],
+                ticks_elapsed=9,
+            )
+        )
+
+        result = await engine.reset()
+
+        assert result.action == "reset"
+        assert result.applied is True
+        assert result.state is SimulationState.STOPPED
+        assert result.message == "Simulation reset."
+        assert engine.state is SimulationState.STOPPED
+        assert engine.tick_count == 0
+        assert engine.grid is not original_grid
+        assert engine.vehicle_manager is not original_vehicle_manager
+        assert engine.traffic_light_manager is not original_light_manager
+        assert engine.metrics is not original_metrics
+        assert engine.vehicle_manager.get_all() == []
+        assert engine.metrics.total_completed == 0
+        assert engine.config.tick_speed == 7
+        assert engine.config.spawn_rate == 0.4
+        assert engine.config.phase_duration == 5
+        assert engine.config.emergency_probability == 0.25
+
+    @pytest.mark.asyncio
+    async def test_reset_stops_live_loop_before_rebuilding(self) -> None:
+        """reset() stops the current run loop before rebuilding state."""
+        engine = SimulationEngine()
+        start_result = await engine.start()
+
+        assert start_result.applied is True
+        original_run_task = engine._run_task
+        assert original_run_task is not None
+
+        result = await engine.reset()
+
+        assert result.action == "reset"
+        assert result.applied is True
+        assert result.state is SimulationState.STOPPED
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+        assert original_run_task.done() is True
+        assert original_run_task.cancelled() is True
+        assert engine.tick_count == 0
+
+    @pytest.mark.asyncio
+    async def test_reset_stops_live_task_even_if_state_drifted_to_stopped(self) -> None:
+        """reset() uses live task state, not only the lifecycle enum, to shut down."""
+        engine = SimulationEngine()
+        release_task = asyncio.Event()
+
+        async def wait_forever() -> None:
+            await release_task.wait()
+
+        live_task = asyncio.create_task(wait_forever())
+        engine.state = SimulationState.STOPPED
+        engine._run_task = live_task
+
+        try:
+            result = await engine.reset()
+        finally:
+            if not live_task.done():
+                release_task.set()
+                await live_task
+
+        assert result.action == "reset"
+        assert result.applied is True
+        assert result.state is SimulationState.STOPPED
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+        assert live_task.done() is True
+        assert live_task.cancelled() is True
+
+    @pytest.mark.asyncio
+    async def test_reset_from_paused_state_rebuilds_clean_world(self) -> None:
+        """reset() treats paused loops like running ones and ends stopped."""
+        engine = SimulationEngine()
+        await engine.start()
+        pause_result = engine.pause()
+
+        assert pause_result.applied is True
+        assert engine.state is SimulationState.PAUSED
+
+        result = await engine.reset()
+
+        assert result.action == "reset"
+        assert result.applied is True
+        assert result.state is SimulationState.STOPPED
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
     async def test_start_rejects_when_live_task_is_running(self) -> None:
         """start() does not create a second loop when one is already active."""
         engine = SimulationEngine()

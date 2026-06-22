@@ -302,6 +302,24 @@ class TestAPIRoutes:
         }
         engine.state = SimulationState.STOPPED
 
+    def test_reset_route_returns_reset_result(self, wired_client: TestClient) -> None:
+        """Reset returns the engine lifecycle response and leaves state stopped."""
+        engine = app_for(wired_client).state.engine
+        engine.state = SimulationState.RUNNING
+        engine.tick_count = 9
+
+        response = wired_client.post("/api/simulation/reset")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "action": "reset",
+            "applied": True,
+            "state": "stopped",
+            "message": "Simulation reset.",
+        }
+        assert engine.state is SimulationState.STOPPED
+        assert engine.tick_count == 0
+
     def test_update_config_applies_only_provided_fields(
         self, wired_client: TestClient
     ) -> None:

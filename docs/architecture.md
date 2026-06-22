@@ -201,7 +201,8 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 
 | Method | Path                      | Purpose                                      |
 |--------|---------------------------|----------------------------------------------|
-| POST   | `/api/simulation/start`   | Initialize and start (or reset) the simulation |
+| POST   | `/api/simulation/start`   | Start the simulation                         |
+| POST   | `/api/simulation/reset`   | Reset the simulation state and leave it stopped |
 | POST   | `/api/simulation/pause`   | Pause the tick loop                          |
 | POST   | `/api/simulation/resume`  | Resume the tick loop                         |
 | PUT    | `/api/simulation/config`  | Update runtime config (tick speed, spawn rate, phase duration) |
