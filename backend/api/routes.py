@@ -86,6 +86,18 @@ async def reset_simulation(
     return _control_response(result)
 
 
+@router.post("/config/reset")
+def reset_config(
+    engine: EngineDependency,
+) -> dict[str, Any]:
+    """Restore runtime configuration defaults without changing lifecycle."""
+    engine.reset_config()
+    return {
+        "message": "Configuration reset to defaults.",
+        "config": engine.config.model_dump(),
+    }
+
+
 @router.post("/pause")
 def pause_simulation(
     engine: EngineDependency,

@@ -203,9 +203,10 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 |--------|---------------------------|----------------------------------------------|
 | POST   | `/api/simulation/start`   | Start the simulation                         |
 | POST   | `/api/simulation/reset`   | Reset the simulation state and leave it stopped |
+| POST   | `/api/simulation/config/reset` | Restore mutable runtime config defaults without rebuilding state |
 | POST   | `/api/simulation/pause`   | Pause the tick loop                          |
 | POST   | `/api/simulation/resume`  | Resume the tick loop                         |
-| PUT    | `/api/simulation/config`  | Update runtime config (tick speed, spawn rate, phase duration) |
+| PUT    | `/api/simulation/config`  | Update runtime config (tick speed, spawn rate, emergency probability, phase duration) |
 | GET    | `/api/simulation/state`   | Return current state snapshot (polling fallback) |
 | GET    | `/api/simulation/metrics` | Return current metrics                       |
 
@@ -373,7 +374,8 @@ There is a single authoritative state object inside the Simulation Engine. The r
 1. **Atomic ticks** — No partial state is ever visible. The engine completes all six tick phases before producing a snapshot.
 2. **No shared mutable state across threads** — The simulation runs on the asyncio event loop. The API layer reads state only via `engine.snapshot()`, which returns a deep copy / serialized dict.
 3. **Config changes are deferred** — Calling `set_tick_speed(5)` stores the new value; the engine picks it up at the start of the next tick. This avoids mid-tick inconsistency.
-4. **Frontend is eventually consistent** — The browser receives state snapshots at tick frequency. Between ticks, the frontend displays the last-known state.
+4. **Config reset is settings-only** — `POST /api/simulation/config/reset` restores the mutable runtime settings to defaults, preserves structural grid dimensions, and does not rebuild world state or change lifecycle.
+5. **Frontend is eventually consistent** — The browser receives state snapshots at tick frequency. Between ticks, the frontend displays the last-known state.
 
 ---
 

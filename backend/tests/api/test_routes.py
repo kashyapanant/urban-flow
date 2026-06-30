@@ -320,6 +320,58 @@ class TestAPIRoutes:
         assert engine.state is SimulationState.STOPPED
         assert engine.tick_count == 0
 
+    def test_reset_config_route_restores_default_values(
+        self, wired_client: TestClient
+    ) -> None:
+        """Config reset restores default settings without touching world state."""
+        engine = app_for(wired_client).state.engine
+        original_grid = engine.grid
+        engine.set_tick_speed(7)
+        engine.set_spawn_rate(0.4)
+        engine.set_phase_duration(5)
+        engine.set_emergency_probability(0.25)
+
+        response = wired_client.post("/api/simulation/config/reset")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "message": "Configuration reset to defaults.",
+            "config": {
+                "grid_width": 10,
+                "grid_height": 10,
+                "tick_speed": 1,
+                "spawn_rate": 0.1,
+                "emergency_probability": 0.1,
+                "phase_duration": 3,
+            },
+        }
+        assert engine.config.model_dump() == {
+            "grid_width": 10,
+            "grid_height": 10,
+            "tick_speed": 1,
+            "spawn_rate": 0.1,
+            "emergency_probability": 0.1,
+            "phase_duration": 3,
+        }
+        assert engine.grid is original_grid
+
+    def test_reset_config_route_preserves_lifecycle_state(
+        self, wired_client: TestClient
+    ) -> None:
+        """Config reset is settings-only and does not stop or rebuild the run."""
+        engine = app_for(wired_client).state.engine
+        original_grid = engine.grid
+        engine.state = SimulationState.RUNNING
+        engine.tick_count = 4
+        engine.set_tick_speed(7)
+
+        response = wired_client.post("/api/simulation/config/reset")
+
+        assert response.status_code == 200
+        assert engine.state is SimulationState.RUNNING
+        assert engine.tick_count == 4
+        assert engine.grid is original_grid
+
     def test_update_config_applies_only_provided_fields(
         self, wired_client: TestClient
     ) -> None:

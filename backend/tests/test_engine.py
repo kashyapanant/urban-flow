@@ -44,9 +44,9 @@ class TestSimulationEngine:
         """Engine initializes all core subsystems from config."""
         engine = SimulationEngine()
 
-        assert engine.config == SimulationConfig()
-        assert engine.grid.width == 10
-        assert engine.grid.height == 10
+        assert engine.config.model_dump() == SimulationConfig().model_dump()
+        assert engine.grid.width == engine.config.grid_width
+        assert engine.grid.height == engine.config.grid_height
         assert engine.tick_count == 0
         assert engine.state is SimulationState.STOPPED
         assert engine.vehicle_manager.get_all() == []
@@ -70,6 +70,63 @@ class TestSimulationEngine:
             light.phase_duration for light in engine.traffic_light_manager.get_all()
         }
         assert phase_durations == {7}
+
+    def test_reset_config_restores_defaults_without_rebuilding_runtime_state(
+        self,
+    ) -> None:
+        """reset_config() restores settings while preserving the current world."""
+        engine = SimulationEngine(
+            SimulationConfig(grid_width=12, grid_height=8, tick_speed=2)
+        )
+        original_grid = engine.grid
+        original_vehicle_manager = engine.vehicle_manager
+        original_light_manager = engine.traffic_light_manager
+        original_metrics = engine.metrics
+
+        engine.tick_count = 9
+        engine.set_tick_speed(6)
+        engine.set_spawn_rate(0.35)
+        engine.set_phase_duration(5)
+        engine.set_emergency_probability(0.4)
+
+        engine.reset_config()
+
+        assert engine.config.model_dump() == {
+            "grid_width": 12,
+            "grid_height": 8,
+            "tick_speed": 1,
+            "spawn_rate": 0.1,
+            "emergency_probability": 0.1,
+            "phase_duration": 3,
+        }
+        assert engine.grid is original_grid
+        assert engine.vehicle_manager is original_vehicle_manager
+        assert engine.traffic_light_manager is original_light_manager
+        assert engine.metrics is original_metrics
+        assert engine.tick_count == 9
+        phase_durations = {
+            light.phase_duration for light in engine.traffic_light_manager.get_all()
+        }
+        assert phase_durations == {SimulationConfig().phase_duration}
+
+    @pytest.mark.asyncio
+    async def test_reset_config_preserves_running_state(self) -> None:
+        """reset_config() updates settings only and does not stop a live run."""
+        engine = SimulationEngine()
+        start_result = await engine.start()
+
+        assert start_result.applied is True
+        run_task = engine._run_task
+
+        engine.set_tick_speed(7)
+        engine.reset_config()
+
+        assert engine.state is SimulationState.RUNNING
+        assert engine._run_task is run_task
+        assert run_task is not None
+        assert run_task.done() is False
+
+        await engine.stop()
 
     def test_pause_resume_simulation(self) -> None:
         """Pause/resume only transition between running and paused."""

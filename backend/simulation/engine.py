@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
-from ..config import SimulationConfig
+from ..config import DEFAULT_CONFIG, SimulationConfig
 from .grid import Grid
 from .metrics import Metrics
 from .traffic_light import Axis, TrafficLightManager
@@ -283,6 +283,16 @@ class SimulationEngine:
             probability: Probability that a spawned vehicle is emergency (0.0-1.0)
         """
         self.config = self._validated_config_copy(emergency_probability=probability)
+
+    def reset_config(self) -> None:
+        """Restore mutable runtime settings without rebuilding world state."""
+        self.config = self._validated_config_copy(
+            tick_speed=DEFAULT_CONFIG.tick_speed,
+            spawn_rate=DEFAULT_CONFIG.spawn_rate,
+            emergency_probability=DEFAULT_CONFIG.emergency_probability,
+            phase_duration=DEFAULT_CONFIG.phase_duration,
+        )
+        self.traffic_light_manager.set_phase_duration(self.config.phase_duration)
 
     def snapshot(self) -> SimulationSnapshot:
         """Create a complete state snapshot for frontend consumption.
