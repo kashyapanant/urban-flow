@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -109,6 +110,28 @@ class TestWebSocketManager:
 
         assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 2}}]
         assert websocket_manager.active_connections == [healthy]
+
+    @pytest.mark.asyncio
+    async def test_manager_logs_broadcast_failures_with_module_logger_name(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Broadcast failure logs are emitted from the WebSocket module logger."""
+        websocket_manager = WebSocketManager()
+        failing = FakeWebSocket(send_exception=RuntimeError("client disconnected"))
+        await websocket_manager.connect(failing)
+
+        with caplog.at_level(logging.WARNING):
+            await websocket_manager.broadcast(
+                {"type": "tick", "data": {"tick_count": 2}}
+            )
+
+        warning_record = next(
+            record
+            for record in caplog.records
+            if "WebSocket send failed" in record.getMessage()
+        )
+        assert warning_record.name == "backend.api.websocket"
 
     @pytest.mark.asyncio
     async def test_manager_drops_disconnected_connections_during_broadcast(

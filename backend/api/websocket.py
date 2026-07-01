@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from ..simulation.engine import SimulationEngine
 from .serialization import serialize_snapshot
 
+logger = logging.getLogger(__name__)
+
 
 class WebSocketConnection(Protocol):
     """Minimal WebSocket interface used by the API layer."""
@@ -66,17 +68,17 @@ class WebSocketManager:
                     timeout=_SEND_TIMEOUT_SECONDS,
                 )
             except TimeoutError:
-                logging.warning("WebSocket send timed out; dropping connection.")
+                logger.warning("WebSocket send timed out; dropping connection.")
                 stale_connections.append(connection)
             except WebSocketDisconnect:
-                logging.debug("Client disconnected during broadcast.")
+                logger.debug("Client disconnected during broadcast.")
                 stale_connections.append(connection)
             except RuntimeError as exc:
                 # Raised when WebSocket is closed but not formally disconnected
-                logging.warning("WebSocket send failed (connection closed): %s", exc)
+                logger.warning("WebSocket send failed (connection closed): %s", exc)
                 stale_connections.append(connection)
             except Exception as exc:
-                logging.error(
+                logger.error(
                     "Unexpected error broadcasting to WebSocket: %s", exc, exc_info=True
                 )
                 stale_connections.append(connection)
@@ -106,13 +108,13 @@ async def websocket_endpoint(
             if response is not None:
                 await manager.send_personal_message(response, websocket)
     except WebSocketDisconnect:
-        logging.debug("WebSocket client disconnected.")
+        logger.debug("WebSocket client disconnected.")
     except Exception as exc:
-        logging.error("WebSocket error: %s", exc, exc_info=True)
+        logger.error("WebSocket error: %s", exc, exc_info=True)
         try:
             await manager.send_personal_message(_error_message(str(exc)), websocket)
         except Exception:
-            logging.debug("Failed to send WebSocket error payload.", exc_info=True)
+            logger.debug("Failed to send WebSocket error payload.", exc_info=True)
     finally:
         manager.disconnect(websocket)
 

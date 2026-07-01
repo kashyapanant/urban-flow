@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -14,6 +15,8 @@ from .grid import Grid
 from .metrics import Metrics
 from .traffic_light import Axis, TrafficLightManager
 from .vehicle import Vehicle, VehicleManager
+
+logger = logging.getLogger(__name__)
 
 
 class SimulationState(Enum):
@@ -195,6 +198,11 @@ class SimulationEngine:
         else:
             exception = task.exception()
             if exception is not None:
+                logger.error(
+                    "Simulation run task failed: %s",
+                    exception,
+                    exc_info=(type(exception), exception, exception.__traceback__),
+                )
                 self.state = SimulationState.STOPPED
         if self._run_task is task:
             self._run_task = None

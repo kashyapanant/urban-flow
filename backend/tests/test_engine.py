@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import cast
 from unittest.mock import Mock
 
@@ -858,6 +859,36 @@ class TestSimulationEngine:
 
         engine._finalize_run_task(task)
 
+        assert engine.state is SimulationState.STOPPED
+        assert engine._run_task is None
+
+    @pytest.mark.asyncio
+    async def test_finalize_run_task_logs_failed_task(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Failed run tasks emit an engine-scoped error log before cleanup."""
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+
+        async def fail() -> None:
+            raise RuntimeError("boom")
+
+        task = asyncio.create_task(fail())
+        engine._run_task = task
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await task
+
+        with caplog.at_level(logging.ERROR):
+            engine._finalize_run_task(task)
+
+        error_record = next(
+            record
+            for record in caplog.records
+            if "Simulation run task failed" in record.getMessage()
+        )
+        assert error_record.name == "backend.simulation.engine"
         assert engine.state is SimulationState.STOPPED
         assert engine._run_task is None
 
