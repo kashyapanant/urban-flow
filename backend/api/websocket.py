@@ -105,8 +105,7 @@ async def websocket_endpoint(
         while True:
             message = await websocket.receive_json()
             response = await handle_client_message(message, engine)
-            if response is not None:
-                await manager.send_personal_message(response, websocket)
+            await manager.send_personal_message(response, websocket)
     except WebSocketDisconnect:
         logger.debug("WebSocket client disconnected.")
     except Exception as exc:
@@ -121,8 +120,18 @@ async def websocket_endpoint(
 
 async def handle_client_message(
     message: dict[str, Any], engine: SimulationEngine
-) -> dict[str, Any] | None:
-    """Handle incoming messages from WebSocket clients."""
+) -> dict[str, Any]:
+    """Handle a client command and return the outbound WebSocket payload.
+    Args:
+        message: Parsed JSON message from the client.
+        engine: Simulation engine to apply commands to.
+
+    Returns:
+        Returns a standard ``tick`` payload when the command succeeds or a
+        standard ``error`` payload when the message is invalid or runtime config
+        validation fails or None if the message type was unrecognised
+        (currently always returns something).
+    """
     if not isinstance(message, dict):
         return _error_message("WebSocket message must be a JSON object.")
 
