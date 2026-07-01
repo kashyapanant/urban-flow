@@ -133,14 +133,7 @@ def update_config(
             "config": engine.config.model_dump(),
         }
     try:
-        if "tick_speed" in updates:
-            engine.set_tick_speed(updates["tick_speed"])
-        if "spawn_rate" in updates:
-            engine.set_spawn_rate(updates["spawn_rate"])
-        if "phase_duration" in updates:
-            engine.set_phase_duration(updates["phase_duration"])
-        if "emergency_probability" in updates:
-            engine.set_emergency_probability(updates["emergency_probability"])
+        engine.update_config(**updates)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

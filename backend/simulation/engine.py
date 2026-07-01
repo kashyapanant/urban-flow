@@ -259,13 +259,25 @@ class SimulationEngine:
             )
         raise RuntimeError(f"Unhandled simulation state: {self.state!r}")
 
+    def update_config(self, **updates: Any) -> None:
+        """Apply runtime config updates atomically.
+
+        The merged config is validated before any runtime state mutates. Side
+        effects are applied only after validation succeeds, and ``self.config``
+        is updated once at the end.
+        """
+        new_config = self._validated_config_copy(**updates)
+        if "phase_duration" in updates:
+            self.traffic_light_manager.set_phase_duration(new_config.phase_duration)
+        self.config = new_config
+
     def set_tick_speed(self, speed: int) -> None:
         """Set simulation tick speed (takes effect next tick).
 
         Args:
             speed: Ticks per second (1-10)
         """
-        self.config = self._validated_config_copy(tick_speed=speed)
+        self.update_config(tick_speed=speed)
 
     def set_spawn_rate(self, rate: float) -> None:
         """Set vehicle spawn rate (takes effect next tick).
@@ -273,7 +285,7 @@ class SimulationEngine:
         Args:
             rate: Probability per edge cell per tick (0.0-1.0)
         """
-        self.config = self._validated_config_copy(spawn_rate=rate)
+        self.update_config(spawn_rate=rate)
 
     def set_phase_duration(self, duration: int) -> None:
         """Set traffic light phase duration (takes effect next tick).
@@ -281,8 +293,7 @@ class SimulationEngine:
         Args:
             duration: Ticks per phase (1-20)
         """
-        self.config = self._validated_config_copy(phase_duration=duration)
-        self.traffic_light_manager.set_phase_duration(duration)
+        self.update_config(phase_duration=duration)
 
     def set_emergency_probability(self, probability: float) -> None:
         """Set emergency vehicle spawn probability (takes effect next tick).
@@ -290,17 +301,16 @@ class SimulationEngine:
         Args:
             probability: Probability that a spawned vehicle is emergency (0.0-1.0)
         """
-        self.config = self._validated_config_copy(emergency_probability=probability)
+        self.update_config(emergency_probability=probability)
 
     def reset_config(self) -> None:
         """Restore mutable runtime settings without rebuilding world state."""
-        self.config = self._validated_config_copy(
+        self.update_config(
             tick_speed=DEFAULT_CONFIG.tick_speed,
             spawn_rate=DEFAULT_CONFIG.spawn_rate,
             emergency_probability=DEFAULT_CONFIG.emergency_probability,
             phase_duration=DEFAULT_CONFIG.phase_duration,
         )
-        self.traffic_light_manager.set_phase_duration(self.config.phase_duration)
 
     def snapshot(self) -> SimulationSnapshot:
         """Create a complete state snapshot for frontend consumption.

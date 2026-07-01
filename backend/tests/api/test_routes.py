@@ -453,38 +453,69 @@ class TestAPIRoutes:
         }
         assert engine.config.emergency_probability == 0.4
 
+    def test_update_config_is_atomic_when_runtime_validation_fails_mid_update(
+        self,
+        wired_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Multi-field config updates leave runtime settings unchanged on failure."""
+        engine = app_for(wired_client).state.engine
+        original_validated_config_copy = engine._validated_config_copy
+
+        def fail_when_spawn_rate_present(**updates: int | float):
+            if "spawn_rate" in updates:
+                raise ValueError("spawn rate update failed")
+            return original_validated_config_copy(**updates)
+
+        monkeypatch.setattr(
+            engine,
+            "_validated_config_copy",
+            fail_when_spawn_rate_present,
+        )
+
+        response = wired_client.put(
+            "/api/simulation/config",
+            json={"tick_speed": 6, "spawn_rate": 0.3},
+        )
+
+        assert response.status_code == 422
+        assert response.json() == {"detail": "spawn rate update failed"}
+        assert engine.config.model_dump() == {
+            "grid_width": 10,
+            "grid_height": 10,
+            "tick_speed": 1,
+            "spawn_rate": 0.1,
+            "emergency_probability": 0.1,
+            "phase_duration": 3,
+        }
+
     @pytest.mark.parametrize(
-        ("setter_name", "payload", "error_message"),
+        ("payload", "error_message"),
         [
-            ("set_tick_speed", {"tick_speed": 6}, "tick speed update failed"),
-            ("set_spawn_rate", {"spawn_rate": 0.3}, "spawn rate update failed"),
+            ({"tick_speed": 6}, "tick speed update failed"),
+            ({"spawn_rate": 0.3}, "spawn rate update failed"),
+            ({"phase_duration": 4}, "phase duration update failed"),
             (
-                "set_phase_duration",
-                {"phase_duration": 4},
-                "phase duration update failed",
-            ),
-            (
-                "set_emergency_probability",
                 {"emergency_probability": 0.4},
                 "emergency probability update failed",
             ),
         ],
     )
-    def test_update_config_returns_422_when_runtime_validation_fails_for_each_setter(
+    def test_update_config_returns_422_when_engine_update_fails(
         self,
         wired_client: TestClient,
         monkeypatch: pytest.MonkeyPatch,
-        setter_name: str,
         payload: dict[str, int | float],
         error_message: str,
     ) -> None:
-        """Any runtime setter ValueError is surfaced as an API validation error."""
+        """Any engine config update ValueError is surfaced as an API
+        validation error."""
         engine = app_for(wired_client).state.engine
 
-        def fail_update(_: object) -> None:
+        def fail_update(**_: int | float) -> None:
             raise ValueError(error_message)
 
-        monkeypatch.setattr(engine, setter_name, fail_update)
+        monkeypatch.setattr(engine, "update_config", fail_update)
 
         response = wired_client.put("/api/simulation/config", json=payload)
 

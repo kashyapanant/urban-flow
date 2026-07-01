@@ -72,6 +72,34 @@ class TestSimulationEngine:
         }
         assert phase_durations == {7}
 
+    def test_update_config_is_atomic_when_phase_duration_side_effect_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Batch config updates do not commit partial changes when side effects fail."""
+        engine = SimulationEngine()
+
+        def fail_phase_duration_update(_: int) -> None:
+            raise ValueError("phase duration update failed")
+
+        monkeypatch.setattr(
+            engine.traffic_light_manager,
+            "set_phase_duration",
+            fail_phase_duration_update,
+        )
+
+        with pytest.raises(ValueError, match="phase duration update failed"):
+            engine.update_config(tick_speed=6, phase_duration=4)
+
+        assert engine.config.model_dump() == {
+            "grid_width": 10,
+            "grid_height": 10,
+            "tick_speed": 1,
+            "spawn_rate": 0.1,
+            "emergency_probability": 0.1,
+            "phase_duration": 3,
+        }
+
     def test_reset_config_restores_defaults_without_rebuilding_runtime_state(
         self,
     ) -> None:
