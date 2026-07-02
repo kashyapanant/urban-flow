@@ -97,6 +97,7 @@ class SimulationEngine:
 
     async def start(self) -> ControlResult:
         """Start the simulation tick loop."""
+        # Primary guard: live task means loop is already running or paused
         if self._has_live_run_task():
             if self.state is SimulationState.PAUSED:
                 return ControlResult(
@@ -111,6 +112,7 @@ class SimulationEngine:
                 state=SimulationState.RUNNING,
                 message="Simulation is already running.",
             )
+        # Defensive guards: state is inconsistent (task done but state not reset)
         if self.state is SimulationState.RUNNING:
             return ControlResult(
                 action="start",
@@ -154,6 +156,7 @@ class SimulationEngine:
                 run_task.cancel()
                 with suppress(asyncio.CancelledError):
                     await run_task
+                # Clear only if callback hasn't already done so
                 if self._run_task is run_task:
                     self._run_task = None
 
