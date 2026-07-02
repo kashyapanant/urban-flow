@@ -202,8 +202,8 @@ class TestSimulationEngine:
 
     @pytest.mark.asyncio
     async def test_reset_rebuilds_clean_state_while_stopped(self) -> None:
-        """reset() rebuilds world state and leaves the engine ready to start."""
-        engine = SimulationEngine()
+        """reset() rebuilds world state from the current config."""
+        engine = SimulationEngine(SimulationConfig(grid_width=12, grid_height=8))
         original_grid = engine.grid
         original_vehicle_manager = engine.vehicle_manager
         original_light_manager = engine.traffic_light_manager
@@ -232,6 +232,8 @@ class TestSimulationEngine:
         assert engine.state is SimulationState.STOPPED
         assert engine.tick_count == 0
         assert engine.grid is not original_grid
+        assert engine.grid.width == 12
+        assert engine.grid.height == 8
         assert engine.vehicle_manager is not original_vehicle_manager
         assert engine.traffic_light_manager is not original_light_manager
         assert engine.metrics is not original_metrics
@@ -241,6 +243,10 @@ class TestSimulationEngine:
         assert engine.config.spawn_rate == 0.4
         assert engine.config.phase_duration == 5
         assert engine.config.emergency_probability == 0.25
+        phase_durations = {
+            light.phase_duration for light in engine.traffic_light_manager.get_all()
+        }
+        assert phase_durations == {5}
 
     @pytest.mark.asyncio
     async def test_reset_stops_live_loop_before_rebuilding(self) -> None:

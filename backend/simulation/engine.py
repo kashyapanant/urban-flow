@@ -165,7 +165,11 @@ class SimulationEngine:
         )
 
     async def reset(self) -> ControlResult:
-        """Rebuild simulation state and leave the engine stopped."""
+        """Rebuild state from the current config and leave the engine stopped.
+
+        This preserves applied config changes. Use reset_config() separately
+        when runtime settings should return to defaults.
+        """
         if self.state is not SimulationState.STOPPED or self._has_live_run_task():
             await self.stop()
 
