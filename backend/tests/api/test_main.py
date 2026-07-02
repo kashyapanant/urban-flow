@@ -158,21 +158,20 @@ class TestAppBootstrap:
 
         assert stopped_engines == [app.state.engine]
 
-    def test_app_shutdown_skips_stop_when_engine_is_missing(
+    def test_app_shutdown_tolerates_missing_engine(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Application shutdown tolerates missing engine state."""
+        """Application shutdown tolerates an app state without an engine."""
         from main import create_app
 
         async def fail_stop(self: SimulationEngine) -> None:
-            raise AssertionError(
-                "stop() should not be called when engine state is missing"
-            )
+            raise AssertionError("stop() must not be called")
 
         monkeypatch.setattr(SimulationEngine, "stop", fail_stop)
         app = create_app()
+        del app.state.engine
 
         with TestClient(app):
-            del app.state.engine
+            pass
 
         assert not hasattr(app.state, "engine")
