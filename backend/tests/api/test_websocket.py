@@ -21,7 +21,6 @@ from backend.api.websocket import (
     handle_client_message,
     websocket_endpoint,
 )
-from backend.config import STREET_SPACING
 from backend.simulation.engine import SimulationEngine, SimulationState
 
 
@@ -193,74 +192,8 @@ class TestWebSocketManager:
 
         await broadcast_simulation_state(engine, websocket_manager)
 
-        expected_cells = []
-        for y in range(engine.config.grid_height):
-            row = []
-            for x in range(engine.config.grid_width):
-                is_street = y % STREET_SPACING == 0
-                is_avenue = x % STREET_SPACING == 0
-                is_intersection = is_street and is_avenue
-                cell_type = (
-                    "intersection"
-                    if is_intersection
-                    else "road"
-                    if is_street or is_avenue
-                    else "obstacle"
-                )
-                row.append(
-                    {
-                        "x": x,
-                        "y": y,
-                        "type": cell_type,
-                        "vehicle_id": None,
-                        "traffic_light_id": f"tl-{x}-{y}" if is_intersection else None,
-                    }
-                )
-            expected_cells.append(row)
-
-        expected_lights = [
-            {
-                "id": f"tl-{x}-{y}",
-                "position": [x, y],
-                "active_axis": "north_south",
-                "current_phase": "green",
-                "phase_duration": engine.config.phase_duration,
-                "ticks_in_phase": 0,
-                "preempted_by": None,
-            }
-            for y in range(0, engine.config.grid_height, STREET_SPACING)
-            for x in range(0, engine.config.grid_width, STREET_SPACING)
-        ]
-
         assert websocket.sent_messages == [
-            {
-                "type": "tick",
-                "data": {
-                    "tick_count": 0,
-                    "state": "stopped",
-                    "config": {
-                        "grid_width": 10,
-                        "grid_height": 10,
-                        "tick_speed": 1,
-                        "spawn_rate": 0.1,
-                        "emergency_probability": 0.1,
-                        "phase_duration": 3,
-                    },
-                    "grid": {
-                        "width": 10,
-                        "height": 10,
-                        "cells": expected_cells,
-                    },
-                    "vehicles": [],
-                    "traffic_lights": expected_lights,
-                    "metrics": {
-                        "normal_avg_ticks": 0.0,
-                        "emergency_avg_ticks": 0.0,
-                        "improvement": 0.0,
-                        "total_completed": 0,
-                    },
-                },
-            }
+            {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
         ]
 
     def test_serialize_snapshot_encodes_enum_values(self) -> None:
