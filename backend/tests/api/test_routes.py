@@ -53,49 +53,65 @@ class TestConfigUpdateRequest:
         assert config.phase_duration is None
 
     @pytest.mark.parametrize(
-        ("field_name", "test_values"),
+        ("field_name", "value"),
         [
-            ("tick_speed", [1, 5, 10]),
-            ("spawn_rate", [0.0, 0.5, 1.0]),
-            ("emergency_probability", [0.0, 0.5, 1.0]),
-            ("phase_duration", [1, 10, 20]),
+            ("tick_speed", 1),
+            ("tick_speed", 5),
+            ("tick_speed", 10),
+            ("spawn_rate", 0.0),
+            ("spawn_rate", 0.5),
+            ("spawn_rate", 1.0),
+            ("emergency_probability", 0.0),
+            ("emergency_probability", 0.5),
+            ("emergency_probability", 1.0),
+            ("phase_duration", 1),
+            ("phase_duration", 10),
+            ("phase_duration", 20),
         ],
     )
-    def test_valid_boundary_values(
-        self, field_name: str, test_values: list[int | float]
-    ) -> None:
+    def test_valid_boundary_values(self, field_name: str, value: int | float) -> None:
         """Test valid boundary and mid-range values for all configuration fields."""
-        for value in test_values:
-            config = validate_config({field_name: value})
+        config = validate_config({field_name: value})
 
-            assert getattr(config, field_name) == value
+        assert getattr(config, field_name) == value
 
     @pytest.mark.parametrize(
-        ("field_name", "invalid_values"),
+        ("field_name", "invalid_value"),
         [
-            ("tick_speed", [0, -1, 11, 100]),
-            ("spawn_rate", [-0.1, -1.0, 1.1, 2.0]),
-            ("emergency_probability", [-0.1, -1.0, 1.1, 2.0]),
-            ("phase_duration", [0, -1, 21, 100]),
+            ("tick_speed", 0),
+            ("tick_speed", -1),
+            ("tick_speed", 11),
+            ("tick_speed", 100),
+            ("spawn_rate", -0.1),
+            ("spawn_rate", -1.0),
+            ("spawn_rate", 1.1),
+            ("spawn_rate", 2.0),
+            ("emergency_probability", -0.1),
+            ("emergency_probability", -1.0),
+            ("emergency_probability", 1.1),
+            ("emergency_probability", 2.0),
+            ("phase_duration", 0),
+            ("phase_duration", -1),
+            ("phase_duration", 21),
+            ("phase_duration", 100),
         ],
     )
     def test_invalid_values_out_of_bounds(
-        self, field_name: str, invalid_values: list[int | float]
+        self, field_name: str, invalid_value: int | float
     ) -> None:
         """Test invalid values outside allowed ranges for all configuration fields."""
-        for invalid_value in invalid_values:
-            with pytest.raises(ValidationError) as exc_info:
-                validate_config({field_name: invalid_value})
+        with pytest.raises(ValidationError) as exc_info:
+            validate_config({field_name: invalid_value})
 
-            errors = exc_info.value.errors()
-            assert len(errors) == 1
-            assert errors[0]["loc"] == (field_name,)
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert errors[0]["loc"] == (field_name,)
 
-            error_msg = str(errors[0]["msg"])
-            assert (
-                "greater than or equal to" in error_msg
-                or "less than or equal to" in error_msg
-            )
+        error_msg = str(errors[0]["msg"])
+        assert (
+            "greater than or equal to" in error_msg
+            or "less than or equal to" in error_msg
+        )
 
     @pytest.mark.parametrize(
         ("field_name", "invalid_value"),
