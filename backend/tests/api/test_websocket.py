@@ -6,7 +6,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi import WebSocketDisconnect
@@ -218,7 +218,7 @@ class TestWebSocketManager:
             TypeError,
             match="Simulation snapshot must serialize to a JSON object.",
         ):
-            serialize_snapshot([1, 2, 3])
+            serialize_snapshot(cast(Any, [1, 2, 3]))
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
