@@ -319,9 +319,9 @@ class TestAPIRoutes:
         engine.state = SimulationState.STOPPED
 
     def test_reset_route_returns_reset_result(self, wired_client: TestClient) -> None:
-        """Reset returns the engine lifecycle response and leaves state stopped."""
+        """Reset returns the lifecycle response for the default stopped engine."""
         engine = app_for(wired_client).state.engine
-        engine.state = SimulationState.RUNNING
+        assert engine.state is SimulationState.STOPPED
         engine.tick_count = 9
 
         response = wired_client.post("/api/simulation/reset")
