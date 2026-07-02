@@ -244,11 +244,29 @@ class TestConfigUpdateRequest:
 class TestAPIRoutes:
     """Test cases for REST API endpoints."""
 
+    @pytest.mark.parametrize(
+        ("method", "path", "payload"),
+        [
+            ("post", "/api/simulation/start", None),
+            ("post", "/api/simulation/reset", None),
+            ("post", "/api/simulation/config/reset", None),
+            ("post", "/api/simulation/pause", None),
+            ("post", "/api/simulation/resume", None),
+            ("put", "/api/simulation/config", {"tick_speed": 1}),
+            ("get", "/api/simulation/state", None),
+            ("get", "/api/simulation/metrics", None),
+        ],
+    )
     def test_routes_return_503_when_engine_is_not_configured(
-        self, bare_client: TestClient
+        self,
+        bare_client: TestClient,
+        method: str,
+        path: str,
+        payload: dict[str, int] | None,
     ) -> None:
-        """Endpoints fail clearly before app bootstrap injects the engine."""
-        response = bare_client.get("/api/simulation/state")
+        """Simulation routes fail clearly before app bootstrap injects the engine."""
+        request_kwargs = {"json": payload} if payload is not None else {}
+        response = getattr(bare_client, method)(path, **request_kwargs)
 
         assert response.status_code == 503
         assert response.json() == {"detail": "Simulation engine is not configured."}
