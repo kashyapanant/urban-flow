@@ -91,6 +91,15 @@ class TestWebSocketManager:
     """Test cases for WebSocket connection management and commands."""
 
     @pytest.mark.asyncio
+    async def test_manager_disconnect_ignores_unknown_connection(self) -> None:
+        """Disconnect is a no-op when the socket is not tracked."""
+        websocket_manager = WebSocketManager()
+
+        websocket_manager.disconnect(FakeWebSocket())
+
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
     async def test_manager_connect_disconnect_and_broadcast(self) -> None:
         """Connected clients receive broadcast JSON messages."""
         websocket_manager = WebSocketManager()
@@ -102,6 +111,15 @@ class TestWebSocketManager:
 
         assert websocket.accepted is True
         assert websocket.sent_messages == [{"type": "tick", "data": {"tick_count": 1}}]
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_manager_broadcast_is_noop_without_connections(self) -> None:
+        """Broadcast returns cleanly when no clients are connected."""
+        websocket_manager = WebSocketManager()
+
+        await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 0}})
+
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio
@@ -459,6 +477,37 @@ class TestWebSocketManager:
 
         with pytest.raises(ValidationError) as exc_info:
             UnknownConfigModel.model_validate({"unknown_rate": 0})
+
+        assert (
+            _format_runtime_config_error(exc_info.value)
+            == "Invalid simulation config value."
+        )
+
+    @pytest.mark.parametrize(
+        "error_loc",
+        [
+            ["tick_speed"],
+            (0,),
+        ],
+    )
+    def test_format_runtime_config_error_ignores_unusable_error_locations(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        error_loc: object,
+    ) -> None:
+        """Malformed validation locations fall back to the generic message."""
+
+        class ValidatedConfigModel(BaseModel):
+            tick_speed: int = Field(ge=1)
+
+        with pytest.raises(ValidationError) as exc_info:
+            ValidatedConfigModel.model_validate({"tick_speed": 0})
+
+        monkeypatch.setattr(
+            exc_info.value,
+            "errors",
+            lambda: [{"loc": error_loc}],
+        )
 
         assert (
             _format_runtime_config_error(exc_info.value)
