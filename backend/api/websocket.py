@@ -60,31 +60,42 @@ class WebSocketManager:
         Args:
             message: JSON-serializable dict to broadcast.
         """
-        stale_connections: list[WebSocketConnection] = []
-        for connection in list(self.active_connections):
+
+        async def send_to_connection(
+            connection: WebSocketConnection,
+        ) -> WebSocketConnection | None:
             try:
                 await asyncio.wait_for(
                     connection.send_json(message),
                     timeout=_SEND_TIMEOUT_SECONDS,
                 )
+                return None
             except TimeoutError:
                 logger.warning("WebSocket send timed out; dropping connection.")
-                stale_connections.append(connection)
+                return connection
             except WebSocketDisconnect:
                 logger.debug("Client disconnected during broadcast.")
-                stale_connections.append(connection)
+                return connection
             except RuntimeError as exc:
                 # Raised when WebSocket is closed but not formally disconnected
                 logger.warning("WebSocket send failed (connection closed): %s", exc)
-                stale_connections.append(connection)
+                return connection
             except Exception as exc:
                 logger.error(
                     "Unexpected error broadcasting to WebSocket: %s", exc, exc_info=True
                 )
-                stale_connections.append(connection)
+                return connection
 
-        for connection in stale_connections:
-            self.disconnect(connection)
+        connections = list(self.active_connections)
+        if not connections:
+            return
+
+        results = await asyncio.gather(
+            *(send_to_connection(connection) for connection in connections)
+        )
+        for connection in results:
+            if connection is not None:
+                self.disconnect(connection)
 
     async def send_personal_message(
         self, message: dict[str, Any], websocket: WebSocketConnection

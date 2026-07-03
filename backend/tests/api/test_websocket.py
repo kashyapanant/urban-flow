@@ -183,6 +183,31 @@ class TestWebSocketManager:
         assert websocket_manager.active_connections == [healthy]
 
     @pytest.mark.asyncio
+    async def test_manager_broadcasts_to_healthy_clients_while_stalled_send_times_out(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A stalled client does not block delivery to other connected clients."""
+        websocket_manager = WebSocketManager()
+        stalled = FakeWebSocket(send_delay=0.05)
+        healthy = FakeWebSocket()
+        message = {"type": "tick", "data": {"tick_count": 6}}
+
+        await websocket_manager.connect(stalled)
+        await websocket_manager.connect(healthy)
+        monkeypatch.setattr(websocket_module, "_SEND_TIMEOUT_SECONDS", 0.01)
+
+        broadcast_task = asyncio.create_task(websocket_manager.broadcast(message))
+        await asyncio.sleep(0.001)
+
+        assert healthy.sent_messages == [message]
+        assert broadcast_task.done() is False
+
+        await broadcast_task
+
+        assert websocket_manager.active_connections == [healthy]
+
+    @pytest.mark.asyncio
     async def test_broadcast_simulation_state_sends_tick_message(self) -> None:
         """Simulation snapshots are wrapped in the agreed tick message shape."""
         websocket_manager = WebSocketManager()
