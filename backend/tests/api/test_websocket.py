@@ -32,6 +32,8 @@ class FakeWebSocket:
         *,
         send_exception: Exception | None = None,
         send_delay: float = 0.0,
+        send_started: asyncio.Event | None = None,
+        release_send: asyncio.Event | None = None,
         received_messages: list[dict[str, Any]] | None = None,
         receive_exception: Exception | None = None,
     ) -> None:
@@ -39,6 +41,8 @@ class FakeWebSocket:
         self.sent_messages: list[dict[str, Any]] = []
         self.send_exception = send_exception
         self.send_delay = send_delay
+        self.send_started = send_started
+        self.release_send = release_send
         self.received_messages = list(received_messages or [])
         self.receive_exception = receive_exception
 
@@ -46,6 +50,10 @@ class FakeWebSocket:
         self.accepted = True
 
     async def send_json(self, message: dict[str, Any]) -> None:
+        if self.send_started is not None:
+            self.send_started.set()
+        if self.release_send is not None:
+            await self.release_send.wait()
         if self.send_delay:
             await asyncio.sleep(self.send_delay)
         if self.send_exception is not None:
@@ -172,7 +180,7 @@ class TestWebSocketManager:
         """Broadcast drops stalled sockets after the send timeout expires."""
         websocket_manager = WebSocketManager()
         healthy = FakeWebSocket()
-        stalled = FakeWebSocket(send_delay=0.05)
+        stalled = FakeWebSocket(release_send=asyncio.Event())
         await websocket_manager.connect(healthy)
         await websocket_manager.connect(stalled)
         monkeypatch.setattr(websocket_module, "_SEND_TIMEOUT_SECONDS", 0.01)
@@ -189,23 +197,31 @@ class TestWebSocketManager:
     ) -> None:
         """A stalled client does not block delivery to other connected clients."""
         websocket_manager = WebSocketManager()
-        stalled = FakeWebSocket(send_delay=0.05)
-        healthy = FakeWebSocket()
+        stalled_started = asyncio.Event()
+        healthy_sent = asyncio.Event()
+        stalled_release = asyncio.Event()
+        stalled = FakeWebSocket(
+            send_started=stalled_started,
+            release_send=stalled_release,
+        )
+        healthy = FakeWebSocket(send_started=healthy_sent)
         message = {"type": "tick", "data": {"tick_count": 6}}
 
         await websocket_manager.connect(stalled)
         await websocket_manager.connect(healthy)
-        monkeypatch.setattr(websocket_module, "_SEND_TIMEOUT_SECONDS", 0.01)
+        monkeypatch.setattr(websocket_module, "_SEND_TIMEOUT_SECONDS", 1.0)
 
         broadcast_task = asyncio.create_task(websocket_manager.broadcast(message))
-        await asyncio.sleep(0.001)
+        await asyncio.wait_for(stalled_started.wait(), timeout=0.1)
+        await asyncio.wait_for(healthy_sent.wait(), timeout=0.1)
 
         assert healthy.sent_messages == [message]
         assert broadcast_task.done() is False
 
+        stalled_release.set()
         await broadcast_task
 
-        assert websocket_manager.active_connections == [healthy]
+        assert websocket_manager.active_connections == [stalled, healthy]
 
     @pytest.mark.asyncio
     async def test_broadcast_simulation_state_sends_tick_message(self) -> None:
