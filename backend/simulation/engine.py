@@ -269,10 +269,20 @@ class SimulationEngine:
     def update_config(self, **updates: Any) -> None:
         """Apply runtime config updates atomically.
 
+        Grid dimensions are immutable at runtime because the grid and traffic
+        lights are built from them. Change them via a fresh engine config or a
+        reset flow that rebuilds world state.
+
         The merged config is validated before any runtime state mutates. Side
         effects are applied only after validation succeeds, and ``self.config``
         is updated once at the end.
         """
+        if "grid_width" in updates or "grid_height" in updates:
+            raise ValueError(
+                "grid_width and grid_height can only be changed "
+                "at initialization or reset"
+            )
+
         new_config = self._validated_config_copy(**updates)
         if "phase_duration" in updates:
             self.traffic_light_manager.set_phase_duration(new_config.phase_duration)

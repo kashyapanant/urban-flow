@@ -100,6 +100,23 @@ class TestSimulationEngine:
             "phase_duration": 3,
         }
 
+    def test_update_config_rejects_grid_dimension_changes(self) -> None:
+        """Runtime config updates cannot change grid dimensions without a reset."""
+        engine = SimulationEngine()
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "grid_width and grid_height can only be changed "
+                "at initialization or reset"
+            ),
+        ):
+            engine.update_config(grid_width=12, tick_speed=6)
+
+        assert engine.config.model_dump() == SimulationConfig().model_dump()
+        assert engine.grid.width == 10
+        assert engine.grid.height == 10
+
     def test_reset_config_restores_defaults_without_rebuilding_runtime_state(
         self,
     ) -> None:
