@@ -41,16 +41,44 @@ class WebSocketManager:
     def __init__(self) -> None:
         """Initialize the WebSocket manager."""
         self.active_connections: list[WebSocketConnection] = []
+        self._send_locks: dict[WebSocketConnection, asyncio.Lock] = {}
 
     async def connect(self, websocket: WebSocketConnection) -> None:
         """Accept a new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
+        self._send_locks[websocket] = asyncio.Lock()
 
     def disconnect(self, websocket: WebSocketConnection) -> None:
         """Remove a WebSocket connection."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        self._send_locks.pop(websocket, None)
+
+    def _send_lock(self, websocket: WebSocketConnection) -> asyncio.Lock:
+        """Return the per-connection lock used to serialize outbound sends."""
+        lock = self._send_locks.get(websocket)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._send_locks[websocket] = lock
+        return lock
+
+    async def _send_serialized(
+        self, websocket: WebSocketConnection, message: dict[str, Any]
+    ) -> None:
+        """Send a message while holding the socket's outbound send lock."""
+        async with self._send_lock(websocket):
+            await websocket.send_json(message)
+
+    async def _send_serialized_with_timeout(
+        self, websocket: WebSocketConnection, message: dict[str, Any]
+    ) -> None:
+        """Send a message with serialization and the broadcast timeout."""
+        async with self._send_lock(websocket):
+            await asyncio.wait_for(
+                websocket.send_json(message),
+                timeout=_SEND_TIMEOUT_SECONDS,
+            )
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         """Broadcast message to all connected clients.
@@ -65,10 +93,7 @@ class WebSocketManager:
             connection: WebSocketConnection,
         ) -> WebSocketConnection | None:
             try:
-                await asyncio.wait_for(
-                    connection.send_json(message),
-                    timeout=_SEND_TIMEOUT_SECONDS,
-                )
+                await self._send_serialized_with_timeout(connection, message)
                 return None
             except TimeoutError:
                 logger.warning("WebSocket send timed out; dropping connection.")
@@ -101,7 +126,7 @@ class WebSocketManager:
         self, message: dict[str, Any], websocket: WebSocketConnection
     ) -> None:
         """Send a message to a specific client."""
-        await websocket.send_json(message)
+        await self._send_serialized(websocket, message)
 
 
 async def websocket_endpoint(

@@ -242,6 +242,49 @@ class TestWebSocketManager:
         assert websocket_manager.active_connections == [stalled, healthy]
 
     @pytest.mark.asyncio
+    async def test_manager_serializes_direct_sends_with_broadcasts(self) -> None:
+        """A direct send waits for an in-flight broadcast on the same socket."""
+
+        class ConcurrentUnsafeWebSocket(FakeWebSocket):
+            def __init__(self) -> None:
+                super().__init__()
+                self._sending = False
+                self.first_send_started = asyncio.Event()
+                self.release_first_send = asyncio.Event()
+
+            async def send_json(self, message: dict[str, Any]) -> None:
+                if self._sending:
+                    raise RuntimeError("concurrent send")
+                self._sending = True
+                try:
+                    if not self.first_send_started.is_set():
+                        self.first_send_started.set()
+                        await self.release_first_send.wait()
+                    self.sent_messages.append(message)
+                finally:
+                    self._sending = False
+
+        websocket_manager = WebSocketManager()
+        websocket = ConcurrentUnsafeWebSocket()
+        await websocket_manager.connect(websocket)
+        tick_message = {"type": "tick", "data": {"tick_count": 7}}
+        ack_message = {"type": "tick", "data": {"tick_count": 8}}
+
+        broadcast_task = asyncio.create_task(websocket_manager.broadcast(tick_message))
+        await asyncio.wait_for(websocket.first_send_started.wait(), timeout=0.1)
+        direct_send_task = asyncio.create_task(
+            websocket_manager.send_personal_message(ack_message, websocket)
+        )
+        await asyncio.sleep(0)
+
+        assert direct_send_task.done() is False
+
+        websocket.release_first_send.set()
+        await asyncio.gather(broadcast_task, direct_send_task)
+
+        assert websocket.sent_messages == [tick_message, ack_message]
+
+    @pytest.mark.asyncio
     async def test_broadcast_simulation_state_sends_tick_message(self) -> None:
         """Simulation snapshots are wrapped in the agreed tick message shape."""
         websocket_manager = WebSocketManager()
