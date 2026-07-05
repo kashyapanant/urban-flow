@@ -138,10 +138,9 @@ async def handle_client_message(
         engine: Simulation engine to apply commands to.
 
     Returns:
-        Returns a standard ``tick`` payload when the command succeeds or a
-        standard ``error`` payload when the message is invalid or runtime config
-        validation fails or None if the message type was unrecognised
-        (currently always returns something).
+        Standard ``tick`` payload when the command succeeds, or a standard
+        ``error`` payload when the message is invalid or runtime config
+        validation fails.
     """
     if not isinstance(message, dict):
         return _error_message("WebSocket message must be a JSON object.")

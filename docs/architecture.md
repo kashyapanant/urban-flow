@@ -214,7 +214,7 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 
 | Direction | Message Type | Payload |
 |-----------|-------------|---------|
-| Server → Client | `tick` | Full `SimulationState` snapshot (grid, vehicles, lights, metrics, tickCount) |
+| Server → Client | `tick` | Full `SimulationState` snapshot (grid, vehicles, lights, metrics, tick_count) |
 | Client → Server | `pause` | — |
 | Client → Server | `resume` | — |
 | Client → Server | `set_speed` | `{ speed: int }` |
