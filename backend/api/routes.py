@@ -87,7 +87,7 @@ async def reset_simulation(
 
 
 @router.post("/config/reset")
-def reset_config(
+async def reset_config(
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Restore runtime configuration defaults without changing lifecycle."""
@@ -99,7 +99,7 @@ def reset_config(
 
 
 @router.post("/pause")
-def pause_simulation(
+async def pause_simulation(
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Pause the tick loop."""
@@ -108,7 +108,7 @@ def pause_simulation(
 
 
 @router.post("/resume")
-def resume_simulation(
+async def resume_simulation(
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Resume the tick loop."""
@@ -117,7 +117,7 @@ def resume_simulation(
 
 
 @router.put("/config")
-def update_config(
+async def update_config(
     engine: EngineDependency,
     config: ConfigUpdateBody,
 ) -> dict[str, Any]:
@@ -147,7 +147,7 @@ def update_config(
 
 
 @router.get("/state")
-def get_state(
+async def get_state(
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Return current state snapshot as a polling fallback."""
@@ -155,7 +155,7 @@ def get_state(
 
 
 @router.get("/metrics")
-def get_metrics(
+async def get_metrics(
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Return current metrics."""

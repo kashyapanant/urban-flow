@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import cast
 
 import pytest
@@ -9,7 +10,15 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from backend.api.routes import ConfigUpdateRequest
+from backend.api.routes import (
+    ConfigUpdateRequest,
+    get_metrics,
+    get_state,
+    pause_simulation,
+    reset_config,
+    resume_simulation,
+    update_config,
+)
 from backend.simulation.engine import SimulationState
 
 
@@ -243,6 +252,15 @@ class TestConfigUpdateRequest:
 
 class TestAPIRoutes:
     """Test cases for REST API endpoints."""
+
+    def test_engine_touching_route_handlers_are_async(self) -> None:
+        """Engine-touching handlers stay on the event loop thread."""
+        assert inspect.iscoroutinefunction(reset_config)
+        assert inspect.iscoroutinefunction(pause_simulation)
+        assert inspect.iscoroutinefunction(resume_simulation)
+        assert inspect.iscoroutinefunction(update_config)
+        assert inspect.iscoroutinefunction(get_state)
+        assert inspect.iscoroutinefunction(get_metrics)
 
     @pytest.mark.parametrize(
         ("method", "path", "payload"),
