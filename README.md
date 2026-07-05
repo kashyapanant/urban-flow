@@ -24,7 +24,7 @@ Urban Flow is still in Phase 1 integration. The deterministic simulation core an
 - `SimulationEngine`
 - FastAPI REST/WebSocket runtime wiring
 
-The remaining Phase 1 slice is the browser frontend MVP.
+The remaining Phase 1 work is backend congestion stabilization followed by the browser frontend MVP.
 
 ## Local-First Principles
 
@@ -77,7 +77,7 @@ Run the local FastAPI app with REST endpoints and the WebSocket stream:
 uv run python main.py
 ```
 
-The browser frontend files are still part of the remaining Phase 1 work.
+The browser frontend files are still part of the remaining Phase 1 work. Before that, `P1-ENG-04` tracks congestion backpressure so long-running demo simulations do not saturate into permanent gridlock.
 
 ## Project Structure
 

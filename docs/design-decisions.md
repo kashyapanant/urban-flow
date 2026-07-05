@@ -298,6 +298,49 @@ bound it by the configured `phase_duration` before requesting preemption.
 
 ---
 
+## Decision: Deadlock Resolution Strategy(Task: P1-ENG-04)
+
+**Date:** 2026-07-05
+**Context:** One-cell bidirectional roads cause permanent gridlock when 
+opposing vehicles fill a road segment. This halts all arrivals and 
+makes metrics appear frozen.
+Runtime API testing with `tick_speed=8`, `spawn_rate=0.7`,
+`emergency_probability=0.3`, and `phase_duration=1` showed the engine continuing
+to tick while `/metrics` stopped changing after one completed vehicle. Live state
+inspection showed all active vehicles in `waiting` status, and each vehicle's
+next position was occupied by another vehicle. Offline reproduction confirmed
+that the current 10x10 single-lane, bidirectional grid eventually saturates into
+all-waiting gridlock under sustained spawning, especially at high spawn rates.
+**Decision:** Do not patch this inside the API/backend wiring branch. Track it
+as `P1-ENG-04`, a focused simulation stabilization task before the browser MVP.
+1. spawn_rate semantics changed from "probability per edge cell" to 
+   "expected vehicles per tick" to prevent saturation.
+2. Vehicles stuck waiting > max_wait_ticks are removed from the grid 
+   (not counted as arrivals) to break deadlock cycles.
+3. Movement uses priority ordering (emergency > proximity to dest) to
+   reduce deadlock formation rate.
+
+**Future:** One-way roads eliminate head-on deadlocks architecturally
+and will be implemented post-MVP as a grid enhancement.
+
+**Rationale:**
+- The root cause is simulation congestion behavior, not the REST metrics route
+  or engine run loop.
+- A quick local patch risks hiding the issue without defining the intended Phase
+  1 traffic behavior.
+- Backpressure is the smallest likely fix that preserves the local-first,
+  deterministic, 10x10 grid MVP.
+- The frontend depends on a live demo where vehicles continue completing trips,
+  so this should be handled before `P1-FE-01`.
+
+**Consequences:**
+- (+) Simulation remains live indefinitely for demo purposes
+- (+) Emergency vehicle advantage is visible in metrics
+- (-) Removed deadlocked vehicles inflate "waiting" count temporarily
+- (-) One-way constraint is deferred — bidirectional deadlock can still
+  form but is bounded by max_wait_ticks
+---
+
 ## Implementation Decision Template
 
 For future implementation decisions, use this format and link to task ID from docs/tasks.md:

@@ -89,6 +89,14 @@ A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, a
 3. Compute a path via Pathfinder. If no valid path, retry with a new destination (max 10 retries).
 4. Vehicle type is `emergency` with a configurable probability (e.g., 10%), otherwise `normal`.
 
+**Known Phase 1 limitation:**
+Runtime testing showed that high spawn rates can saturate the 10x10 single-lane,
+bidirectional grid into a permanent all-waiting state. In that state the engine
+continues ticking and `/metrics` remains healthy, but metrics stop changing
+because no vehicles can reach their destinations. This is tracked as
+`P1-ENG-04` and should be addressed with congestion backpressure before the
+browser MVP is considered demo-ready.
+
 **Movement (per tick):**
 1. Sort vehicles by priority: emergency vehicles first, then by fewest cells remaining to destination (tiebreak: random).
 2. For each vehicle in priority order:
@@ -385,6 +393,7 @@ There is a single authoritative state object inside the Simulation Engine. The r
 |----------|----------|
 | Pathfinding failure (no valid path) | Re-roll origin/destination up to 10 times; log warning if all retries fail |
 | Grid fully congested | Skip spawning for this tick; log info |
+| Gridlocked active vehicles | Known Phase 1 limitation; track under `P1-ENG-04` for spawn backpressure and deadlock guard behavior |
 | WebSocket disconnect | Client reconnects with exponential backoff (1s, 2s, 4s, max 30s); server sends current full state on reconnect |
 | Invalid config values via API | Pydantic validation rejects with 422; return human-readable error |
 | Unexpected error inside tick | Log full traceback, skip the problematic operation, continue the tick loop |
