@@ -126,7 +126,14 @@ class WebSocketManager:
         self, message: dict[str, Any], websocket: WebSocketConnection
     ) -> None:
         """Send a message to a specific client."""
-        await self._send_serialized(websocket, message)
+        try:
+            await self._send_serialized_with_timeout(websocket, message)
+        except (TimeoutError, WebSocketDisconnect, RuntimeError):
+            self.disconnect(websocket)
+            raise
+        except Exception:
+            self.disconnect(websocket)
+            raise
 
 
 async def websocket_endpoint(

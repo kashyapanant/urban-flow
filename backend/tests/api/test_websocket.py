@@ -242,6 +242,25 @@ class TestWebSocketManager:
         assert websocket_manager.active_connections == [stalled, healthy]
 
     @pytest.mark.asyncio
+    async def test_manager_drops_timed_out_direct_send_connections(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Direct sends drop stalled sockets after the send timeout expires."""
+        websocket_manager = WebSocketManager()
+        stalled = FakeWebSocket(release_send=asyncio.Event())
+        await websocket_manager.connect(stalled)
+        monkeypatch.setattr(websocket_module, "_SEND_TIMEOUT_SECONDS", 0.01)
+
+        with pytest.raises(TimeoutError):
+            await websocket_manager.send_personal_message(
+                {"type": "tick", "data": {"tick_count": 7}},
+                stalled,
+            )
+
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
     async def test_manager_serializes_direct_sends_with_broadcasts(self) -> None:
         """A direct send waits for an in-flight broadcast on the same socket."""
 
