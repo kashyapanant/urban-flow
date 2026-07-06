@@ -22,6 +22,8 @@ class WebSocketConnection(Protocol):
 
     async def send_json(self, message: dict[str, Any]) -> None: ...
 
+    async def close(self) -> None: ...
+
     async def receive_json(self) -> dict[str, Any]: ...
 
 
@@ -62,6 +64,15 @@ class WebSocketManager:
             lock = asyncio.Lock()
             self._send_locks[websocket] = lock
         return lock
+
+    async def _close_and_disconnect(self, websocket: WebSocketConnection) -> None:
+        """Best-effort close the socket, then remove it from manager state."""
+        try:
+            await websocket.close()
+        except Exception:
+            logger.debug("Failed to close WebSocket during cleanup.", exc_info=True)
+        finally:
+            self.disconnect(websocket)
 
     async def _send_serialized(
         self, websocket: WebSocketConnection, message: dict[str, Any]
@@ -120,7 +131,7 @@ class WebSocketManager:
         )
         for connection in results:
             if connection is not None:
-                self.disconnect(connection)
+                await self._close_and_disconnect(connection)
 
     async def send_personal_message(
         self, message: dict[str, Any], websocket: WebSocketConnection
@@ -129,10 +140,10 @@ class WebSocketManager:
         try:
             await self._send_serialized_with_timeout(websocket, message)
         except (TimeoutError, WebSocketDisconnect, RuntimeError):
-            self.disconnect(websocket)
+            await self._close_and_disconnect(websocket)
             raise
         except Exception:
-            self.disconnect(websocket)
+            await self._close_and_disconnect(websocket)
             raise
 
 

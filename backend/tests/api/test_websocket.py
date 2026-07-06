@@ -36,8 +36,10 @@ class FakeWebSocket:
         release_send: asyncio.Event | None = None,
         received_messages: list[dict[str, Any]] | None = None,
         receive_exception: Exception | None = None,
+        close_exception: Exception | None = None,
     ) -> None:
         self.accepted = False
+        self.closed = False
         self.sent_messages: list[dict[str, Any]] = []
         self.send_exception = send_exception
         self.send_delay = send_delay
@@ -45,6 +47,7 @@ class FakeWebSocket:
         self.release_send = release_send
         self.received_messages = list(received_messages or [])
         self.receive_exception = receive_exception
+        self.close_exception = close_exception
 
     async def accept(self) -> None:
         self.accepted = True
@@ -60,7 +63,14 @@ class FakeWebSocket:
             raise self.send_exception
         self.sent_messages.append(message)
 
+    async def close(self) -> None:
+        self.closed = True
+        if self.close_exception is not None:
+            raise self.close_exception
+
     async def receive_json(self) -> dict[str, Any]:
+        if self.closed:
+            raise WebSocketDisconnect()
         if self.receive_exception is not None:
             raise self.receive_exception
         if self.received_messages:
@@ -134,6 +144,7 @@ class TestWebSocketManager:
         await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 2}})
 
         assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 2}}]
+        assert failing.closed is True
         assert websocket_manager.active_connections == [healthy]
 
     @pytest.mark.asyncio
@@ -172,6 +183,7 @@ class TestWebSocketManager:
         await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 3}})
 
         assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 3}}]
+        assert disconnecting.closed is True
         assert websocket_manager.active_connections == [healthy]
 
     @pytest.mark.asyncio
@@ -188,6 +200,7 @@ class TestWebSocketManager:
         await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 4}})
 
         assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 4}}]
+        assert failing.closed is True
         assert websocket_manager.active_connections == [healthy]
 
     @pytest.mark.asyncio
@@ -206,6 +219,7 @@ class TestWebSocketManager:
         await websocket_manager.broadcast({"type": "tick", "data": {"tick_count": 5}})
 
         assert healthy.sent_messages == [{"type": "tick", "data": {"tick_count": 5}}]
+        assert stalled.closed is True
         assert websocket_manager.active_connections == [healthy]
 
     @pytest.mark.asyncio
@@ -258,6 +272,7 @@ class TestWebSocketManager:
                 stalled,
             )
 
+        assert stalled.closed is True
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio
@@ -275,7 +290,32 @@ class TestWebSocketManager:
                 failing,
             )
 
+        assert failing.closed is True
         assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_manager_cleanup_disconnects_even_when_close_fails(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Cleanup still drops tracked sockets when close raises unexpectedly."""
+        websocket_manager = WebSocketManager()
+        failing = FakeWebSocket(
+            send_exception=ValueError("unexpected send failure"),
+            close_exception=RuntimeError("close failed"),
+        )
+        await websocket_manager.connect(failing)
+
+        with caplog.at_level(logging.DEBUG):
+            with pytest.raises(ValueError, match="unexpected send failure"):
+                await websocket_manager.send_personal_message(
+                    {"type": "tick", "data": {"tick_count": 7}},
+                    failing,
+                )
+
+        assert failing.closed is True
+        assert websocket_manager.active_connections == []
+        assert "Failed to close WebSocket during cleanup." in caplog.text
 
     @pytest.mark.asyncio
     async def test_manager_serialized_send_recreates_missing_connection_lock(
