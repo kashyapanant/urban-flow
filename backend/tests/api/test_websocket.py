@@ -690,6 +690,33 @@ class TestWebSocketManager:
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio
+    async def test_websocket_endpoint_broadcasts_control_updates_to_other_clients(
+        self,
+    ) -> None:
+        """Shared control messages broadcast the fresh snapshot to all clients."""
+        websocket_manager = WebSocketManager()
+        watcher = FakeWebSocket()
+        controller = FakeWebSocket(received_messages=[{"type": "pause"}])
+        engine = SimulationEngine()
+        engine.state = SimulationState.RUNNING
+        initial_snapshot = serialize_snapshot(engine.snapshot())
+
+        await websocket_manager.connect(watcher)
+        await websocket_endpoint(controller, engine, websocket_manager)
+
+        assert controller.accepted is True
+        assert controller.sent_messages == [
+            {"type": "tick", "data": initial_snapshot},
+            {"type": "tick", "data": serialize_snapshot(engine.snapshot())},
+        ]
+        assert controller.sent_messages[1]["data"]["state"] == "paused"
+        assert watcher.accepted is True
+        assert watcher.sent_messages == [
+            {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
+        ]
+        assert websocket_manager.active_connections == [watcher]
+
+    @pytest.mark.asyncio
     async def test_websocket_endpoint_keeps_session_alive_after_invalid_config(
         self,
     ) -> None:

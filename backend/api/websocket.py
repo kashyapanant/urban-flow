@@ -148,7 +148,10 @@ async def websocket_endpoint(
         while True:
             message = await websocket.receive_json()
             response = await handle_client_message(message, engine)
-            await manager.send_personal_message(response, websocket)
+            if response.get("type") == "tick":
+                await manager.broadcast(response)
+            else:
+                await manager.send_personal_message(response, websocket)
     except WebSocketDisconnect:
         logger.debug("WebSocket client disconnected.")
     except Exception as exc:
