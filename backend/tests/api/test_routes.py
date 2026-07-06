@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from fastapi import FastAPI
@@ -318,6 +318,103 @@ class TestAPIRoutes:
             "state": "running",
             "message": "Simulation started.",
         }
+        engine.state = SimulationState.STOPPED
+
+    @pytest.mark.parametrize(
+        (
+            "method",
+            "path",
+            "payload",
+            "prepare_engine",
+            "expected_state",
+            "expected_tick_speed",
+            "expected_tick_count",
+        ),
+        [
+            ("post", "/api/simulation/start", None, None, "running", 1, 0),
+            (
+                "post",
+                "/api/simulation/reset",
+                None,
+                lambda engine: setattr(engine, "tick_count", 9),
+                "stopped",
+                1,
+                0,
+            ),
+            (
+                "post",
+                "/api/simulation/config/reset",
+                None,
+                lambda engine: engine.set_tick_speed(7),
+                "stopped",
+                1,
+                0,
+            ),
+            (
+                "post",
+                "/api/simulation/pause",
+                None,
+                lambda engine: setattr(engine, "state", SimulationState.RUNNING),
+                "paused",
+                1,
+                0,
+            ),
+            (
+                "post",
+                "/api/simulation/resume",
+                None,
+                lambda engine: setattr(engine, "state", SimulationState.PAUSED),
+                "running",
+                1,
+                0,
+            ),
+            (
+                "put",
+                "/api/simulation/config",
+                {"tick_speed": 7},
+                None,
+                "stopped",
+                7,
+                0,
+            ),
+        ],
+    )
+    def test_state_changing_routes_broadcast_fresh_tick_snapshots(
+        self,
+        wired_client: TestClient,
+        method: str,
+        path: str,
+        payload: dict[str, int] | None,
+        prepare_engine: object,
+        expected_state: str,
+        expected_tick_speed: int,
+        expected_tick_count: int,
+    ) -> None:
+        """State-changing REST routes broadcast the post-mutation snapshot."""
+        app = app_for(wired_client)
+        engine = app.state.engine
+        captured: list[dict[str, Any]] = []
+
+        class StubWebSocketManager:
+            async def broadcast(self, message: dict[str, Any]) -> None:
+                captured.append(message)
+
+        app.state.ws_manager = StubWebSocketManager()
+
+        if callable(prepare_engine):
+            prepare_engine(engine)
+
+        request_kwargs = {"json": payload} if payload is not None else {}
+        response = getattr(wired_client, method)(path, **request_kwargs)
+
+        assert response.status_code == 200
+        assert len(captured) == 1
+        assert captured[0]["type"] == "tick"
+        snapshot = captured[0]["data"]
+        assert snapshot["state"] == expected_state
+        assert snapshot["config"]["tick_speed"] == expected_tick_speed
+        assert snapshot["tick_count"] == expected_tick_count
+
         engine.state = SimulationState.STOPPED
 
     def test_pause_route_returns_paused_result(self, wired_client: TestClient) -> None:

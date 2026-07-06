@@ -58,6 +58,16 @@ EngineDependency = Annotated[SimulationEngine, Depends(get_engine)]
 ConfigUpdateBody = Annotated[ConfigUpdateRequest, Body()]
 
 
+async def _broadcast_snapshot(request: Request, engine: SimulationEngine) -> None:
+    """Broadcast the current engine snapshot when a websocket manager exists."""
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is None:
+        return
+    await ws_manager.broadcast(
+        {"type": "tick", "data": serialize_snapshot(engine.snapshot())}
+    )
+
+
 def _control_response(result: ControlResult) -> dict[str, Any]:
     """Serialize a simulation control result for API clients."""
     return {
@@ -70,28 +80,34 @@ def _control_response(result: ControlResult) -> dict[str, Any]:
 
 @router.post("/start")
 async def start_simulation(
+    request: Request,
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Initialize and start the simulation."""
     result = await engine.start()
+    await _broadcast_snapshot(request, engine)
     return _control_response(result)
 
 
 @router.post("/reset")
 async def reset_simulation(
+    request: Request,
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Reset the simulation world and leave it stopped."""
     result = await engine.reset()
+    await _broadcast_snapshot(request, engine)
     return _control_response(result)
 
 
 @router.post("/config/reset")
 async def reset_config(
+    request: Request,
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Restore runtime configuration defaults without changing lifecycle."""
     engine.reset_config()
+    await _broadcast_snapshot(request, engine)
     return {
         "message": "Configuration reset to defaults.",
         "config": engine.config.model_dump(),
@@ -100,24 +116,29 @@ async def reset_config(
 
 @router.post("/pause")
 async def pause_simulation(
+    request: Request,
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Pause the tick loop."""
     result = engine.pause()
+    await _broadcast_snapshot(request, engine)
     return _control_response(result)
 
 
 @router.post("/resume")
 async def resume_simulation(
+    request: Request,
     engine: EngineDependency,
 ) -> dict[str, Any]:
     """Resume the tick loop."""
     result = engine.resume()
+    await _broadcast_snapshot(request, engine)
     return _control_response(result)
 
 
 @router.put("/config")
 async def update_config(
+    request: Request,
     engine: EngineDependency,
     config: ConfigUpdateBody,
 ) -> dict[str, Any]:
@@ -140,6 +161,7 @@ async def update_config(
             detail=str(exc),
         ) from exc
 
+    await _broadcast_snapshot(request, engine)
     return {
         "message": f"Updated: {', '.join(updates.keys())}.",
         "config": engine.config.model_dump(),
