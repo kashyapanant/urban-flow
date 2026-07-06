@@ -261,6 +261,37 @@ class TestWebSocketManager:
         assert websocket_manager.active_connections == []
 
     @pytest.mark.asyncio
+    async def test_manager_send_personal_message_disconnects_on_unexpected_error(
+        self,
+    ) -> None:
+        """Direct sends drop sockets that fail with non-WebSocket exceptions."""
+        websocket_manager = WebSocketManager()
+        failing = FakeWebSocket(send_exception=ValueError("unexpected send failure"))
+        await websocket_manager.connect(failing)
+
+        with pytest.raises(ValueError, match="unexpected send failure"):
+            await websocket_manager.send_personal_message(
+                {"type": "tick", "data": {"tick_count": 7}},
+                failing,
+            )
+
+        assert websocket_manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_manager_serialized_send_recreates_missing_connection_lock(
+        self,
+    ) -> None:
+        """Serialized sends recreate a missing per-connection lock on demand."""
+        websocket_manager = WebSocketManager()
+        websocket = FakeWebSocket()
+        message = {"type": "tick", "data": {"tick_count": 7}}
+
+        await websocket_manager._send_serialized(websocket, message)
+
+        assert websocket.sent_messages == [message]
+        assert websocket in websocket_manager._send_locks
+
+    @pytest.mark.asyncio
     async def test_manager_serializes_direct_sends_with_broadcasts(self) -> None:
         """A direct send waits for an in-flight broadcast on the same socket."""
 
