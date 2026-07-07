@@ -9,14 +9,14 @@ from ..simulation.engine import ControlResult, SimulationEngine
 from .serialization import serialize_snapshot
 
 
-def _reject_bool(value: Any) -> Any:
-    """Reject booleans so JSON true/false do not coerce into numbers."""
-    if isinstance(value, bool):
-        raise ValueError("Boolean values are not allowed for numeric config fields.")
+def _require_number(value: Any) -> Any:
+    """Accept only real numeric JSON values, excluding booleans and strings."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError("Numeric config fields require int or float values.")
     return value
 
 
-StrictNumericFloat = Annotated[float, BeforeValidator(_reject_bool)]
+StrictNumericFloat = Annotated[float, BeforeValidator(_require_number)]
 
 
 class ConfigUpdateRequest(BaseModel):

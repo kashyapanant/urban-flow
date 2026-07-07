@@ -131,9 +131,11 @@ class TestConfigUpdateRequest:
             ("spawn_rate", "invalid"),
             ("spawn_rate", [1, 2, 3]),
             ("spawn_rate", True),
+            ("spawn_rate", "0.7"),
             ("emergency_probability", "invalid"),
             ("emergency_probability", [1, 2, 3]),
             ("emergency_probability", False),
+            ("emergency_probability", "0.4"),
             ("phase_duration", "string"),
             ("phase_duration", 3.14),
             ("phase_duration", False),
@@ -696,6 +698,24 @@ class TestAPIRoutes:
         self, wired_client: TestClient, payload: dict[str, bool], field_name: str
     ) -> None:
         """REST config rejects boolean values for numeric runtime fields."""
+        response = wired_client.put("/api/simulation/config", json=payload)
+
+        assert response.status_code == 422
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"][-1] == field_name
+
+    @pytest.mark.parametrize(
+        ("payload", "field_name"),
+        [
+            ({"spawn_rate": "0.7"}, "spawn_rate"),
+            ({"emergency_probability": "0.4"}, "emergency_probability"),
+        ],
+    )
+    def test_update_config_returns_422_for_string_float_fields(
+        self, wired_client: TestClient, payload: dict[str, str], field_name: str
+    ) -> None:
+        """REST config rejects string payloads for float runtime fields."""
         response = wired_client.put("/api/simulation/config", json=payload)
 
         assert response.status_code == 422
