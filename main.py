@@ -20,14 +20,6 @@ from backend.simulation.engine import SimulationEngine, SimulationSnapshot
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    ws_manager = WebSocketManager()
-
-    async def broadcast_snapshot(snapshot: SimulationSnapshot) -> None:
-        await ws_manager.broadcast(
-            {"type": "tick", "data": serialize_snapshot(snapshot)}
-        )
-
-    engine = SimulationEngine(broadcast_callback=broadcast_snapshot)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -37,10 +29,21 @@ def create_app() -> FastAPI:
             await sim_engine.stop()
 
     app = FastAPI(title="Urban Flow", lifespan=lifespan)
+    ws_manager = WebSocketManager()
+
+    async def broadcast_snapshot(snapshot: SimulationSnapshot) -> None:
+        current_ws_manager = getattr(app.state, "ws_manager", None)
+        if current_ws_manager is None:
+            return
+        await current_ws_manager.broadcast(
+            {"type": "tick", "data": serialize_snapshot(snapshot)}
+        )
+
+    engine = SimulationEngine(broadcast_callback=broadcast_snapshot)
     app.state.engine = engine
     app.state.ws_manager = ws_manager
     setup_cors(app)
-    setup_routes(app, engine, ws_manager)
+    setup_routes(app)
     setup_static_files(app)
     return app
 
@@ -65,14 +68,17 @@ def setup_cors(app: FastAPI) -> None:
     )
 
 
-def setup_routes(
-    app: FastAPI, engine: SimulationEngine, ws_manager: WebSocketManager
-) -> None:
+def setup_routes(app: FastAPI) -> None:
     """Setup API routes and WebSocket endpoints."""
     app.include_router(router)
 
     @app.websocket("/ws")
     async def simulation_websocket(websocket: WebSocket) -> None:
+        engine = getattr(websocket.app.state, "engine", None)
+        ws_manager = getattr(websocket.app.state, "ws_manager", None)
+        if engine is None or ws_manager is None:
+            await websocket.close()
+            return
         await websocket_endpoint(websocket, engine, ws_manager)
 
 

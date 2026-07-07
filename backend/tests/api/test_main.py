@@ -11,6 +11,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from backend.api.serialization import serialize_snapshot
 from backend.simulation.engine import SimulationEngine
@@ -66,6 +67,41 @@ class TestAppBootstrap:
         assert message["data"]["tick_count"] == 0
         assert message["data"]["state"] == "stopped"
 
+    def test_create_app_websocket_uses_current_app_state_engine(self) -> None:
+        """The websocket route resolves the current engine from app state."""
+        from main import create_app
+
+        app = create_app()
+        replacement_engine = SimulationEngine()
+        replacement_engine.state = replacement_engine.state.PAUSED
+        replacement_engine.tick_count = 9
+        replacement_engine.set_tick_speed(7)
+        app.state.engine = replacement_engine
+
+        with TestClient(app) as client:
+            with client.websocket_connect("/ws") as websocket:
+                message = websocket.receive_json()
+
+        assert message["type"] == "tick"
+        assert message["data"]["tick_count"] == 9
+        assert message["data"]["state"] == "paused"
+        assert message["data"]["config"]["tick_speed"] == 7
+
+    @pytest.mark.parametrize("missing_attr", ["engine", "ws_manager"])
+    def test_create_app_websocket_closes_when_required_state_is_missing(
+        self, missing_attr: str
+    ) -> None:
+        """The websocket route closes cleanly if shared app state is incomplete."""
+        from main import create_app
+
+        app = create_app()
+        delattr(app.state, missing_attr)
+
+        with TestClient(app) as client:
+            with pytest.raises(WebSocketDisconnect):
+                with client.websocket_connect("/ws") as websocket:
+                    websocket.receive_json()
+
     def test_create_app_broadcast_callback_sends_tick_payload(self) -> None:
         """The engine callback created by the app broadcasts serialized snapshots."""
         from main import create_app
@@ -86,6 +122,39 @@ class TestAppBootstrap:
                 "data": serialize_snapshot(app.state.engine.snapshot()),
             }
         ]
+
+    def test_create_app_broadcast_callback_uses_current_app_state_ws_manager(
+        self,
+    ) -> None:
+        """The engine broadcast callback resolves the current manager from app state."""
+        from main import create_app
+
+        captured: list[dict[str, Any]] = []
+
+        class StubWebSocketManager:
+            async def broadcast(self, message: dict[str, Any]) -> None:
+                captured.append(message)
+
+        app = create_app()
+        app.state.ws_manager = StubWebSocketManager()
+
+        asyncio.run(app.state.engine._broadcast_callback(app.state.engine.snapshot()))
+
+        assert captured == [
+            {
+                "type": "tick",
+                "data": serialize_snapshot(app.state.engine.snapshot()),
+            }
+        ]
+
+    def test_create_app_broadcast_callback_tolerates_missing_ws_manager(self) -> None:
+        """The engine callback is a no-op when app.state lacks a manager."""
+        from main import create_app
+
+        app = create_app()
+        del app.state.ws_manager
+
+        asyncio.run(app.state.engine._broadcast_callback(app.state.engine.snapshot()))
 
     def test_create_app_uses_default_cors_origins_when_env_is_unset(
         self, monkeypatch: pytest.MonkeyPatch
