@@ -127,12 +127,16 @@ class TestConfigUpdateRequest:
         [
             ("tick_speed", "not_a_number"),
             ("tick_speed", 5.5),
+            ("tick_speed", True),
             ("spawn_rate", "invalid"),
             ("spawn_rate", [1, 2, 3]),
+            ("spawn_rate", True),
             ("emergency_probability", "invalid"),
             ("emergency_probability", [1, 2, 3]),
+            ("emergency_probability", False),
             ("phase_duration", "string"),
             ("phase_duration", 3.14),
+            ("phase_duration", False),
         ],
     )
     def test_invalid_field_types(self, field_name: str, invalid_value: object) -> None:
@@ -678,6 +682,26 @@ class TestAPIRoutes:
             "emergency_probability": 0.1,
             "phase_duration": 3,
         }
+
+    @pytest.mark.parametrize(
+        ("payload", "field_name"),
+        [
+            ({"tick_speed": True}, "tick_speed"),
+            ({"spawn_rate": True}, "spawn_rate"),
+            ({"emergency_probability": False}, "emergency_probability"),
+            ({"phase_duration": False}, "phase_duration"),
+        ],
+    )
+    def test_update_config_returns_422_for_boolean_numeric_fields(
+        self, wired_client: TestClient, payload: dict[str, bool], field_name: str
+    ) -> None:
+        """REST config rejects boolean values for numeric runtime fields."""
+        response = wired_client.put("/api/simulation/config", json=payload)
+
+        assert response.status_code == 422
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"][-1] == field_name
 
     def test_get_metrics_returns_metrics_payload(
         self, wired_client: TestClient

@@ -3,10 +3,20 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StrictInt
 
 from ..simulation.engine import ControlResult, SimulationEngine
 from .serialization import serialize_snapshot
+
+
+def _reject_bool(value: Any) -> Any:
+    """Reject booleans so JSON true/false do not coerce into numbers."""
+    if isinstance(value, bool):
+        raise ValueError("Boolean values are not allowed for numeric config fields.")
+    return value
+
+
+StrictNumericFloat = Annotated[float, BeforeValidator(_reject_bool)]
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -14,17 +24,19 @@ class ConfigUpdateRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    tick_speed: int | None = Field(None, ge=1, le=10, description="Ticks per second")
-    spawn_rate: float | None = Field(
+    tick_speed: StrictInt | None = Field(
+        None, ge=1, le=10, description="Ticks per second"
+    )
+    spawn_rate: StrictNumericFloat | None = Field(
         None, ge=0.0, le=1.0, description="Probability per edge cell per tick"
     )
-    emergency_probability: float | None = Field(
+    emergency_probability: StrictNumericFloat | None = Field(
         None,
         ge=0.0,
         le=1.0,
         description="Probability that spawned vehicle is emergency",
     )
-    phase_duration: int | None = Field(
+    phase_duration: StrictInt | None = Field(
         None, ge=1, le=20, description="Ticks per traffic light phase"
     )
 
