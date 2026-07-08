@@ -89,6 +89,14 @@ A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, a
 3. Compute a path via Pathfinder. If no valid path, retry with a new destination (max 10 retries).
 4. Vehicle type is `emergency` with a configurable probability (e.g., 10%), otherwise `normal`.
 
+**Known Phase 1 limitation:**
+Runtime testing showed that high spawn rates can saturate the 10x10 single-lane,
+bidirectional grid into a permanent all-waiting state. In that state the engine
+continues ticking and `/metrics` remains healthy, but metrics stop changing
+because no vehicles can reach their destinations. This is tracked as
+`P1-ENG-04` and should be addressed with congestion backpressure before the
+browser MVP is considered demo-ready.
+
 **Movement (per tick):**
 1. Sort vehicles by priority: emergency vehicles first, then by fewest cells remaining to destination (tiebreak: random).
 2. For each vehicle in priority order:
@@ -201,10 +209,12 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 
 | Method | Path                      | Purpose                                      |
 |--------|---------------------------|----------------------------------------------|
-| POST   | `/api/simulation/start`   | Initialize and start (or reset) the simulation |
+| POST   | `/api/simulation/start`   | Start the simulation                         |
+| POST   | `/api/simulation/reset`   | Reset the simulation state and leave it stopped |
+| POST   | `/api/simulation/config/reset` | Restore mutable runtime config defaults without rebuilding state |
 | POST   | `/api/simulation/pause`   | Pause the tick loop                          |
 | POST   | `/api/simulation/resume`  | Resume the tick loop                         |
-| PUT    | `/api/simulation/config`  | Update runtime config (tick speed, spawn rate, phase duration) |
+| PUT    | `/api/simulation/config`  | Update runtime config (tick speed, spawn rate, emergency probability, phase duration) |
 | GET    | `/api/simulation/state`   | Return current state snapshot (polling fallback) |
 | GET    | `/api/simulation/metrics` | Return current metrics                       |
 
@@ -212,7 +222,7 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 
 | Direction | Message Type | Payload |
 |-----------|-------------|---------|
-| Server → Client | `tick` | Full `SimulationState` snapshot (grid, vehicles, lights, metrics, tickCount) |
+| Server → Client | `tick` | Full `SimulationState` snapshot (grid, vehicles, lights, metrics, tick_count) |
 | Client → Server | `pause` | — |
 | Client → Server | `resume` | — |
 | Client → Server | `set_speed` | `{ speed: int }` |
@@ -372,7 +382,8 @@ There is a single authoritative state object inside the Simulation Engine. The r
 1. **Atomic ticks** — No partial state is ever visible. The engine completes all six tick phases before producing a snapshot.
 2. **No shared mutable state across threads** — The simulation runs on the asyncio event loop. The API layer reads state only via `engine.snapshot()`, which returns a deep copy / serialized dict.
 3. **Config changes are deferred** — Calling `set_tick_speed(5)` stores the new value; the engine picks it up at the start of the next tick. This avoids mid-tick inconsistency.
-4. **Frontend is eventually consistent** — The browser receives state snapshots at tick frequency. Between ticks, the frontend displays the last-known state.
+4. **Config reset is settings-only** — `POST /api/simulation/config/reset` restores the mutable runtime settings to defaults, preserves structural grid dimensions, and does not rebuild world state or change lifecycle.
+5. **Frontend is eventually consistent** — The browser receives state snapshots at tick frequency. Between ticks, the frontend displays the last-known state.
 
 ---
 
@@ -382,6 +393,7 @@ There is a single authoritative state object inside the Simulation Engine. The r
 |----------|----------|
 | Pathfinding failure (no valid path) | Re-roll origin/destination up to 10 times; log warning if all retries fail |
 | Grid fully congested | Skip spawning for this tick; log info |
+| Gridlocked active vehicles | Known Phase 1 limitation; track under `P1-ENG-04` for spawn backpressure and deadlock guard behavior |
 | WebSocket disconnect | Client reconnects with exponential backoff (1s, 2s, 4s, max 30s); server sends current full state on reconnect |
 | Invalid config values via API | Pydantic validation rejects with 422; return human-readable error |
 | Unexpected error inside tick | Log full traceback, skip the problematic operation, continue the tick loop |

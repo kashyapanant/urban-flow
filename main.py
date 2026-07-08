@@ -1,46 +1,92 @@
 """Main FastAPI application for Urban Flow simulation."""
 
-import uvicorn
-from fastapi import FastAPI
+from __future__ import annotations
 
-from backend.simulation.engine import SimulationEngine
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import uvicorn
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from backend.api.routes import router
+from backend.api.serialization import serialize_snapshot
+from backend.api.websocket import WebSocketManager, websocket_endpoint
+from backend.simulation.engine import SimulationEngine, SimulationSnapshot
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application.
+    """Create and configure the FastAPI application."""
 
-    Returns:
-        Configured FastAPI app instance
-    """
-    raise NotImplementedError("create_app(")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        yield
+        sim_engine = getattr(app.state, "engine", None)
+        if sim_engine is not None:
+            await sim_engine.stop()
+
+    app = FastAPI(title="Urban Flow", lifespan=lifespan)
+    ws_manager = WebSocketManager()
+
+    async def broadcast_snapshot(snapshot: SimulationSnapshot) -> None:
+        current_ws_manager = getattr(app.state, "ws_manager", None)
+        if current_ws_manager is None:
+            return
+        await current_ws_manager.broadcast(
+            {"type": "tick", "data": serialize_snapshot(snapshot)}
+        )
+
+    engine = SimulationEngine(broadcast_callback=broadcast_snapshot)
+    app.state.engine = engine
+    app.state.ws_manager = ws_manager
+    setup_cors(app)
+    setup_routes(app)
+    setup_static_files(app)
+    return app
 
 
 def setup_cors(app: FastAPI) -> None:
     """Configure CORS middleware.
 
-    Args:
-        app: FastAPI application instance
+    Origins are read from CORS_ORIGINS environment variable.
+    Defaults to localhost:3000 for local frontend development.
     """
-    raise NotImplementedError("setup_cors(")
+    raw_origins = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000, http://127.0.0.1:3000",
+    )
+    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
-def setup_routes(app: FastAPI, engine: SimulationEngine) -> None:
-    """Setup API routes and WebSocket endpoints.
+def setup_routes(app: FastAPI) -> None:
+    """Setup API routes and WebSocket endpoints."""
+    app.include_router(router)
 
-    Args:
-        app: FastAPI application instance
-        engine: Simulation engine instance
-    """
-    raise NotImplementedError("setup_routes(")
+    @app.websocket("/ws")
+    async def simulation_websocket(websocket: WebSocket) -> None:
+        engine = getattr(websocket.app.state, "engine", None)
+        ws_manager = getattr(websocket.app.state, "ws_manager", None)
+        if engine is None or ws_manager is None:
+            await websocket.close()
+            return
+        await websocket_endpoint(websocket, engine, ws_manager)
 
 
 def setup_static_files(app: FastAPI) -> None:
-    """Setup static file serving for frontend.
-
-    Args:
-        app: FastAPI application instance
-    """
-    raise NotImplementedError("setup_static_files(")
+    """Setup static file serving for the frontend when files exist."""
+    frontend_dir = Path(__file__).parent / "frontend"
+    if frontend_dir.exists():
+        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 
 # Create the FastAPI app

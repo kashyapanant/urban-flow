@@ -24,7 +24,7 @@ test:
 	$(UV) pytest
 
 test-cov:
-	$(UV) pytest --cov --cov-report=term-missing
+	$(UV) pytest --cov=backend --cov=main --cov-report=term-missing
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov

@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
-from ..config import SimulationConfig
+from ..config import DEFAULT_CONFIG, SimulationConfig
 from .grid import Grid
 from .metrics import Metrics
 from .traffic_light import Axis, TrafficLightManager
 from .vehicle import Vehicle, VehicleManager
+
+logger = logging.getLogger(__name__)
 
 
 class SimulationState(Enum):
@@ -40,7 +44,7 @@ class SimulationSnapshot:
 class ControlResult:
     """Outcome of a user-driven simulation control request."""
 
-    action: Literal["start", "pause", "resume", "stop"]
+    action: Literal["start", "pause", "resume", "stop", "reset"]
     applied: bool
     state: SimulationState
     message: str
@@ -71,6 +75,13 @@ class SimulationEngine:
             config: Simulation configuration (uses defaults if None)
         """
         self.config = config or SimulationConfig()
+        self._broadcast_callback = broadcast_callback
+        self._run_task: asyncio.Task[None] | None = None
+        self.state = SimulationState.STOPPED
+        self._build_runtime_state()
+
+    def _build_runtime_state(self) -> None:
+        """Rebuild simulation world state from the current config."""
         self.grid = Grid(self.config.grid_width, self.config.grid_height)
         self.vehicle_manager = VehicleManager()
         self.traffic_light_manager = TrafficLightManager(
@@ -79,13 +90,15 @@ class SimulationEngine:
         )
         self.metrics = Metrics()
         self.tick_count = 0
-        self.state = SimulationState.STOPPED
-        self._broadcast_callback = broadcast_callback
-        self._run_task: asyncio.Task[None] | None = None
+
+    def _has_live_run_task(self) -> bool:
+        """Return whether the engine still owns a live background loop task."""
+        return self._run_task is not None and not self._run_task.done()
 
     async def start(self) -> ControlResult:
         """Start the simulation tick loop."""
-        if self._run_task is not None and not self._run_task.done():
+        # Primary guard: live task means loop is already running or paused
+        if self._has_live_run_task():
             if self.state is SimulationState.PAUSED:
                 return ControlResult(
                     action="start",
@@ -99,6 +112,7 @@ class SimulationEngine:
                 state=SimulationState.RUNNING,
                 message="Simulation is already running.",
             )
+        # Defensive guards: state is inconsistent (task done but state not reset)
         if self.state is SimulationState.RUNNING:
             return ControlResult(
                 action="start",
@@ -126,7 +140,7 @@ class SimulationEngine:
 
     async def stop(self) -> ControlResult:
         """Stop the simulation and clean up."""
-        if self.state is SimulationState.STOPPED:
+        if self.state is SimulationState.STOPPED and not self._has_live_run_task():
             return ControlResult(
                 action="stop",
                 applied=False,
@@ -135,11 +149,41 @@ class SimulationEngine:
             )
 
         self.state = SimulationState.STOPPED
+        run_task = self._run_task
+        if run_task is not None and not run_task.done():
+            current_task = asyncio.current_task()
+            if run_task is not current_task:
+                run_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await run_task
+                # Clear only if callback hasn't already done so
+                if self._run_task is run_task:
+                    self._run_task = None
+
         return ControlResult(
             action="stop",
             applied=True,
             state=SimulationState.STOPPED,
             message="Simulation stopped.",
+        )
+
+    async def reset(self) -> ControlResult:
+        """Rebuild state from the current config and leave the engine stopped.
+
+        This preserves applied config changes. Use reset_config() separately
+        when runtime settings should return to defaults.
+        """
+        if self.state is not SimulationState.STOPPED or self._has_live_run_task():
+            await self.stop()
+
+        self._build_runtime_state()
+        self.state = SimulationState.STOPPED
+        self._run_task = None
+        return ControlResult(
+            action="reset",
+            applied=True,
+            state=SimulationState.STOPPED,
+            message="Simulation reset.",
         )
 
     async def _run_tick_loop(self) -> None:
@@ -161,6 +205,11 @@ class SimulationEngine:
         else:
             exception = task.exception()
             if exception is not None:
+                logger.error(
+                    "Simulation run task failed: %s",
+                    exception,
+                    exc_info=(type(exception), exception, exception.__traceback__),
+                )
                 self.state = SimulationState.STOPPED
         if self._run_task is task:
             self._run_task = None
@@ -217,13 +266,35 @@ class SimulationEngine:
             )
         raise RuntimeError(f"Unhandled simulation state: {self.state!r}")
 
+    def update_config(self, **updates: Any) -> None:
+        """Apply runtime config updates atomically.
+
+        Grid dimensions are immutable at runtime because the grid and traffic
+        lights are built from them. Change them via a fresh engine config or a
+        reset flow that rebuilds world state.
+
+        The merged config is validated before any runtime state mutates. Side
+        effects are applied only after validation succeeds, and ``self.config``
+        is updated once at the end.
+        """
+        if "grid_width" in updates or "grid_height" in updates:
+            raise ValueError(
+                "grid_width and grid_height can only be changed "
+                "at initialization or reset"
+            )
+
+        new_config = self._validated_config_copy(**updates)
+        if "phase_duration" in updates:
+            self.traffic_light_manager.set_phase_duration(new_config.phase_duration)
+        self.config = new_config
+
     def set_tick_speed(self, speed: int) -> None:
         """Set simulation tick speed (takes effect next tick).
 
         Args:
             speed: Ticks per second (1-10)
         """
-        self.config = self._validated_config_copy(tick_speed=speed)
+        self.update_config(tick_speed=speed)
 
     def set_spawn_rate(self, rate: float) -> None:
         """Set vehicle spawn rate (takes effect next tick).
@@ -231,7 +302,7 @@ class SimulationEngine:
         Args:
             rate: Probability per edge cell per tick (0.0-1.0)
         """
-        self.config = self._validated_config_copy(spawn_rate=rate)
+        self.update_config(spawn_rate=rate)
 
     def set_phase_duration(self, duration: int) -> None:
         """Set traffic light phase duration (takes effect next tick).
@@ -239,8 +310,24 @@ class SimulationEngine:
         Args:
             duration: Ticks per phase (1-20)
         """
-        self.config = self._validated_config_copy(phase_duration=duration)
-        self.traffic_light_manager.set_phase_duration(duration)
+        self.update_config(phase_duration=duration)
+
+    def set_emergency_probability(self, probability: float) -> None:
+        """Set emergency vehicle spawn probability (takes effect next tick).
+
+        Args:
+            probability: Probability that a spawned vehicle is emergency (0.0-1.0)
+        """
+        self.update_config(emergency_probability=probability)
+
+    def reset_config(self) -> None:
+        """Restore mutable runtime settings without rebuilding world state."""
+        self.update_config(
+            tick_speed=DEFAULT_CONFIG.tick_speed,
+            spawn_rate=DEFAULT_CONFIG.spawn_rate,
+            emergency_probability=DEFAULT_CONFIG.emergency_probability,
+            phase_duration=DEFAULT_CONFIG.phase_duration,
+        )
 
     def snapshot(self) -> SimulationSnapshot:
         """Create a complete state snapshot for frontend consumption.
