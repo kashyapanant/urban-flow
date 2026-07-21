@@ -41,6 +41,7 @@ The simulation is deterministic and single-threaded. Each tick produces a comple
 **Dependency rules:**
 - Arrows point from consumer → dependency.
 - The Simulation Engine orchestrates Grid, VehicleManager, and TrafficLightManager. It is the only module that mutates world state.
+- The Simulation Engine also orchestrates RoadSegmentManager, which owns dynamic segment admission state.
 - The API Layer holds a reference to the Simulation Engine but never mutates simulation objects directly — it calls engine methods.
 - The Pathfinder is a stateless utility consumed by VehicleManager.
 - The Frontend has zero backend imports; it communicates exclusively via WebSocket and REST.
@@ -81,33 +82,36 @@ This yields 16 intersections, 48 road cells, and 36 obstacle cells. All 36 perim
 
 ### 3.2 Vehicle & VehicleManager (`simulation/vehicle.py`)
 
-A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, and status (moving/waiting/arrived). The VehicleManager owns the collection of active vehicles and handles spawning, movement, and removal.
+A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, and status (moving/waiting/arrived). The VehicleManager owns the collection of active vehicles and handles spawning, movement, segment admission, and arrival cleanup.
 
 **Spawning:**
-1. For each eligible edge cell (traversable and unoccupied), roll against `spawnRate`.
-2. Pick a random destination on a different edge.
-3. Compute a path via Pathfinder. If no valid path, retry with a new destination (max 10 retries).
-4. Vehicle type is `emergency` with a configurable probability (e.g., 10%), otherwise `normal`.
+1. Roll spawn_rate once per tick; a successful roll creates at most one demand attempt.
+2. Choose vehicle type before admission so emergency reserve capacity applies.
+3. Reject demand when movement backpressure or the type-specific active cap applies.
+4. Search shuffled edge origins and destinations for a valid fixed path and segment admission.
+5. Place a vehicle only when its first movement direction is accepted by the origin segment.
 
-**Known Phase 1 limitation:**
-Runtime testing showed that high spawn rates can saturate the 10x10 single-lane,
-bidirectional grid into a permanent all-waiting state. In that state the engine
-continues ticking and `/metrics` remains healthy, but metrics stop changing
-because no vehicles can reach their destinations. This is tracked as
-`P1-ENG-04` and should be addressed with congestion backpressure before the
-browser MVP is considered demo-ready.
+Rejected demand is discarded rather than queued outside the grid. The default 10x10
+network admits at most 30 active vehicles and reserves three positions for
+emergency arrivals. Normal traffic stops at 27 active vehicles. The cap scales
+from the default traversable-cell ratio for other grid sizes.
 
 **Movement (per tick):**
-1. Sort vehicles by priority: emergency vehicles first, then by fewest cells remaining to destination (tiebreak: random).
-2. For each vehicle in priority order:
-   - Look at the next cell on its path.
-   - If the cell is unoccupied **and** traffic-light permits entry → move (claim the cell, release the old one).
-   - Otherwise → stay (status = `waiting`).
-3. Mark vehicles that reached their destination as `arrived`.
+1. Refresh persistent segment requests and arbitrate direction/reservations.
+2. Apply emergency signal preemption, then advance traffic lights.
+3. Sort vehicles by the existing priority order and move sequentially.
+4. A vehicle may enter an intersection only when the signal, segment grant, and
+   downstream cell all permit the move.
+5. Record every applicable blocker in the vehicle wait_reasons list.
+6. Reconcile segment occupancy and reservations after movement.
 
-The priority ordering plus sequential claim resolution ensures that edge-case #1 (two vehicles targeting the same cell) is handled deterministically without a separate conflict-resolution pass.
+### 3.3 RoadSegmentManager
 
-### 3.3 TrafficLight & TrafficLightManager (`simulation/traffic_light.py`)
+The RoadSegmentManager owns dynamic admission state for maximal straight road runs. It derives deterministic segment geometry from the Grid, persists normal and emergency requests, controls one active direction per segment, and exposes additive snapshot records. It does not change pathfinding or mutate traffic lights directly; the SimulationEngine coordinates segment grants with signal preemption.
+
+A segment request is not an external spawn queue. It is scheduler metadata for a lead vehicle already on the grid. Opposing requests close admission, drain current occupants, and switch fairly when the segment is empty.
+
+### 3.4 TrafficLight & TrafficLightManager (`simulation/traffic_light.py`)
 
 Each intersection has a TrafficLight with two axes (NS and EW). At any moment, one axis is the **active axis**; the other axis is red.
 
@@ -136,7 +140,7 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 5. The `preemptedBy` field is set to the claiming emergency vehicle. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
 6. When the emergency vehicle clears the intersection (moves past it), `release_preemption` is called and normal cycling resumes from the current axis's green phase.
 
-### 3.4 Pathfinder (`simulation/pathfinder.py`)
+### 3.5 Pathfinder (`simulation/pathfinder.py`)
 
 A stateless A\* implementation.
 
@@ -150,44 +154,23 @@ A stateless A\* implementation.
 - This biases emergency vehicles toward routes with currently-green corridors
 - Path is computed once at spawn time (no mid-journey rerouting per requirements)
 
-### 3.5 Simulation Engine (`simulation/engine.py`)
+### 3.6 Simulation Engine (`simulation/engine.py`)
 
-The orchestrator. Owns the Grid, VehicleManager, TrafficLightManager, and Metrics. Runs a tick loop driven by `asyncio`.
+The orchestrator. Owns the Grid, VehicleManager, RoadSegmentManager, TrafficLightManager, and Metrics. Runs a tick loop driven by `asyncio`.
 
 **Tick execution order (critical for determinism):**
 
 ```
-┌─ 1. Preemption scan ────────────────────────────────────┐
-│  For each emergency vehicle, scan up to 3 cells ahead.  │
-│  Request preemption on upcoming intersections.           │
-└─────────────────────────────────────────────────────────┘
-         │
-┌─ 2. Traffic light update ──────────────────────────────┐
-│  Advance all lights by one tick.                        │
-│  Process preemption transitions (yellow → red → green). │
-│  Release preemptions for cleared intersections.         │
-└─────────────────────────────────────────────────────────┘
-         │
-┌─ 3. Vehicle movement ─────────────────────────────────┐
-│  Sort vehicles by priority (emergency first, then by   │
-│  remaining distance, then random tiebreak).             │
-│  Move or wait each vehicle in order.                    │
-└─────────────────────────────────────────────────────────┘
-         │
-┌─ 4. Vehicle spawning ─────────────────────────────────┐
-│  For each unoccupied edge cell, probabilistically      │
-│  spawn a new vehicle with a valid path.                 │
-└─────────────────────────────────────────────────────────┘
-         │
-┌─ 5. Cleanup & metrics ────────────────────────────────┐
-│  Remove arrived vehicles from grid and active list.     │
-│  Update running averages and improvement percentage.    │
-└─────────────────────────────────────────────────────────┘
-         │
-┌─ 6. Broadcast ────────────────────────────────────────┐
-│  Snapshot full state → push to all WebSocket clients.  │
-└─────────────────────────────────────────────────────────┘
+refresh segment requests -> arbitrate segment reservations
+-> apply emergency preemption -> advance lights
+-> move vehicles and count progress -> reconcile segments
+-> attempt spawning -> collect arrivals and update metrics
+-> increment tick and broadcast
 ```
+
+Segment requests are resolved before movement. Spawning observes the current
+movement result, so an active network with zero movement does not receive new
+vehicles. The complete operation remains atomic from the snapshot consumer perspective.
 
 **Tick loop:**
 ```
@@ -203,7 +186,7 @@ async def run():
 
 The engine exposes methods for pause, resume, speed adjustment, spawn rate changes, and phase duration changes — all of which take effect on the **next** tick (no partial-tick mutations).
 
-### 3.6 API Layer (`api/routes.py`, `api/websocket.py`)
+### 3.7 API Layer (`api/routes.py`, `api/websocket.py`)
 
 **REST endpoints:**
 
@@ -222,7 +205,7 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 
 | Direction | Message Type | Payload |
 |-----------|-------------|---------|
-| Server → Client | `tick` | Full `SimulationState` snapshot (grid, vehicles, lights, metrics, tick_count) |
+| Server → Client | `tick` | Full SimulationState snapshot (grid, vehicles, road segments, lights, metrics, tick_count) |
 | Client → Server | `pause` | — |
 | Client → Server | `resume` | — |
 | Client → Server | `set_speed` | `{ speed: int }` |
@@ -231,14 +214,14 @@ The engine exposes methods for pause, resume, speed adjustment, spawn rate chang
 
 The REST endpoints exist as a fallback and for tooling (curl, tests). The primary real-time channel is WebSocket.
 
-### 3.7 Frontend (`frontend/`)
+### 3.8 Frontend (`frontend/`)
 
 A zero-build-step browser application: one HTML file, vanilla JavaScript, and HTML5 Canvas.
 
 **Components:**
 - **Renderer** (`renderer.js`): Draws the grid on a `<canvas>`. Cells are colored by type; vehicles are drawn as colored shapes (blue = normal, red = emergency); traffic lights are rendered as colored dots at intersections.
 - **Controls** (`controls.js`): Pause/resume button, tick-speed slider (1–10), spawn-rate input, phase-duration input. Sends commands over the WebSocket.
-- **Metrics display** (`metrics.js`): Shows normal avg ticks, emergency avg ticks, improvement %, and total completed vehicles. Updated every tick.
+- **Metrics display** (`metrics.js`): Shows averages, improvement, completion and spawn counters, active/waiting counts, capacity, movement progress, and gridlock status. Updated every tick.
 - **App** (`app.js`): WebSocket lifecycle (connect, reconnect with exponential backoff), message dispatch to renderer/controls/metrics.
 
 ---
@@ -284,16 +267,29 @@ class Vehicle:
     path_index: int
     status: VehicleStatus    # moving | waiting | arrived
     ticks_elapsed: int
+    wait_reasons: list[WaitReason]
 ```
 
 ### VehicleManager
 
 ```
 class VehicleManager:
-    spawn_vehicles(grid, pathfinder, traffic_lights, spawn_rate, emergency_probability) -> list[Vehicle]
-    move_vehicles(grid, traffic_light_manager) -> None
+    spawn_vehicles(grid, pathfinder, traffic_lights, road_segments, spawn_rate, emergency_probability) -> list[Vehicle]
+    move_vehicles(grid, traffic_light_manager, road_segments) -> int
     collect_arrived() -> list[Vehicle]
     get_all() -> list[Vehicle]
+```
+
+### RoadSegmentManager
+
+```
+class RoadSegmentManager:
+    __init__(grid)
+    request(vehicle, segment) -> None
+    arbitrate() -> None
+    can_enter(vehicle, segment) -> bool
+    reconcile() -> None
+    snapshot() -> list[dict]
 ```
 
 ### TrafficLight
@@ -339,6 +335,7 @@ class Pathfinder:
 ```
 class SimulationEngine:
     __init__(config: SimulationConfig)
+    road_segments: RoadSegmentManager
     tick() -> SimulationState
     pause() -> None
     resume() -> None
@@ -357,6 +354,18 @@ class Metrics:
     emergency_avg_ticks: float
     improvement: float          # percentage fewer ticks for emergency
     total_completed: int
+    active_vehicles: int
+    waiting_vehicles: int
+    moves_this_tick: int
+    consecutive_zero_move_ticks: int
+    gridlock_suspected: bool
+    spawn_attempts: int
+    spawn_admitted: int
+    spawn_rejected_capacity: int
+    spawn_rejected_network_stalled: int
+    spawn_rejected_no_admissible_entry: int
+    active_vehicle_cap: int
+    emergency_reserved_slots: int
 
     record_arrival(vehicle: Vehicle) -> None
 ```
@@ -368,7 +377,7 @@ class SimulationConfig:
     grid_width: int = 10
     grid_height: int = 10
     tick_speed: int = 1           # ticks per second (1–10)
-    spawn_rate: float = 0.1       # probability per edge cell per tick
+    spawn_rate: float = 0.1       # one demand roll per tick
     phase_duration: int = 3       # ticks per traffic light phase
     emergency_probability: float = 0.1
 ```
@@ -379,7 +388,7 @@ class SimulationConfig:
 
 There is a single authoritative state object inside the Simulation Engine. The rules:
 
-1. **Atomic ticks** — No partial state is ever visible. The engine completes all six tick phases before producing a snapshot.
+1. **Atomic ticks** — No partial state is ever visible. The engine completes all admission-aware tick phases before producing a snapshot.
 2. **No shared mutable state across threads** — The simulation runs on the asyncio event loop. The API layer reads state only via `engine.snapshot()`, which returns a deep copy / serialized dict.
 3. **Config changes are deferred** — Calling `set_tick_speed(5)` stores the new value; the engine picks it up at the start of the next tick. This avoids mid-tick inconsistency.
 4. **Config reset is settings-only** — `POST /api/simulation/config/reset` restores the mutable runtime settings to defaults, preserves structural grid dimensions, and does not rebuild world state or change lifecycle.
@@ -392,8 +401,8 @@ There is a single authoritative state object inside the Simulation Engine. The r
 | Scenario | Strategy |
 |----------|----------|
 | Pathfinding failure (no valid path) | Re-roll origin/destination up to 10 times; log warning if all retries fail |
-| Grid fully congested | Skip spawning for this tick; log info |
-| Gridlocked active vehicles | Known Phase 1 limitation; track under `P1-ENG-04` for spawn backpressure and deadlock guard behavior |
+| Active cap reached or network made no movement | Reject the spawn demand for this tick and record the rejection reason. |
+| Suspected gridlock | Keep the engine running, pause spawning, expose liveness metrics, and log the state transition. Do not remove or reroute vehicles. |
 | WebSocket disconnect | Client reconnects with exponential backoff (1s, 2s, 4s, max 30s); server sends current full state on reconnect |
 | Invalid config values via API | Pydantic validation rejects with 422; return human-readable error |
 | Unexpected error inside tick | Log full traceback, skip the problematic operation, continue the tick loop |

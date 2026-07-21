@@ -30,7 +30,7 @@
 
 **Context:** The simulation needs a temporal model. Requirements specify tick-based timing: vehicles move 1 cell per tick, traffic light phases last N ticks, tick speed is configurable.
 
-**Decision:** Use a synchronous tick-based loop where one call to `tick()` advances the entire world by one discrete time step.
+**Decision:** Use a synchronous tick-based loop where one call to `tick()` advances the entire world by one discrete time step. P1-ENG-04 adds admission and reconciliation phases within that atomic tick.
 
 **Alternatives considered:**
 - **Event-driven (discrete event simulation with priority queue):** Each event (vehicle arrives at cell, light changes phase) is scheduled at a future time. The engine processes events in chronological order. Better for heterogeneous timing (e.g., vehicles with different speeds, variable-duration events).
@@ -185,7 +185,7 @@
 
 **Context:** Within a single tick, multiple systems must update (traffic lights, vehicles, spawning, metrics). The order affects correctness — e.g., should a vehicle see the light state *before* or *after* lights tick?
 
-**Decision:** Fixed six-phase order: (1) preemption scan → (2) traffic light update → (3) vehicle movement → (4) spawning → (5) cleanup & metrics → (6) broadcast.
+**Decision:** Fixed six-phase order (superseded by the P1-ENG-04 admission-aware order): (1) preemption scan → (2) traffic light update → (3) vehicle movement → (4) spawning → (5) cleanup & metrics → (6) broadcast.
 
 **Alternatives considered:**
 - **Simultaneous resolution:** All vehicles compute their desired next cell, then resolve conflicts in a separate pass. More physically realistic but significantly more complex.
@@ -223,3 +223,24 @@
 ---
 
 **Phase 2–5 decisions** are documented separately in [`phase-decisions.md`](phase-decisions.md).
+
+## Decision: Segment Admission and Congestion Control (P1-ENG-04 through P1-ENG-07)
+
+**Date:** 2026-07-17
+**Status:** Accepted for implementation planning
+
+**Context:** Sustained spawning can fill the one-cell bidirectional grid into opposing waits and cyclic occupancy. Removing vehicles is not acceptable, and multi-lane geometry is outside Phase 1.
+
+**Decision:** Add a dedicated RoadSegmentManager. It derives deterministic road runs, admits one direction at a time, drains and fairly switches on opposing demand, gates intersection entry on downstream availability, and coordinates emergency reservations with signal preemption. Keep fixed paths and sequential movement. Use spawn/capacity backpressure plus movement-based liveness detection.
+
+**Alternatives considered:**
+- Vehicle removal or teleportation: rejected because it hides failed journeys.
+- Multi-lane or static one-way roads: deferred to a later road-network model.
+- Live rerouting or reversing: deferred because they change the fixed-route Phase 1 model.
+
+**Consequences:**
+- Segment state becomes dynamic simulation state and is exposed additively in snapshots.
+- Normal traffic waits for ordinary signals; only the granted emergency reservation preempts a signal.
+- Arbitrary cyclic occupancy can be detected but is not automatically repaired in Phase 1.
+
+See the canonical [P1-ENG-04 Segment Admission and Congestion Design](superpowers/specs/2026-07-17-p1-eng-04-segment-admission-design.md).

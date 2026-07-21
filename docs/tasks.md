@@ -44,19 +44,22 @@ This table is the **authoritative queue** for developer and tester handoffs.
 | P1-API-01 | Config request validation | `ConfigUpdateRequest` bounds and API-facing validation | - | ✅ |
 | P1-TL-02 | TrafficLightManager + grid light wiring | Create all intersection lights, lookups, movement permission bridge, phase-duration updates, light snapshots | P1-TL-01 | ✅ |
 | P1-MET-01 | Metrics module complete | KPI calculations, `record_arrival`, batch updates, reset, `to_dict` | P1-VEH-01 | ✅ |
-| P1-ENG-01 | SimulationEngine complete | Initialization, six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ✅ |
+| P1-ENG-01 | SimulationEngine complete | Initialization, admission-aware tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ✅ |
 | P1-API-02 | Runtime interface layer | REST route wiring, WebSocket manager/handler, app bootstrap, static files, startup lifecycle | P1-ENG-01 | ✅ |
-| P1-ENG-04 | Congestion backpressure + deadlock guard | Prevent long-running 10x10 runs from saturating into all-waiting gridlock; add spawn backpressure, demo-safe defaults or caps, and regression coverage for continued completions under sustained runs | P1-API-02 | ⬜ |
-| P1-FE-01 | Browser MVP | `index.html`, renderer, controls, metrics panel, `app.js`, end-to-end UI wiring | P1-ENG-04 | ⬜ |
+| P1-ENG-04 | Spawn demand and capacity admission | Redefine spawn_rate, enforce the derived active cap and emergency reserve, pause spawning on zero movement, and add spawn accounting | P1-API-02 | ⬜ |
+| P1-ENG-05 | Road segment admission | Derive road segments, persist fair requests, control direction, gate intersections, and expose vehicle wait reasons | P1-ENG-04 | ⬜ |
+| P1-ENG-06 | Emergency segment priority | Coordinate emergency segment reservations with signal preemption and preserve first-come-first-served emergency access | P1-ENG-05 | ⬜ |
+| P1-ENG-07 | Liveness observability and regression | Add segment snapshots, liveness metrics, reset behavior, sustained-run regression, and cyclic-gridlock detection coverage | P1-ENG-06 | ⬜ |
+| P1-FE-01 | Browser MVP | `index.html`, renderer, controls, metrics panel, `app.js`, end-to-end UI wiring | P1-ENG-07 | ⬜ |
 
 ---
 
 ## Current Status
 
 - Phase 1 foundations are complete through `P1-API-02`, including REST route wiring, WebSocket streaming, app bootstrap, and startup/shutdown lifecycle.
-- Runtime testing found that aggressive spawn rates can saturate the 10x10 single-lane grid into permanent all-waiting gridlock. This is documented as `P1-ENG-04` and should be handled before the browser MVP.
+- Runtime testing found that aggressive spawn rates can saturate the 10x10 single-lane grid into permanent all-waiting gridlock. This is documented across `P1-ENG-04` through `P1-ENG-07` and must be handled before the browser MVP.
 - The remaining Phase 1 work is backend congestion stabilization followed by the browser MVP.
-- **Next task:** `P1-ENG-04`
+- **Next tasks:** `P1-ENG-04` through `P1-ENG-07`
 
 ### What "done" means for an open task
 
@@ -81,7 +84,10 @@ Older docs, notes, and design-decision anchors may still reference smaller task 
 | P1-TL-02 | P1-TL-02 |
 | P1-MET-01 | P1-MET-01, P1-MET-02 |
 | P1-ENG-01 | P1-ENG-01, P1-ENG-02, P1-ENG-03 |
-| P1-ENG-04 | New stabilization follow-up for congestion backpressure after runtime API testing |
+| P1-ENG-04 | Spawn demand and capacity admission after runtime API testing |
+| P1-ENG-05 | Road segment admission and intersection gating |
+| P1-ENG-06 | Emergency segment priority and signal coordination |
+| P1-ENG-07 | Liveness observability and regression hardening |
 | P1-API-02 | P1-API-02, P1-WS-01, P1-APP-01 |
 | P1-FE-01 | P1-FE-01 through P1-FE-05 |
 
@@ -97,7 +103,7 @@ Use `docs/design-decisions.md` for detailed trade-offs. The links below are the 
 | P1-PATH-01 | [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-VEH-01 | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
 | P1-API-01 | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
-| P1-ENG-04 | [Defer Congestion Backpressure to Follow-Up](design-decisions.md#decision-defer-congestion-backpressure-to-follow-up-task-p1-eng-04) |
+| P1-ENG-04 through P1-ENG-07 | [Segment admission and congestion design](superpowers/specs/2026-07-17-p1-eng-04-segment-admission-design.md), [P1-ENG-04 decision](design-decisions.md#decision-segment-admission-and-congestion-tasks-p1-eng-04-through-p1-eng-07) |
 
 ---
 
@@ -107,7 +113,7 @@ Use `docs/design-decisions.md` for detailed trade-offs. The links below are the 
 - **PERF-WATCH-VEH-01:** Re-check `Vehicle._validate_path_state()` hot-path cost after `P1-ENG-01` is done and the engine can be profiled under realistic load.
 - **PERF-WATCH-SNAP-01:** Re-evaluate per-tick snapshot payload size during `P1-API-02` / `P1-FE-01`. The current full-grid snapshot is acceptable for the Phase 1 `10x10` MVP, but larger grids may require splitting static grid layout from dynamic tick state instead of serializing the full `cells` matrix every tick.
 - **DESIGN-WATCH-API-STATE-01:** Phase 1 treats the engine created inside `create_app()` as the supported shared runtime engine for an app instance. Replacing `app.state.engine` after bootstrap is currently considered unsupported wiring, even though REST and `/ws` resolve from `app.state`. If later work wants engine replacement to be a supported extension point, the replacement engine must inherit the app-level broadcast wiring so live tick streaming continues to work.
-- **DESIGN-WATCH-CONGESTION-01:** `P1-ENG-04` must preserve the simple Phase 1 grid model while preventing permanent all-waiting saturation. Prefer bounded spawning/backpressure and clear demo-safe config behavior before considering larger concepts like rerouting, multi-lane roads, or full deadlock resolution.
+- **DESIGN-WATCH-CONGESTION-01:** P1-ENG-04 through P1-ENG-07 preserve the one-cell Phase 1 grid with bounded spawning, direction-controlled road segments, emergency reservations, and explicit liveness detection. Do not add removal, rerouting, multi-lane geometry, or adaptive normal signal control.
 
 ---
 
