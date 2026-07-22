@@ -44,12 +44,12 @@ This table is the **authoritative queue** for developer and tester handoffs.
 | P1-API-01 | Config request validation | `ConfigUpdateRequest` bounds and API-facing validation | - | ✅ |
 | P1-TL-02 | TrafficLightManager + grid light wiring | Create all intersection lights, lookups, movement permission bridge, phase-duration updates, light snapshots | P1-TL-01 | ✅ |
 | P1-MET-01 | Metrics module complete | KPI calculations, `record_arrival`, batch updates, reset, `to_dict` | P1-VEH-01 | ✅ |
-| P1-ENG-01 | SimulationEngine complete | Initialization, admission-aware tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ✅ |
+| P1-ENG-01 | SimulationEngine complete | Initialization, baseline six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ✅ |
 | P1-API-02 | Runtime interface layer | REST route wiring, WebSocket manager/handler, app bootstrap, static files, startup lifecycle | P1-ENG-01 | ✅ |
 | P1-ENG-04 | Spawn demand and capacity admission | Redefine spawn_rate, enforce the derived active cap and emergency reserve, pause spawning on zero movement, and add spawn accounting | P1-API-02 | ⬜ |
 | P1-ENG-05 | Road segment admission | Derive road segments, persist fair requests, control direction, gate intersections, and expose vehicle wait reasons | P1-ENG-04 | ⬜ |
 | P1-ENG-06 | Emergency segment priority | Coordinate emergency segment reservations with signal preemption and preserve first-come-first-served emergency access | P1-ENG-05 | ⬜ |
-| P1-ENG-07 | Liveness observability and regression | Add segment snapshots, liveness metrics, reset behavior, sustained-run regression, and cyclic-gridlock detection coverage | P1-ENG-06 | ⬜ |
+| P1-ENG-07 | Admission-aware engine integration, liveness, and regression | Integrate the admission-aware tick order, add segment snapshots, liveness metrics, reset behavior, sustained-run regression, and cyclic-gridlock detection coverage | P1-ENG-06 | ⬜ |
 | P1-FE-01 | Browser MVP | `index.html`, renderer, controls, metrics panel, `app.js`, end-to-end UI wiring | P1-ENG-07 | ⬜ |
 
 ---

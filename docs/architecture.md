@@ -100,8 +100,7 @@ from the default traversable-cell ratio for other grid sizes.
 1. Refresh persistent segment requests and arbitrate direction/reservations.
 2. Apply emergency signal preemption, then advance traffic lights.
 3. Sort vehicles by the existing priority order and move sequentially.
-4. A vehicle may enter an intersection only when the signal, segment grant, and
-   downstream cell all permit the move.
+4. A vehicle may enter an intersection only when the signal and segment grant permit the move; a non-terminal destination also requires downstream space. A terminal intersection destination does not require a downstream cell.
 5. Record every applicable blocker in the vehicle wait_reasons list.
 6. Reconcile segment occupancy and reservations after movement.
 

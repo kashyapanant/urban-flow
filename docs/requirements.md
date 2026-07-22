@@ -165,7 +165,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
 - Same-tick opposing segment requests choose the direction not served most recently; when neither direction has service history, the lower-coordinate-to-higher-coordinate direction wins deterministically.
-- Normal vehicles may not enter an intersection without a permissive light, segment admission, and downstream space.
+- Normal vehicles may not enter an intersection without a permissive light and segment admission. A non-terminal destination also requires downstream space; a terminal intersection destination completes upon entry without a downstream cell.
 - Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal; it does not permit overtaking, pass-through, or multiple future reservations.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
