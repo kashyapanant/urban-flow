@@ -132,7 +132,6 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | spawnRejectedNoAdmissibleEntry | integer | Cumulative path or segment admission rejections |
 | activeVehicleCap | integer | Read-only derived active capacity |
 | emergencyReservedSlots | integer | Read-only capacity reserved for emergencies |
-)
 ## Edge Cases
 
 | # | Scenario | Expected Behavior |
