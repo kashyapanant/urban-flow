@@ -103,7 +103,7 @@ Use `docs/design-decisions.md` for detailed trade-offs. The links below are the 
 | P1-PATH-01 | [Pathfinding Cost Values](design-decisions.md#decision-pathfinding-cost-values) |
 | P1-VEH-01 | [Validation Caching Deferral](design-decisions.md#decision-defer-vehicle-validation-caching-until-integrated-profiling-task-p1-veh-01) |
 | P1-API-01 | [API Input Validation for ConfigUpdateRequest](design-decisions.md#decision-api-input-validation-for-configupdaterequest-task-api-001) |
-| P1-ENG-04 through P1-ENG-07 | [Segment admission and congestion design](superpowers/specs/2026-07-17-p1-eng-04-segment-admission-design.md), [P1-ENG-04 decision](design-decisions.md#decision-segment-admission-and-congestion-tasks-p1-eng-04-through-p1-eng-07) |
+| P1-ENG-04 through P1-ENG-07 | [Segment admission and congestion design](specs/2026-07-17-p1-eng-04-segment-admission-design.md), [P1-ENG-04 decision](design-decisions.md#decision-segment-admission-and-congestion-tasks-p1-eng-04-through-p1-eng-07) |
 
 ---
 

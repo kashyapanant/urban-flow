@@ -372,4 +372,4 @@ For future implementation decisions, use this format and link to task ID from do
 - (-) Arbitrary cyclic occupancy states are detected but not automatically recovered.
 - (-) The single-lane model remains a Phase 1 approximation; lanes, rerouting, and urgency levels are deferred.
 
-The canonical implementation-planning specification is [P1-ENG-04 Segment Admission and Congestion Design](superpowers/specs/2026-07-17-p1-eng-04-segment-admission-design.md).
+The canonical implementation-planning specification is [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).

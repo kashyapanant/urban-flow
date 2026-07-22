@@ -18,7 +18,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - **Pathfinding**: A\* shortest-path for normal vehicles; fastest-path (factoring current light states) for emergency vehicles
 - **Emergency vehicle path**: fixed pre-computed path, no mid-journey rerouting
 - **Traffic lights** at intersections with a full four-phase cycle (green, yellow, red, left-turn arrow), each phase lasting 3 ticks (configurable)
-- **Emergency vehicle signal preemption**: an emergency claims an intersection from 3 cells away, triggers a yellow transition for cross-traffic, and coordinates the green phase with its next road-segment reservation
+- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal; it triggers a yellow transition for cross-traffic and cannot claim multiple intersections or future segments
 - **Web-based real-time visualization** of the grid, vehicles, and traffic light states
 - **Simulation controls**: pause/resume, tick speed adjustment (1–10 ticks/second)
 - **Performance metric**: track and display the percentage difference in travel ticks between emergency vehicles and normal vehicles over the same or comparable routes
@@ -76,7 +76,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | destination | (x, y) | Target cell |
 | path | (x, y)[] | Pre-computed ordered list of cells to traverse |
 | status | enum | `moving`, `waiting`, `arrived` |
-| waitReasons | enum[] | All applicable movement blockers for a waiting vehicle |
+| waitReasons | enum[] | All applicable movement blockers in this order: `next_cell_occupied`, `traffic_light`, `segment_admission`, `downstream_cell_occupied` |
 | ticksElapsed | integer | Number of ticks since spawn (for metric tracking) |
 
 ### TrafficLight
@@ -142,7 +142,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | 4 | No valid path exists between a random origin and destination | Same as above — re-roll until a valid pair is found, with a max retry limit to avoid infinite loops. |
 | 5 | Emergency vehicle claims intersection, but it is already mid-phase for cross-traffic | Cross-traffic phase transitions to yellow immediately, then red, before emergency vehicle's direction goes green. The remaining phase time is not preserved — normal cycling resumes after the emergency vehicle clears. |
 | 6 | Active cap reached or the active network made no movement | Spawn demand is rejected for the tick; the engine does not remove existing vehicles. |
-| 7 | Multiple intersections claimed simultaneously by the same emergency vehicle | Each intersection within 3 cells ahead on the emergency vehicle's path begins its preemption sequence independently. |
+| 7 | Emergency lookahead reaches multiple intersections | Only the next road segment and its associated entry signal may be reserved or preempted; future intersections remain unclaimed. |
 | 8 | Emergency vehicle reaches destination while a light is still preempted ahead | Preempted intersection reverts to normal cycling immediately. |
 | 9 | Tick speed changed while simulation is running | Takes effect on the next tick — no partial-tick behavior. |
 | 10 | All vehicles have arrived and no new ones are spawning | Simulation continues running (lights still cycle) but nothing moves. User can adjust spawn rate or pause. |
@@ -164,8 +164,9 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - The public spawn-rate range remains 0.0-1.0, but each tick performs at most one demand attempt.
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
+- Same-tick opposing segment requests choose the direction not served most recently; when neither direction has service history, the lower-coordinate-to-higher-coordinate direction wins deterministically.
 - Normal vehicles may not enter an intersection without a permissive light, segment admission, and downstream space.
-- Emergency priority grants the next safe segment access after opposing occupants drain; it does not permit overtaking or pass-through.
+- Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal; it does not permit overtaking, pass-through, or multiple future reservations.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
 - A full simulation reset rebuilds segment state and clears requests, reservations, liveness counters, and metrics; a config reset does not rebuild world state.

@@ -24,14 +24,14 @@ The simulation is deterministic and single-threaded. Each tick produces a comple
 ┌──────────────┴───────────────┐
 │      Simulation Engine       │
 │      (tick orchestrator)     │
-└──┬─────────┬─────────┬───┬──┘
-   │         │         │   │
-   ▼         ▼         ▼   │
-┌──────┐ ┌────────┐ ┌─────┴────┐
-│ Grid │ │Vehicle │ │ Traffic  │
-│World │ │Manager │ │  Light   │
-└──────┘ └───┬────┘ │ Manager  │
-             │      └──────────┘
+└──┬────────┬────────┬─────────┬──┘
+   │        │        │         │
+   ▼        ▼        ▼         ▼
+┌──────┐ ┌────────┐ ┌────────┐ ┌────────────┐
+│ Grid │ │Vehicle │ │Traffic │ │RoadSegment │
+│World │ │Manager │ │ Light  │ │  Manager   │
+└──────┘ └───┬────┘ │Manager │ └────────────┘
+             │      └────────┘
         ┌────┴─────┐
         │Pathfinder│
         │   (A*)   │
@@ -134,11 +134,12 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 **Preemption model:**
 
 1. An emergency vehicle's path is scanned up to 3 cells ahead each tick.
-2. For each intersection within that look-ahead, `request_preemption(intersection, vehicle)` is called.
-3. If the intersection is already serving the emergency vehicle's axis, no change.
-4. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
-5. The `preemptedBy` field is set to the claiming emergency vehicle. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
-6. When the emergency vehicle clears the intersection (moves past it), `release_preemption` is called and normal cycling resumes from the current axis's green phase.
+2. The look-ahead may reserve only the vehicle's next road segment and its associated entry signal; it cannot claim multiple intersections or future segments.
+3. `request_preemption(intersection, vehicle)` is called only after the RoadSegmentManager grants that next-segment reservation.
+4. If the intersection is already serving the emergency vehicle's axis, no change.
+5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
+6. The `preemptedBy` field is set to the reservation-holding emergency vehicle. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
+7. When the emergency vehicle clears the intersection (moves past it), `release_preemption` is called and normal cycling resumes from the current axis's green phase.
 
 ### 3.5 Pathfinder (`simulation/pathfinder.py`)
 
@@ -273,8 +274,14 @@ class Vehicle:
 ### VehicleManager
 
 ```
+class SpawnAdmission:
+    moves_this_tick: int
+    active_vehicle_count: int
+    active_vehicle_cap: int
+    emergency_reserved_slots: int
+
 class VehicleManager:
-    spawn_vehicles(grid, pathfinder, traffic_lights, road_segments, spawn_rate, emergency_probability) -> list[Vehicle]
+    spawn_vehicles(grid, pathfinder, traffic_lights, road_segments, spawn_rate, emergency_probability, admission: SpawnAdmission) -> list[Vehicle]
     move_vehicles(grid, traffic_light_manager, road_segments) -> int
     collect_arrived() -> list[Vehicle]
     get_all() -> list[Vehicle]

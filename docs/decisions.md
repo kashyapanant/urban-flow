@@ -191,12 +191,15 @@
 - **Simultaneous resolution:** All vehicles compute their desired next cell, then resolve conflicts in a separate pass. More physically realistic but significantly more complex.
 - **Random order:** Process vehicles in random order each tick. Avoids systematic bias but makes the simulation non-deterministic.
 
-**Consequences:**
+**Historical consequences of the superseded order:**
 - (+) Deterministic and easy to reason about.
 - (+) Preemption scan before light update ensures that an emergency vehicle's preemption request takes effect in the same tick.
 - (+) Light update before vehicle movement ensures vehicles see the current tick's light state (not the previous tick's).
 - (+) Spawning after movement ensures newly spawned vehicles don't block existing vehicles that want to exit the grid edge.
 - (−) Priority-ordered movement gives a systematic advantage to emergency vehicles and vehicles closer to their destination. This is by design (requirements specify this priority), but means two normal vehicles in a head-on conflict will always resolve the same way.
+
+These statements describe the historical six-phase implementation only. The current
+ordering is defined by the [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).
 
 ---
 
@@ -243,4 +246,4 @@
 - Normal traffic waits for ordinary signals; only the granted emergency reservation preempts a signal.
 - Arbitrary cyclic occupancy can be detected but is not automatically repaired in Phase 1.
 
-See the canonical [P1-ENG-04 Segment Admission and Congestion Design](superpowers/specs/2026-07-17-p1-eng-04-segment-admission-design.md).
+See the canonical [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).
