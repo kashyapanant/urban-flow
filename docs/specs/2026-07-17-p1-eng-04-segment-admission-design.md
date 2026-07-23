@@ -52,6 +52,9 @@ or form a cyclic wait while the engine continues ticking.
   segment grant. A non-terminal destination also requires an available downstream
   cell; a terminal intersection destination does not require one and completes the
   vehicle upon entry.
+- A granted vehicle has a committed grant while crossing the intersection. The
+  grant survives arbitration and reconciliation until the vehicle reaches the
+  downstream segment's first road cell; terminal grants release on arrival.
 - Pathfinding remains fixed and does not inspect live segment locks or occupancy.
 
 ### Emergency priority

@@ -166,6 +166,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
 - Same-tick opposing segment requests choose the direction not served most recently; when neither direction has service history, the lower-coordinate-to-higher-coordinate direction wins deterministically.
 - Normal vehicles may not enter an intersection without a permissive light and segment admission. A non-terminal destination also requires downstream space; a terminal intersection destination completes upon entry without a downstream cell.
+- A segment grant becomes committed when its vehicle enters an intersection and cannot be revoked by later arbitration until the vehicle reaches the downstream segment's first road cell; a terminal grant releases when the vehicle completes on entry.
 - Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. Same-direction vehicles already ahead of the emergency may drain through the reserved segment; new normal vehicles cannot enter behind it. Emergency priority does not permit overtaking, pass-through, or multiple future reservations.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
