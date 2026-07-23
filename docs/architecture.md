@@ -138,7 +138,8 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 4. If the intersection is already serving the emergency vehicle's axis, no change.
 5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
 6. The `preemptedBy` field is set to the reservation-holding emergency vehicle. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
-7. When the emergency vehicle clears the intersection (moves past it), `release_preemption` is called and normal cycling resumes from the current axis's green phase.
+7. Same-direction vehicles already ahead of the reservation holder may continue into and through the reserved segment. New normal vehicles cannot enter behind the emergency.
+8. When the emergency vehicle clears the intersection (moves past it), `release_preemption` is called and normal cycling resumes from the current axis's green phase.
 
 ### 3.5 Pathfinder (`simulation/pathfinder.py`)
 
