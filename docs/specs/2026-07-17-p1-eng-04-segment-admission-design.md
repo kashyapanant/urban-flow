@@ -48,8 +48,10 @@ or form a cyclic wait while the engine continues ticking.
   last, with a deterministic lower-coordinate-to-higher-coordinate initial tie.
 - Normal requests begin before the light turns green, but do not alter signal
   timing.
-- Intersection entry requires a permissive signal, an empty intersection, a
-  segment grant, and an available downstream cell.
+- Intersection entry requires a permissive signal, an empty intersection, and a
+  segment grant. A non-terminal destination also requires an available downstream
+  cell; a terminal intersection destination does not require one and completes the
+  vehicle upon entry.
 - Pathfinding remains fixed and does not inspect live segment locks or occupancy.
 
 ### Emergency priority
@@ -58,8 +60,9 @@ or form a cyclic wait while the engine continues ticking.
   lookahead.
 - The first granted emergency reservation is non-preemptible until the vehicle
   clears the segment.
-- Existing opposing occupants drain forward. New normal vehicles cannot enter
-  an emergency-reserved segment, including behind the emergency.
+- Existing opposing occupants drain forward. Same-direction vehicles already
+  ahead of the reservation holder may enter or continue through the reserved
+  segment and drain. New normal vehicles cannot enter behind the emergency.
 - The reservation holder is the only emergency that may preempt the associated
   entry signal. Later emergencies queue in arrival order.
 - Emergency vehicles cannot overtake vehicles ahead in the one-cell geometry.
@@ -69,7 +72,7 @@ or form a cyclic wait while the engine continues ticking.
 
 - Movement remains sequential in the existing priority order after admission.
 - Vehicles expose an ordered `wait_reasons` list containing every applicable
-  blocker: `next_cell_occupied`, `traffic_light`,
+  blocker in this canonical order: `next_cell_occupied`, `traffic_light`,
   `segment_admission`, and `downstream_cell_occupied`.
 - Metrics add spawn outcomes, movement progress, active/waiting counts, capacity
   values, and `gridlock_suspected`.
