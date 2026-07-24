@@ -35,6 +35,9 @@ or form a cyclic wait while the engine continues ticking.
   admission may use the reserved slots, but never exceeds `active_cap`.
 - If active vehicles exist and no vehicle moved during the movement phase,
   spawning is rejected for that tick. An empty grid may still spawn.
+- An intersection may be selected as a spawn origin. Its admission target is the
+  first downstream road segment on the vehicle's path; the spawn is admitted
+  only when that segment grants the vehicle's first movement direction.
 
 ### Road segments
 
@@ -82,9 +85,9 @@ or form a cyclic wait while the engine continues ticking.
 - `gridlock_suspected` becomes true after
   `max(30, phase_duration * 8)` active-vehicle ticks with zero movement. The
   engine continues running and clears the flag after movement resumes.
-- Detection is explicit, not destructive. Arbitrary cyclic arrangements remain
-  a documented limitation; Phase 1 does not add rerouting, reversing, removal,
-  or cycle-rotation movement.
+- Detection is explicit, not destructive. Phase 1 detects whole-network
+  standstill, not arbitrary per-cycle blockage; it does not add rerouting,
+  reversing, removal, or cycle-rotation movement.
 
 ## Tick Order
 
@@ -124,8 +127,8 @@ compatible; the new fields are additive.
   `spawn_rate=0.7`, `emergency_probability=0.3`, and
   `phase_duration=1`. Assert continued completions in both halves, no cap
   violation, and no sustained gridlock flag.
-- Construct a cyclic blockage separately and assert detection, spawn pause,
-  continued engine operation, and no vehicle removal or rerouting.
+- Construct a whole-network standstill separately and assert detection, spawn
+  pause, continued engine operation, and no vehicle removal or rerouting.
 
 ## Non-Goals
 

@@ -13,7 +13,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - **10x10 grid world** with roads, intersections, and static non-traversable cells (buildings, parks, etc.)
 - **Single-lane roads** — each road cell holds at most one vehicle at a time
 - **Two vehicle types**: normal car and emergency vehicle
-- **Vehicle spawning** at random grid edges with one demand roll per tick and a bounded active-vehicle capacity, each with a randomly assigned destination (point A to B)
+- **Vehicle spawning** at random traversable grid-edge cells, including intersections, with one demand roll per tick and a bounded active-vehicle capacity, each with a randomly assigned destination (point A to B); an intersection origin is admitted against the first downstream road segment in the vehicle's path
 - **Vehicle movement** at 1 cell per tick
 - **Pathfinding**: A\* shortest-path for normal vehicles; fastest-path (factoring current light states) for emergency vehicles
 - **Emergency vehicle path**: fixed pre-computed path, no mid-journey rerouting
@@ -171,4 +171,4 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
 - A full simulation reset rebuilds segment state and clears requests, reservations, liveness counters, and metrics; a config reset does not rebuild world state.
-- Phase 1 detects arbitrary cyclic blockage but does not remove, reverse, reroute, or teleport vehicles.
+- Phase 1 detects whole-network standstill after the configured zero-movement threshold but does not claim arbitrary per-cycle detection or remove, reverse, reroute, or teleport vehicles.

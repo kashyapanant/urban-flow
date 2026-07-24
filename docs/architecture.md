@@ -89,7 +89,8 @@ A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, a
 2. Choose vehicle type before admission so emergency reserve capacity applies.
 3. Reject demand when movement backpressure or the type-specific active cap applies.
 4. Search shuffled edge origins and destinations for a valid fixed path and segment admission.
-5. Place a vehicle only when its first movement direction is accepted by the origin segment.
+5. For an intersection origin, use the first downstream road segment as the origin admission target; reject the attempt unless that segment grants the vehicle's first movement direction.
+6. Place a vehicle only when its first movement direction is accepted by the applicable origin segment.
 
 Rejected demand is discarded rather than queued outside the grid. The default 10x10
 network admits at most 30 active vehicles and reserves three positions for
