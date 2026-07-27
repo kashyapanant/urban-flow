@@ -30,7 +30,7 @@
 
 **Context:** The simulation needs a temporal model. Requirements specify tick-based timing: vehicles move 1 cell per tick, traffic light phases last N ticks, tick speed is configurable.
 
-**Decision:** Use a synchronous tick-based loop where one call to `tick()` advances the entire world by one discrete time step. P1-ENG-04 adds admission and reconciliation phases within that atomic tick.
+**Decision:** Use a synchronous tick-based loop where one call to `tick()` advances the entire world by one discrete time step. The P1-ENG-04 through P1-ENG-07 congestion sequence adds admission and reconciliation phases within that atomic tick.
 
 **Alternatives considered:**
 - **Event-driven (discrete event simulation with priority queue):** Each event (vehicle arrives at cell, light changes phase) is scheduled at a future time. The engine processes events in chronological order. Better for heterogeneous timing (e.g., vehicles with different speeds, variable-duration events).
@@ -234,7 +234,7 @@ ordering is defined by the [P1-ENG-04 Segment Admission and Congestion Design](s
 
 **Context:** Sustained spawning can fill the one-cell bidirectional grid into opposing waits and cyclic occupancy. Removing vehicles is not acceptable, and multi-lane geometry is outside Phase 1.
 
-**Decision:** Add a dedicated RoadSegmentManager. It derives deterministic road runs, admits one direction at a time, gives emergency requests precedence before applying normal fairness, transactionally arbitrates spawn candidates, gates non-terminal intersection entry on downstream availability, and coordinates emergency reservations with signal preemption. Keep fixed paths and sequential movement. Use spawn/capacity backpressure plus whole-network standstill detection without claiming universal liveness.
+**Decision:** Add a dedicated RoadSegmentManager. It derives deterministic road runs, admits one direction at a time, gives emergency requests precedence before applying normal fairness, transactionally arbitrates spawn candidates, gates non-terminal intersection entry on downstream availability, retains the downstream entry cell promised to a committed crossing, and coordinates emergency reservations with signal preemption. Keep fixed paths and sequential movement. Use spawn/capacity backpressure plus whole-network standstill detection without claiming universal liveness. Implement the scheduler before emergency policy, then use the completed scheduler for spawn transactions before end-to-end engine integration.
 
 **Alternatives considered:**
 - Vehicle removal or teleportation: rejected because it hides failed journeys.

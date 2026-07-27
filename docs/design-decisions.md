@@ -313,7 +313,7 @@ next position was occupied by another vehicle. Offline reproduction confirmed
 that the current 10x10 single-lane, bidirectional grid eventually saturates into
 all-waiting gridlock under sustained spawning, especially at high spawn rates.
 **Decision:** Do not patch this inside the API/backend wiring branch. This historical decision is superseded by the segment-admission design linked below. Track it
-as `P1-ENG-04`, a focused simulation stabilization task before the browser MVP.
+as the `P1-ENG-04` through `P1-ENG-07` simulation-stabilization sequence before the browser MVP.
 1. spawn_rate semantics changed from "probability per edge cell" to 
    "expected vehicles per tick" to prevent saturation.
 2. Vehicles stuck waiting > max_wait_ticks are removed from the grid 
@@ -359,7 +359,7 @@ For future implementation decisions, use this format and link to task ID from do
 **Date:** 2026-07-17
 **Status:** Accepted for implementation planning
 **Context:** The original removal-based P1-ENG-04 proposal did not satisfy the requirement that vehicles remain in the simulation. The one-cell bidirectional grid also needs a model-level admission rule so emergency priority remains safe.
-**Decision:** Preserve one-cell geometry and fixed routes. Redefine spawn_rate as one demand roll per tick, cap active vehicles at a derived 30-of-64 default with a three-slot emergency reserve, and add a RoadSegmentManager that controls whole-segment direction, persistent and transactional spawn requests, non-terminal intersection exit admission, emergency-first arbitration, reservation cleanup, and whole-network standstill telemetry.
+**Decision:** Preserve one-cell geometry and fixed routes. Redefine spawn_rate as one demand roll per tick, cap active vehicles at a derived 30-of-64 default with a three-slot emergency reserve, and add a RoadSegmentManager that controls whole-segment direction, persistent and transactional spawn requests, non-terminal intersection exit admission, emergency-first arbitration, committed downstream entry cells, reservation cleanup, and whole-network standstill telemetry. Implement the scheduler before emergency policy, then use the completed scheduler for spawn transactions before end-to-end engine integration.
 **Rationale:**
 - Backpressure limits inflow before the network saturates.
 - Segment direction control prevents opposing vehicles from entering the same narrow road stretch.

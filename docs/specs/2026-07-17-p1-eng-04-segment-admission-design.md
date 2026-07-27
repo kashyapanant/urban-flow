@@ -70,6 +70,10 @@ or form a cyclic wait while the engine continues ticking.
 - A granted vehicle has a committed grant while crossing the intersection. The
   grant survives arbitration and reconciliation until the vehicle reaches the
   downstream segment's first road cell.
+- A committed grant also reserves that first downstream road cell from spawn
+  admission. The reservation releases when the vehicle reaches the cell or the
+  grant is invalidated; spawn candidates must choose another eligible origin or
+  be rejected for that demand attempt.
 - Pathfinding remains fixed and does not inspect live segment locks or occupancy.
 
 ### Emergency priority
@@ -120,6 +124,20 @@ collect arrivals and update metrics
 increment tick and broadcast snapshot
 ```
 
+## Implementation Order
+
+The slices are deliberately ordered around the scheduler dependency:
+
+1. `P1-ENG-04` derives segments, persists normal requests, performs deterministic
+   normal arbitration, and represents committed intersection-crossing grants.
+2. `P1-ENG-05` adds emergency precedence, reservations, and preemption
+   coordination to that scheduler.
+3. `P1-ENG-06` changes spawn demand and capacity admission, then uses the
+   completed scheduler for transactional spawn arbitration.
+4. `P1-ENG-07` integrates the admission-aware tick order and movement gates, then
+   completes snapshots, liveness telemetry, reset behavior, and regression
+   coverage.
+
 ## Snapshot Contract
 
 Snapshots add a top-level `road_segments` collection. Records expose:
@@ -128,7 +146,7 @@ Snapshots add a top-level `road_segments` collection. Records expose:
 id, orientation, start, end, cells
 active_direction, pending_direction
 is_draining, accepting_entries
-emergency_reserved_by, occupant_count
+emergency_reserved_by, committed_entry_cells, occupant_count
 waiting_counts: {direction: {normal, emergency}}
 ```
 
@@ -147,6 +165,9 @@ compatible; the new fields are additive.
   regression expectation, not a universal liveness proof.
 - Construct a whole-network standstill separately and assert detection, spawn
   pause, continued engine operation, and no vehicle removal or rerouting.
+- Construct a committed non-terminal intersection crossing and assert that spawn
+  admission cannot place a vehicle in its reserved downstream road cell before
+  the crossing completes.
 
 ## Non-Goals
 

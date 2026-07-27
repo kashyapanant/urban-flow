@@ -100,6 +100,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | pendingDirection | enum? | Direction waiting for the segment to drain |
 | isDraining | boolean | Whether new entries are closed while occupants clear |
 | emergencyReservedBy | string? | Emergency vehicle holding the reservation |
+| committedEntryCells | (x, y)[] | First downstream road cells reserved for vehicles crossing an intersection on a committed grant |
 
 ### Simulation
 
@@ -148,6 +149,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | 10 | All vehicles have arrived and no new ones are spawning | Simulation continues running (lights still cycle) but nothing moves. User can adjust spawn rate or pause. |
 | 11 | A vehicle's destination is an intersection with no downstream segment | The vehicle may enter on a permissive signal when the intersection is empty, bypasses segment admission and downstream-cell checks, and arrives on entry. |
 | 12 | A spawn candidate requests the opposite direction on an empty origin segment | The candidate participates once in transactional arbitration; if it wins, the segment switch and placement commit atomically, otherwise its request is discarded. |
+| 13 | A spawn candidate selects a road cell reserved by a committed intersection crossing | That origin is unavailable until the crossing vehicle reaches its owed downstream cell or its grant is invalidated; the candidate tries another eligible origin or the demand is rejected. |
 
 ## Success Criteria
 
@@ -161,7 +163,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | 6 | Pause/resume works correctly with no state corruption | Simulation state is identical before pause and after resume |
 | 7 | Configurable parameters (spawn rate, phase duration, tick speed) take effect without restarting the simulation | Runtime adjustment verified visually |
 
-### P1-ENG-04 Congestion and Admission Requirements
+### P1-ENG-04 through P1-ENG-07 Congestion and Admission Requirements
 
 - The public spawn-rate range remains 0.0-1.0, but each tick performs at most one demand attempt.
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
@@ -170,6 +172,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - Emergency requests take precedence over normal requests on an empty segment, with first-come-first-served ordering among emergencies. When only normal requests contend, same-tick opposing requests choose the direction not served most recently; when neither direction has service history, the lower-coordinate-to-higher-coordinate direction wins deterministically.
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
 - A segment grant becomes committed when its vehicle enters an intersection and cannot be revoked by later arbitration until the vehicle reaches the downstream segment's first road cell.
+- The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
 - Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. Same-direction vehicles already ahead of the emergency may drain through the reserved segment; new normal vehicles cannot enter behind it. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
