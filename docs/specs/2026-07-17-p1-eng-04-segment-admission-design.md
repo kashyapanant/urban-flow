@@ -6,9 +6,11 @@
 
 ## Goal
 
-Keep the Phase 1 10x10 simulation live under sustained demand without removing,
-teleporting, reversing, or rerouting vehicles. Preserve the one-cell grid
-geometry and make emergency priority safe and observable.
+Reduce Phase 1 congestion under sustained demand without removing, teleporting,
+reversing, or rerouting vehicles. Preserve the one-cell grid geometry, prevent
+opposing-direction segment deadlocks, make emergency priority safe and
+observable, and detect whole-network standstill without claiming universal
+liveness.
 
 ## Root Cause
 
@@ -38,6 +40,12 @@ or form a cyclic wait while the engine continues ticking.
 - An intersection may be selected as a spawn origin. Its admission target is the
   first downstream road segment on the vehicle's path; the spawn is admitted
   only when that segment grants the vehicle's first movement direction.
+- A spawn candidate submits a transient segment request during the spawn phase.
+  The request participates in a transactional arbitration with persistent
+  requests under the same emergency-precedence and fairness rules. An empty,
+  unreserved segment may switch direction immediately when the candidate wins.
+  Candidate-only admission state and the request commit atomically with vehicle
+  placement; both are discarded if admission or placement fails.
 
 ### Road segments
 
@@ -46,18 +54,22 @@ or form a cyclic wait while the engine continues ticking.
   part of a segment.
 - A segment has one active travel direction. Opposing demand closes admission,
   drains current occupants, and then switches direction.
-- Requests persist until fulfilled or invalidated. Only the lead normal vehicle
-  at an approach requests access. Same-tick ties use the direction not served
-  last, with a deterministic lower-coordinate-to-higher-coordinate initial tie.
+- Requests from vehicles already on the grid persist until fulfilled or
+  invalidated. Only the lead normal vehicle at an approach requests access.
+- Emergency requests take precedence over all normal requests on an empty
+  segment. Emergencies are served first-come-first-served. When only normal
+  requests contend, same-tick ties use the direction not served last, with a
+  deterministic lower-coordinate-to-higher-coordinate initial tie.
 - Normal requests begin before the light turns green, but do not alter signal
   timing.
-- Intersection entry requires a permissive signal, an empty intersection, and a
-  segment grant. A non-terminal destination also requires an available downstream
-  cell; a terminal intersection destination does not require one and completes the
-  vehicle upon entry.
+- Non-terminal intersection entry requires a permissive signal, an empty
+  intersection, a downstream segment grant, and an available downstream cell.
+  A terminal intersection destination requires only the permissive signal and
+  empty intersection; it bypasses segment admission and downstream-cell checks
+  and completes the vehicle upon entry.
 - A granted vehicle has a committed grant while crossing the intersection. The
   grant survives arbitration and reconciliation until the vehicle reaches the
-  downstream segment's first road cell; terminal grants release on arrival.
+  downstream segment's first road cell.
 - Pathfinding remains fixed and does not inspect live segment locks or occupancy.
 
 ### Emergency priority
@@ -66,6 +78,9 @@ or form a cyclic wait while the engine continues ticking.
   lookahead.
 - The first granted emergency reservation is non-preemptible until the vehicle
   clears the segment.
+- Reconciliation releases an emergency reservation when its holder clears the
+  segment, arrives anywhere within the reserved segment, or otherwise leaves
+  the active vehicle set.
 - Existing opposing occupants drain forward. Same-direction vehicles already
   ahead of the reservation holder may enter or continue through the reserved
   segment and drain. New normal vehicles cannot enter behind the emergency.
@@ -88,6 +103,8 @@ or form a cyclic wait while the engine continues ticking.
 - Detection is explicit, not destructive. Phase 1 detects whole-network
   standstill, not arbitrary per-cycle blockage; it does not add rerouting,
   reversing, removal, or cycle-rotation movement.
+- Directional admission reduces avoidable deadlocks but does not guarantee
+  progress from every reachable network configuration.
 
 ## Tick Order
 
@@ -98,7 +115,7 @@ apply emergency signal preemption
 advance traffic lights
 move vehicles and count successful moves
 reconcile segment occupancy and reservations
-attempt spawning using movement/capacity admission
+attempt spawning using movement/capacity admission and transactional arbitration
 collect arrivals and update metrics
 increment tick and broadcast snapshot
 ```
@@ -125,8 +142,9 @@ compatible; the new fields are additive.
   and metrics.
 - Run a 500-tick seeded regression with `random.seed(0)`,
   `spawn_rate=0.7`, `emergency_probability=0.3`, and
-  `phase_duration=1`. Assert continued completions in both halves, no cap
-  violation, and no sustained gridlock flag.
+  `phase_duration=1`. For this fixed scenario, assert continued completions in
+  both halves, no cap violation, and no sustained gridlock flag. This is a
+  regression expectation, not a universal liveness proof.
 - Construct a whole-network standstill separately and assert detection, spawn
   pause, continued engine operation, and no vehicle removal or rerouting.
 

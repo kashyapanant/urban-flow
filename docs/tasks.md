@@ -46,9 +46,9 @@ This table is the **authoritative queue** for developer and tester handoffs.
 | P1-MET-01 | Metrics module complete | KPI calculations, `record_arrival`, batch updates, reset, `to_dict` | P1-VEH-01 | ✅ |
 | P1-ENG-01 | SimulationEngine complete | Initialization, baseline six-phase tick order, config setters, preemption scan, cleanup, snapshot, `get_metrics` | P1-TL-02, P1-MET-01 | ✅ |
 | P1-API-02 | Runtime interface layer | REST route wiring, WebSocket manager/handler, app bootstrap, static files, startup lifecycle | P1-ENG-01 | ✅ |
-| P1-ENG-04 | Spawn demand and capacity admission | Redefine spawn_rate, enforce the derived active cap and emergency reserve, pause spawning on zero movement, and add spawn accounting | P1-API-02 | ⬜ |
-| P1-ENG-05 | Road segment admission | Derive road segments, persist fair requests, control direction, gate intersections, and expose vehicle wait reasons | P1-ENG-04 | ⬜ |
-| P1-ENG-06 | Emergency segment priority | Coordinate emergency segment reservations with signal preemption and preserve first-come-first-served emergency access | P1-ENG-05 | ⬜ |
+| P1-ENG-04 | Spawn demand and capacity admission | Redefine spawn_rate, enforce the derived active cap and emergency reserve, pause spawning on zero movement, transactionally arbitrate spawn entry, and add spawn accounting | P1-API-02 | ⬜ |
+| P1-ENG-05 | Road segment admission | Derive road segments, persist fair requests, control direction, gate non-terminal intersections, and expose vehicle wait reasons | P1-ENG-04 | ⬜ |
+| P1-ENG-06 | Emergency segment priority | Give emergency requests precedence over normal fairness, coordinate reservations with signal preemption, preserve first-come-first-served emergency access, and release stale reservations | P1-ENG-05 | ⬜ |
 | P1-ENG-07 | Admission-aware engine integration, liveness, and regression | Integrate the admission-aware tick order, add segment snapshots, liveness metrics, reset behavior, sustained-run regression, and whole-network standstill detection coverage | P1-ENG-06 | ⬜ |
 | P1-FE-01 | Browser MVP | `index.html`, renderer, controls, metrics panel, `app.js`, end-to-end UI wiring | P1-ENG-07 | ⬜ |
 
@@ -113,7 +113,7 @@ Use `docs/design-decisions.md` for detailed trade-offs. The links below are the 
 - **PERF-WATCH-VEH-01:** Re-check `Vehicle._validate_path_state()` hot-path cost after `P1-ENG-01` is done and the engine can be profiled under realistic load.
 - **PERF-WATCH-SNAP-01:** Re-evaluate per-tick snapshot payload size during `P1-API-02` / `P1-FE-01`. The current full-grid snapshot is acceptable for the Phase 1 `10x10` MVP, but larger grids may require splitting static grid layout from dynamic tick state instead of serializing the full `cells` matrix every tick.
 - **DESIGN-WATCH-API-STATE-01:** Phase 1 treats the engine created inside `create_app()` as the supported shared runtime engine for an app instance. Replacing `app.state.engine` after bootstrap is currently considered unsupported wiring, even though REST and `/ws` resolve from `app.state`. If later work wants engine replacement to be a supported extension point, the replacement engine must inherit the app-level broadcast wiring so live tick streaming continues to work.
-- **DESIGN-WATCH-CONGESTION-01:** P1-ENG-04 through P1-ENG-07 preserve the one-cell Phase 1 grid with bounded spawning, direction-controlled road segments, emergency reservations, and explicit liveness detection. Do not add removal, rerouting, multi-lane geometry, or adaptive normal signal control.
+- **DESIGN-WATCH-CONGESTION-01:** P1-ENG-04 through P1-ENG-07 preserve the one-cell Phase 1 grid with bounded spawning, direction-controlled road segments, emergency reservations, and explicit whole-network standstill detection without a universal progress guarantee. Do not add removal, rerouting, multi-lane geometry, or adaptive normal signal control.
 
 ---
 

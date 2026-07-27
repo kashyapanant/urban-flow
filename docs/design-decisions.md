@@ -359,17 +359,17 @@ For future implementation decisions, use this format and link to task ID from do
 **Date:** 2026-07-17
 **Status:** Accepted for implementation planning
 **Context:** The original removal-based P1-ENG-04 proposal did not satisfy the requirement that vehicles remain in the simulation. The one-cell bidirectional grid also needs a model-level admission rule so emergency priority remains safe.
-**Decision:** Preserve one-cell geometry and fixed routes. Redefine spawn_rate as one demand roll per tick, cap active vehicles at a derived 30-of-64 default with a three-slot emergency reserve, and add a RoadSegmentManager that controls whole-segment direction, persistent requests, intersection exit admission, emergency reservations, and liveness telemetry.
+**Decision:** Preserve one-cell geometry and fixed routes. Redefine spawn_rate as one demand roll per tick, cap active vehicles at a derived 30-of-64 default with a three-slot emergency reserve, and add a RoadSegmentManager that controls whole-segment direction, persistent and transactional spawn requests, non-terminal intersection exit admission, emergency-first arbitration, reservation cleanup, and whole-network standstill telemetry.
 **Rationale:**
 - Backpressure limits inflow before the network saturates.
 - Segment direction control prevents opposing vehicles from entering the same narrow road stretch.
 - Emergency reservations coordinate physical segment access with signal preemption.
-- Detection and metrics make pathological cycles explicit without hiding them through removal or teleportation.
+- Detection and metrics make whole-network standstill explicit without hiding it through removal or teleportation.
 **Consequences:**
 - (+) The Phase 1 demo remains bounded, deterministic, and explainable.
 - (+) Emergency priority remains meaningful without allowing unsafe pass-through.
 - (+) Snapshot and metrics contracts make congestion visible to the future frontend.
-- (-) Arbitrary cyclic occupancy states are detected but not automatically recovered.
+- (-) Progress is not guaranteed from every reachable state; arbitrary blocked cycles may remain undetected while traffic moves elsewhere, and whole-network standstill is not automatically recovered.
 - (-) The single-lane model remains a Phase 1 approximation; lanes, rerouting, and urgency levels are deferred.
 
 The canonical implementation-planning specification is [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).

@@ -88,9 +88,9 @@ A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, a
 1. Roll spawn_rate once per tick; a successful roll creates at most one demand attempt.
 2. Choose vehicle type before admission so emergency reserve capacity applies.
 3. Reject demand when movement backpressure or the type-specific active cap applies.
-4. Search shuffled edge origins and destinations for a valid fixed path and segment admission.
-5. For an intersection origin, use the first downstream road segment as the origin admission target; reject the attempt unless that segment grants the vehicle's first movement direction.
-6. Place a vehicle only when its first movement direction is accepted by the applicable origin segment.
+4. Search shuffled edge origins and destinations for a valid fixed path and derive the applicable origin segment.
+5. For an intersection origin, use the first downstream road segment as the origin admission target.
+6. Submit the candidate as a transient request in transactional spawn arbitration. An empty, unreserved segment may switch direction when the candidate wins; commit that admission state atomically with placement and discard it if placement fails.
 
 Rejected demand is discarded rather than queued outside the grid. The default 10x10
 network admits at most 30 active vehicles and reserves three positions for
@@ -101,15 +101,15 @@ from the default traversable-cell ratio for other grid sizes.
 1. Refresh persistent segment requests and arbitrate direction/reservations.
 2. Apply emergency signal preemption, then advance traffic lights.
 3. Sort vehicles by the existing priority order and move sequentially.
-4. A vehicle may enter an intersection only when the signal and segment grant permit the move; a non-terminal destination also requires downstream space. A terminal intersection destination does not require a downstream cell.
+4. A vehicle may enter a non-terminal intersection only when the signal, empty intersection, downstream segment grant, and downstream space permit the move. A terminal intersection destination requires only the permissive signal and empty intersection; it bypasses segment admission and downstream-space checks.
 5. Record every applicable blocker in the vehicle wait_reasons list.
-6. Reconcile segment occupancy and reservations after movement, preserving any committed grant until its vehicle reaches the downstream segment's first road cell or completes at a terminal destination.
+6. Reconcile segment occupancy and reservations after movement, preserving any committed grant until its vehicle reaches the downstream segment's first road cell and releasing reservations whose holders arrived or left the active vehicle set.
 
 ### 3.3 RoadSegmentManager
 
 The RoadSegmentManager owns dynamic admission state for maximal straight road runs. It derives deterministic segment geometry from the Grid, persists normal and emergency requests, controls one active direction per segment, and exposes additive snapshot records. It does not change pathfinding or mutate traffic lights directly; the SimulationEngine coordinates segment grants with signal preemption.
 
-A segment request is not an external spawn queue. It is scheduler metadata for a lead vehicle already on the grid. Opposing requests close admission, drain current occupants, and switch fairly when the segment is empty.
+A persistent segment request is scheduler metadata for a lead vehicle already on the grid, not an external spawn queue. Spawn candidates submit transient requests that participate once in transactional arbitration and are discarded if spawning fails. On an empty segment, emergency requests take precedence over normal requests, emergencies retain first-come-first-served order, and normal-only opposing requests use deterministic last-served fairness.
 
 ### 3.4 TrafficLight & TrafficLightManager (`simulation/traffic_light.py`)
 
@@ -140,7 +140,7 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
 6. The `preemptedBy` field is set to the reservation-holding emergency vehicle. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
 7. Same-direction vehicles already ahead of the reservation holder may continue into and through the reserved segment. New normal vehicles cannot enter behind the emergency.
-8. When the emergency vehicle clears the intersection (moves past it), `release_preemption` is called and normal cycling resumes from the current axis's green phase.
+8. When the emergency vehicle clears the intersection or arrives before doing so, `release_preemption` is called and normal cycling resumes from the current axis's green phase. Segment reconciliation separately releases its reservation when it clears the segment, arrives, or leaves the active vehicle set.
 
 ### 3.5 Pathfinder (`simulation/pathfinder.py`)
 
@@ -166,13 +166,16 @@ The orchestrator. Owns the Grid, VehicleManager, RoadSegmentManager, TrafficLigh
 refresh segment requests -> arbitrate segment reservations
 -> apply emergency preemption -> advance lights
 -> move vehicles and count progress -> reconcile segments
--> attempt spawning -> collect arrivals and update metrics
+-> attempt spawning with transactional arbitration
+-> collect arrivals and update metrics
 -> increment tick and broadcast
 ```
 
-Segment requests are resolved before movement. Spawning observes the current
-movement result, so an active network with zero movement does not receive new
-vehicles. The complete operation remains atomic from the snapshot consumer perspective.
+Persistent segment requests are resolved before movement. Spawning observes the
+current movement result, so an active network with zero movement does not
+receive new vehicles, then performs one transactional arbitration for its
+candidate. The complete operation remains atomic from the snapshot consumer
+perspective.
 
 **Tick loop:**
 ```
@@ -295,8 +298,9 @@ class RoadSegmentManager:
     __init__(grid)
     request(vehicle, segment) -> None
     arbitrate() -> None
+    try_admit_spawn(candidate, segment) -> bool
     can_enter(vehicle, segment) -> bool
-    reconcile() -> None
+    reconcile(active_vehicle_ids) -> None
     snapshot() -> list[dict]
 ```
 

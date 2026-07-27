@@ -234,7 +234,7 @@ ordering is defined by the [P1-ENG-04 Segment Admission and Congestion Design](s
 
 **Context:** Sustained spawning can fill the one-cell bidirectional grid into opposing waits and cyclic occupancy. Removing vehicles is not acceptable, and multi-lane geometry is outside Phase 1.
 
-**Decision:** Add a dedicated RoadSegmentManager. It derives deterministic road runs, admits one direction at a time, drains and fairly switches on opposing demand, gates intersection entry on downstream availability, and coordinates emergency reservations with signal preemption. Keep fixed paths and sequential movement. Use spawn/capacity backpressure plus movement-based liveness detection.
+**Decision:** Add a dedicated RoadSegmentManager. It derives deterministic road runs, admits one direction at a time, gives emergency requests precedence before applying normal fairness, transactionally arbitrates spawn candidates, gates non-terminal intersection entry on downstream availability, and coordinates emergency reservations with signal preemption. Keep fixed paths and sequential movement. Use spawn/capacity backpressure plus whole-network standstill detection without claiming universal liveness.
 
 **Alternatives considered:**
 - Vehicle removal or teleportation: rejected because it hides failed journeys.
@@ -244,6 +244,6 @@ ordering is defined by the [P1-ENG-04 Segment Admission and Congestion Design](s
 **Consequences:**
 - Segment state becomes dynamic simulation state and is exposed additively in snapshots.
 - Normal traffic waits for ordinary signals; only the granted emergency reservation preempts a signal.
-- Arbitrary cyclic occupancy can be detected but is not automatically repaired in Phase 1.
+- Whole-network standstill can be detected but is not automatically repaired in Phase 1; arbitrary blocked cycles may remain undetected while traffic moves elsewhere.
 
 See the canonical [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).
