@@ -57,12 +57,16 @@ In progress. The domain model is partially complete, but the end-to-end app is n
 | P1-MET-01 | Metrics module complete | Finish KPI calculations, arrival recording, reset behavior, and serialization for API/frontend use |
 | P1-ENG-01 | SimulationEngine complete | Finish initialization, the six-phase tick loop, config setters, preemption orchestration, cleanup, and frontend-ready snapshots |
 | P1-API-02 | Runtime interface layer | Complete REST route wiring, WebSocket broadcasting/commands, FastAPI bootstrap, CORS, static-file serving, and startup lifecycle |
+| P1-ENG-04 | Road segment scheduler foundation | Derive road segments, persist normal requests, apply deterministic normal-direction fairness, and represent committed intersection-crossing grants |
+| P1-ENG-05 | Emergency segment priority | Prioritize emergency requests, coordinate segment reservations with signal preemption, and release stale reservations |
+| P1-ENG-06 | Spawn demand and capacity admission | Enforce capacity and emergency reserve, pause spawning on zero movement, transactionally arbitrate spawn entry, and add spawn accounting |
+| P1-ENG-07 | Admission-aware engine integration, liveness, and regression | Integrate admission-aware movement, snapshots, liveness telemetry, reset behavior, and regression coverage |
 
 #### Frontend
 
 | Task ID | Slice | Description |
 |---------|-------|-------------|
-| P1-FE-01 | Browser MVP | Deliver the full browser UI: `index.html`, canvas rendering, controls, metrics panel, WebSocket lifecycle, and end-to-end interaction with the running backend |
+| P1-FE-01 | Browser MVP | Depends on `P1-ENG-07`; deliver the full browser UI: `index.html`, canvas rendering, controls, metrics panel, WebSocket lifecycle, and end-to-end interaction with the running backend |
 
 #### Quality Gates
 

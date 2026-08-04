@@ -61,7 +61,9 @@ or form a cyclic wait while the engine continues ticking.
 - Emergency requests take precedence over all normal requests on an empty
   segment. Emergencies are served first-come-first-served. When only normal
   requests contend, same-tick ties use the direction not served last, with a
-  deterministic lower-coordinate-to-higher-coordinate initial tie.
+  deterministic lower-coordinate-to-higher-coordinate initial tie. Simultaneous
+  emergency requests use that same lower-coordinate-to-higher-coordinate
+  direction tie-break after first-come-first-served ordering.
 - Normal requests begin before the light turns green, but do not alter signal
   timing.
 - Non-terminal intersection entry requires a permissive signal, an empty
@@ -128,6 +130,7 @@ move vehicles and count successful moves
 reconcile segment occupancy and reservations
 attempt spawning using movement/capacity admission and transactional arbitration
 collect arrivals and update metrics
+reconcile segment occupancy and reservations after arrival cleanup
 increment tick and broadcast snapshot
 ```
 
