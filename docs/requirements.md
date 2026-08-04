@@ -13,12 +13,12 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - **10x10 grid world** with roads, intersections, and static non-traversable cells (buildings, parks, etc.)
 - **Single-lane roads** — each road cell holds at most one vehicle at a time
 - **Two vehicle types**: normal car and emergency vehicle
-- **Vehicle spawning** at random traversable grid-edge cells, including intersections, with one demand roll per tick and a bounded active-vehicle capacity, each with a randomly assigned destination (point A to B); an intersection origin is admitted against the first downstream road segment in the vehicle's path through transactional spawn arbitration
+- **Vehicle spawning** at random traversable grid-edge cells, including intersections, with one demand roll per tick and a bounded active-vehicle capacity, each with a randomly assigned destination (point A to B); an intersection origin is admitted against the first downstream road segment in the vehicle's path through transactional spawn arbitration and requires an atomically reserved, available first downstream road cell
 - **Vehicle movement** at 1 cell per tick
 - **Pathfinding**: A\* shortest-path for normal vehicles; fastest-path (factoring current light states) for emergency vehicles
 - **Emergency vehicle path**: fixed pre-computed path, no mid-journey rerouting
 - **Traffic lights** at intersections with a full four-phase cycle (green, yellow, red, left-turn arrow), each phase lasting 3 ticks (configurable)
-- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal; it triggers a yellow transition for cross-traffic and cannot claim multiple intersections or future segments
+- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal; a terminal-intersection destination instead uses a signal-only claim released on arrival. It cannot claim multiple intersections or future segments.
 - **Web-based real-time visualization** of the grid, vehicles, and traffic light states
 - **Simulation controls**: pause/resume, tick speed adjustment (1–10 ticks/second)
 - **Performance metric**: track and display the percentage difference in travel ticks between emergency vehicles and normal vehicles over the same or comparable routes
@@ -150,6 +150,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | 11 | A vehicle's destination is an intersection with no downstream segment | The vehicle may enter on a permissive signal when the intersection is empty, bypasses segment admission and downstream-cell checks, and arrives on entry. |
 | 12 | A spawn candidate requests the opposite direction on an empty origin segment | The candidate participates once in transactional arbitration; if it wins, the segment switch and placement commit atomically, otherwise its request is discarded. |
 | 13 | A spawn candidate selects a road cell reserved by a committed intersection crossing | That origin is unavailable until the crossing vehicle reaches its owed downstream cell or its grant is invalidated; the candidate tries another eligible origin or the demand is rejected. |
+| 14 | A spawn candidate begins at an intersection | It requires both its first downstream segment grant and an available first downstream road cell; placement atomically reserves that cell until the candidate enters it. |
 
 ## Success Criteria
 
@@ -171,9 +172,9 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
 - Emergency requests take precedence over normal requests on an empty segment, with first-come-first-served ordering among emergencies. When only normal requests contend, same-tick opposing requests choose the direction not served most recently; when neither direction has service history, the lower-coordinate-to-higher-coordinate direction wins deterministically.
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
-- A segment grant becomes committed when its vehicle enters an intersection and cannot be revoked by later arbitration until the vehicle reaches the downstream segment's first road cell.
+- A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
 - The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
-- Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. Same-direction vehicles already ahead of the emergency may drain through the reserved segment; new normal vehicles cannot enter behind it. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
+- Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. Vehicles already ahead of the emergency may drain through the reserved segment; no new normal entry or spawn placement is permitted anywhere in it. A terminal-intersection emergency uses a signal-only preemption claim, released on arrival, because no downstream segment exists. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
 - A full simulation reset rebuilds segment state and clears requests, reservations, liveness counters, and metrics; a config reset does not rebuild world state.

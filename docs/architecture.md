@@ -89,8 +89,8 @@ A Vehicle is an entity with an id, type (normal/emergency), pre-computed path, a
 2. Choose vehicle type before admission so emergency reserve capacity applies.
 3. Reject demand when movement backpressure or the type-specific active cap applies.
 4. Search shuffled edge origins and destinations for a valid fixed path and derive the applicable origin segment. Exclude occupied origins and first downstream road cells reserved by committed intersection crossings.
-5. For an intersection origin, use the first downstream road segment as the origin admission target.
-6. Submit the candidate as a transient request in transactional spawn arbitration. An empty, unreserved segment may switch direction when the candidate wins; commit that admission state atomically with placement and discard it if placement fails.
+5. For an intersection origin, use the first downstream road segment as the origin admission target and require its first road cell to be available.
+6. Submit the candidate as a transient request in transactional spawn arbitration. An empty, unreserved segment may switch direction when the candidate wins; commit that admission state and the candidate's first downstream-cell reservation atomically with placement, then release the reservation when the vehicle enters that cell. Discard both if placement fails.
 
 Rejected demand is discarded rather than queued outside the grid. The default 10x10
 network admits at most 30 active vehicles and reserves three positions for
@@ -103,7 +103,7 @@ from the default traversable-cell ratio for other grid sizes.
 3. Sort vehicles by the existing priority order and move sequentially.
 4. A vehicle may enter a non-terminal intersection only when the signal, empty intersection, downstream segment grant, and downstream space permit the move. A terminal intersection destination requires only the permissive signal and empty intersection; it bypasses segment admission and downstream-space checks.
 5. Record every applicable blocker in the vehicle wait_reasons list.
-6. Reconcile segment occupancy and reservations after movement, preserving each committed grant and its reserved downstream entry cell until its vehicle reaches that cell, and releasing reservations whose holders arrived or left the active vehicle set.
+6. Reconcile segment occupancy and reservations after movement, preserving each grant committed during arbitration and its reserved downstream entry cell until its vehicle reaches that cell, and releasing reservations whose holders arrived or left the active vehicle set.
 
 ### 3.3 RoadSegmentManager
 
@@ -134,13 +134,13 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 **Preemption model:**
 
 1. An emergency vehicle's path is scanned up to 3 cells ahead each tick.
-2. The look-ahead may reserve only the vehicle's next road segment and its associated entry signal; it cannot claim multiple intersections or future segments.
-3. `request_preemption(intersection, vehicle)` is called only after the RoadSegmentManager grants that next-segment reservation.
+2. The look-ahead may reserve only the vehicle's next road segment and its associated entry signal; it cannot claim multiple intersections or future segments. A terminal-intersection destination instead uses a signal-only claim.
+3. `request_preemption(intersection, vehicle)` is called only after the RoadSegmentManager grants that next-segment reservation, or after a terminal signal-only claim is issued.
 4. If the intersection is already serving the emergency vehicle's axis, no change.
 5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
-6. The `preemptedBy` field is set to the reservation-holding emergency vehicle. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
-7. Same-direction vehicles already ahead of the reservation holder may continue into and through the reserved segment. New normal vehicles cannot enter behind the emergency.
-8. When the emergency vehicle clears the intersection or arrives before doing so, `release_preemption` is called and normal cycling resumes from the current axis's green phase. Segment reconciliation separately releases its reservation when it clears the segment, arrives, or leaves the active vehicle set.
+6. The `preemptedBy` field is set to the reservation-holding emergency vehicle, or to a terminal-bound emergency's signal-only claim. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
+7. Vehicles already ahead of the reservation holder may continue through the reserved segment. No new normal entry or spawn placement is permitted anywhere in an emergency-reserved segment.
+8. When the emergency vehicle clears the intersection or arrives before doing so, `release_preemption` is called and normal cycling resumes from the current axis's green phase. A terminal signal-only claim releases when its vehicle enters and arrives. Segment reconciliation separately releases a reservation when its holder clears the segment, arrives, or leaves the active vehicle set.
 
 ### 3.5 Pathfinder (`simulation/pathfinder.py`)
 

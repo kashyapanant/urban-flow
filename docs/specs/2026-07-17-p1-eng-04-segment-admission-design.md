@@ -39,7 +39,9 @@ or form a cyclic wait while the engine continues ticking.
   spawning is rejected for that tick. An empty grid may still spawn.
 - An intersection may be selected as a spawn origin. Its admission target is the
   first downstream road segment on the vehicle's path; the spawn is admitted
-  only when that segment grants the vehicle's first movement direction.
+  only when that segment grants the vehicle's first movement direction and its
+  first downstream road cell is available. The grant reserves that road cell
+  atomically with intersection placement until the spawned vehicle enters it.
 - A spawn candidate submits a transient segment request during the spawn phase.
   The request participates in a transactional arbitration with persistent
   requests under the same emergency-precedence and fairness rules. An empty,
@@ -67,9 +69,10 @@ or form a cyclic wait while the engine continues ticking.
   A terminal intersection destination requires only the permissive signal and
   empty intersection; it bypasses segment admission and downstream-cell checks
   and completes the vehicle upon entry.
-- A granted vehicle has a committed grant while crossing the intersection. The
-  grant survives arbitration and reconciliation until the vehicle reaches the
-  downstream segment's first road cell.
+- A selected vehicle's grant becomes committed during arbitration, before it
+  enters the intersection. The grant survives arbitration and reconciliation
+  until the vehicle reaches the downstream segment's first road cell or its
+  request is invalidated.
 - A committed grant also reserves that first downstream road cell from spawn
   admission. The reservation releases when the vehicle reaches the cell or the
   grant is invalidated; spawn candidates must choose another eligible origin or
@@ -85,11 +88,15 @@ or form a cyclic wait while the engine continues ticking.
 - Reconciliation releases an emergency reservation when its holder clears the
   segment, arrives anywhere within the reserved segment, or otherwise leaves
   the active vehicle set.
-- Existing opposing occupants drain forward. Same-direction vehicles already
-  ahead of the reservation holder may enter or continue through the reserved
-  segment and drain. New normal vehicles cannot enter behind the emergency.
+- Existing opposing occupants drain forward. Vehicles already ahead of the
+  reservation holder may continue through the reserved segment and drain. No
+  new normal entry or spawn placement is permitted anywhere in an
+  emergency-reserved segment.
 - The reservation holder is the only emergency that may preempt the associated
-  entry signal. Later emergencies queue in arrival order.
+  entry signal. For a terminal intersection destination, an emergency holds a
+  signal-only preemption claim instead of a segment reservation; it releases
+  when the vehicle enters and arrives. Later emergencies queue in arrival
+  order.
 - Emergency vehicles cannot overtake vehicles ahead in the one-cell geometry.
 - Urgency levels are a future extension; Phase 1 treats all emergencies equally.
 
