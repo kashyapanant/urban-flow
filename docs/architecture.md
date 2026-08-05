@@ -168,6 +168,7 @@ refresh segment requests -> arbitrate segment reservations
 -> move vehicles and count progress -> reconcile segments
 -> attempt spawning with transactional arbitration
 -> collect arrivals and update metrics
+-> reconcile segments after arrival cleanup
 -> increment tick and broadcast
 ```
 

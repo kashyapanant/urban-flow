@@ -90,6 +90,10 @@ or form a cyclic wait while the engine continues ticking.
 - Reconciliation releases an emergency reservation when its holder clears the
   segment, arrives anywhere within the reserved segment, or otherwise leaves
   the active vehicle set.
+- A committed crossing into a segment blocks a conflicting emergency reservation
+  until the crossing vehicle reaches that segment's first road cell or its grant
+  is invalidated. The committed crossing finishes before emergency-reservation
+  entry restrictions take effect.
 - Existing opposing occupants drain forward. Vehicles already ahead of the
   reservation holder may continue through the reserved segment and drain. No
   new normal entry or spawn placement is permitted anywhere in an
@@ -98,7 +102,8 @@ or form a cyclic wait while the engine continues ticking.
   entry signal. For a terminal intersection destination, an emergency holds a
   signal-only preemption claim instead of a segment reservation; it releases
   when the vehicle enters and arrives. Later emergencies queue in arrival
-  order.
+  order. Same-tick terminal claims use the claimant's pre-intersection road-cell
+  coordinate, ordered by `(row, column)`, as a deterministic secondary key.
 - Emergency vehicles cannot overtake vehicles ahead in the one-cell geometry.
 - Urgency levels are a future extension; Phase 1 treats all emergencies equally.
 
