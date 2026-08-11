@@ -158,7 +158,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 |---|-----------|-------------|
 | 1 | Vehicles navigate from origin to destination without passing through obstacles or occupied cells | Visual inspection + automated path validation |
 | 2 | Traffic lights cycle correctly through all four phases at the configured duration | Phase counter matches expected tick counts |
-| 3 | Emergency vehicles trigger green lights at intersections within 3 cells, with proper yellow transition for cross-traffic | Visual inspection + event log verification |
+| 3 | Emergency vehicles trigger a green light only for the entry signal of their granted next segment, or their terminal signal-only claim, with a proper yellow transition for cross-traffic | Visual inspection + event log verification |
 | 4 | Emergency vehicles reach their destination in measurably fewer ticks than normal vehicles on comparable routes | Metrics dashboard shows a positive improvement percentage |
 | 5 | Simulation runs smoothly at all tick speeds (1–10 ticks/second) without UI lag or dropped frames | Manual testing across speed range |
 | 6 | Pause/resume works correctly with no state corruption | Simulation state is identical before pause and after resume |
