@@ -58,6 +58,9 @@ or form a cyclic wait while the engine continues ticking.
   drains current occupants, and then switches direction.
 - Requests from vehicles already on the grid persist until fulfilled or
   invalidated. Only the lead normal vehicle at an approach requests access.
+- After direction selection, select one claimant by request creation tick,
+  then pre-intersection road-cell coordinate (row, column), then `vehicle.id`.
+  Only that claimant receives the committed grant and reserves the downstream entry cell.
 - Emergency requests take precedence over all normal requests on an empty
   segment. Emergencies are served first-come-first-served. When only normal
   requests contend, same-tick ties use the direction not served last, with a
