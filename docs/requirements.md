@@ -140,6 +140,11 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | spawnRejectedNoAdmissibleEntry | integer | Cumulative path or segment admission rejections |
 | activeVehicleCap | integer | Read-only derived active capacity |
 | emergencyReservedSlots | integer | Read-only capacity reserved for emergencies |
+
+Each spawn attempt increments exactly one outcome counter: `spawnAdmitted` or one
+rejection counter. Evaluate rejection checks in this order: network stalled,
+capacity, then no admissible entry; stop after the first applicable check.
+
 ## Edge Cases
 
 | # | Scenario | Expected Behavior |

@@ -27,6 +27,9 @@ or form a cyclic wait while the engine continues ticking.
 - `spawn_rate` remains in `[0.0, 1.0]` but means one demand roll per tick,
   not a probability per edge cell.
 - A successful demand roll creates at most one spawn attempt.
+- Every spawn attempt produces exactly one outcome: admission or a single
+  rejection category. Evaluate rejection checks in this order: network stalled,
+  capacity, then no admissible entry; stop after the first applicable check.
 - Rejected demand is discarded; there is no external spawn queue.
 - The default 10x10 grid has an active cap of 30 vehicles. For other grids:
   ```text
