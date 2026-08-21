@@ -95,12 +95,18 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | Property | Type | Description |
 |----------|------|-------------|
 | id | string | Deterministic segment identifier |
+| orientation | enum | `horizontal` or `vertical` |
+| start | (x, y) | First road-cell coordinate in the deterministic segment order |
+| end | (x, y) | Last road-cell coordinate in the deterministic segment order |
 | cells | (x, y)[] | Straight road cells controlled as one admission segment |
 | activeDirection | enum? | Current admitted travel direction |
 | pendingDirection | enum? | Direction waiting for the segment to drain |
 | isDraining | boolean | Whether new entries are closed while occupants clear |
+| acceptingEntries | boolean | Whether the segment currently admits new entries |
 | emergencyReservedBy | string? | Emergency vehicle holding the reservation |
 | committedEntryCells | (x, y)[] | First downstream road cells reserved for vehicles crossing an intersection on a committed grant |
+| occupantCount | integer | Current active vehicles occupying the segment |
+| waitingCounts | object | Waiting requests by direction and vehicle type: `{direction: {normal, emergency}}` |
 
 ### Simulation
 
@@ -111,6 +117,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | state | enum | `running`, `paused` |
 | spawnRate | float | One demand probability per tick, with at most one attempt per tick |
 | vehicles | Vehicle[] | All active vehicles |
+| roadSegments | RoadSegment[] | Dynamic admission state for all road segments |
 | metrics | Metrics | Aggregated performance data |
 
 ### Metrics
@@ -176,7 +183,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
 - A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
 - The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
-- Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. A committed crossing into that segment blocks a conflicting emergency reservation until the crossing vehicle reaches its first road cell or its grant is invalidated. Vehicles already ahead of the emergency may drain through the reserved segment; no new normal entry or spawn placement is permitted anywhere in it. A terminal-intersection emergency uses a signal-only preemption claim, released on arrival, because no downstream segment exists; later emergencies queue by arrival order, with same-tick claims ordered by the claimant's pre-intersection road-cell coordinate `(row, column)`. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
+- Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. A committed crossing into that segment blocks a conflicting emergency reservation until the crossing vehicle reaches its first road cell or its grant is invalidated. Vehicles already ahead of the emergency may drain through the reserved segment; no new normal entry or spawn placement is permitted anywhere in it. A terminal-intersection emergency uses a signal-only preemption claim, released on arrival, because no downstream segment exists. At each intersection, select at most one eligible emergency preemption claim across segment reservations and terminal claims, ordered by claim creation tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`, then `vehicle.id`; all other emergency vehicles wait. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
 - A full simulation reset rebuilds segment state and clears requests, reservations, liveness counters, and metrics; a config reset does not rebuild world state.

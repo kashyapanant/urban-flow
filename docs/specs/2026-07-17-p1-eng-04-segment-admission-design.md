@@ -104,9 +104,11 @@ or form a cyclic wait while the engine continues ticking.
 - The reservation holder is the only emergency that may preempt the associated
   entry signal. For a terminal intersection destination, an emergency holds a
   signal-only preemption claim instead of a segment reservation; it releases
-  when the vehicle enters and arrives. Later emergencies queue in arrival
-  order. Same-tick terminal claims use the claimant's pre-intersection road-cell
-  coordinate, ordered by `(row, column)`, as a deterministic secondary key.
+  when the vehicle enters and arrives. At each intersection, select at most one
+  eligible emergency preemption claim across segment reservations and terminal
+  claims, ordered by claim creation tick, then the claimant's pre-intersection
+  road-cell coordinate `(row, column)`, then `vehicle.id`; all other emergency
+  vehicles wait.
 - Emergency vehicles cannot overtake vehicles ahead in the one-cell geometry.
 - Urgency levels are a future extension; Phase 1 treats all emergencies equally.
 

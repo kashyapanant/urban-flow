@@ -137,7 +137,7 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 
 1. An emergency vehicle's path is scanned up to 3 cells ahead each tick.
 2. The look-ahead may reserve only the vehicle's next road segment and its associated entry signal; it cannot claim multiple intersections or future segments. A terminal-intersection destination instead uses a signal-only claim.
-3. `request_preemption(intersection, vehicle)` is called only after the RoadSegmentManager grants that next-segment reservation, or after a terminal signal-only claim is issued.
+3. For each intersection, select at most one eligible emergency preemption claim across segment reservations and terminal signal-only claims, ordered by claim creation tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`, then `vehicle.id`. Call `request_preemption(intersection, vehicle)` only for that selected claim, after the RoadSegmentManager grants its next-segment reservation or after a terminal signal-only claim is issued.
 4. If the intersection is already serving the emergency vehicle's axis, no change.
 5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
 6. The `preemptedBy` field is set to the reservation-holding emergency vehicle, or to a terminal-bound emergency's signal-only claim. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
