@@ -182,10 +182,11 @@ capacity, then no admissible entry; stop after the first applicable check.
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
 - A spawn candidate submits one transient segment request after movement reconciliation. It is arbitrated with persistent requests, may switch an empty unreserved segment when it wins, and is discarded without retained admission state if spawning fails.
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
-- After direction selection, select one claimant by request creation tick, then arbitration
-  coordinate (row, column): the pre-intersection road-cell coordinate for an on-grid claimant
-  or the origin coordinate for a spawn candidate, then `vehicle.id`. Only that claimant
-  receives the committed grant and reserves the downstream entry cell.
+- After direction selection, select one claimant by vehicle type (emergency before normal),
+  then request creation tick, then arbitration coordinate (row, column): the
+  pre-intersection road-cell coordinate for an on-grid claimant or the origin coordinate for
+  a spawn candidate, then `vehicle.id`. Only that claimant receives the committed grant and
+  reserves the downstream entry cell.
 - Emergency requests take precedence over normal requests on an empty segment, with first-come-first-served ordering among emergencies. When only normal requests contend, select the direction holding the oldest request; if their oldest requests have the same creation tick, choose the direction not served most recently, using a deterministic lower-coordinate-to-higher-coordinate direction when neither direction has service history.
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
 - A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
