@@ -40,11 +40,13 @@ or form a cyclic wait while the engine continues ticking.
   admission may use the reserved slots, but never exceeds `active_cap`.
 - If active vehicles exist and no vehicle moved during the movement phase,
   spawning is rejected for that tick. An empty grid may still spawn.
-- An intersection may be selected as a spawn origin. Its admission target is the
-  first downstream road segment on the vehicle's path; the spawn is admitted
-  only when that segment grants the vehicle's first movement direction and its
-  first downstream road cell is available. The grant reserves that road cell
-  atomically with intersection placement until the spawned vehicle enters it.
+- An intersection may be selected as a spawn origin only when it is not occupied
+  and, for a normal candidate, has no active emergency preemption claim. Its
+  admission target is the first downstream road segment on the vehicle's path;
+  the spawn is admitted only when that segment grants the vehicle's first movement
+  direction and its first downstream road cell is available. The grant reserves
+  that road cell atomically with intersection placement until the spawned vehicle
+  enters it.
 - A spawn candidate submits a transient segment request during the spawn phase.
   The request participates in a transactional arbitration with persistent
   requests under the same emergency-precedence and fairness rules. An empty,
