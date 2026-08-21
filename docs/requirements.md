@@ -13,12 +13,12 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - **10x10 grid world** with roads, intersections, and static non-traversable cells (buildings, parks, etc.)
 - **Single-lane roads** — each road cell holds at most one vehicle at a time
 - **Two vehicle types**: normal car and emergency vehicle
-- **Vehicle spawning** at random traversable grid-edge cells, including intersections, with one demand roll per tick and a bounded active-vehicle capacity, each with a randomly assigned destination (point A to B); an intersection origin is admitted against the first downstream road segment in the vehicle's path through transactional spawn arbitration and requires an atomically reserved, available first downstream road cell
+- **Vehicle spawning** at random traversable grid-edge cells, including intersections, with one demand roll per tick and a bounded active-vehicle capacity, each with a randomly assigned destination (point A to B); an intersection origin is admitted against the first downstream road segment in the vehicle's path through transactional spawn arbitration and requires an atomically reserved, available first downstream road cell. An emergency spawned at that intersection uses a signal-less reservation and does not preempt the origin signal.
 - **Vehicle movement** at 1 cell per tick
 - **Pathfinding**: A\* shortest-path for normal vehicles; fastest-path (factoring current light states) for emergency vehicles
 - **Emergency vehicle path**: fixed pre-computed path, no mid-journey rerouting
 - **Traffic lights** at intersections with a full four-phase cycle (green, yellow, red, left-turn arrow), each phase lasting 3 ticks (configurable)
-- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal; a terminal-intersection destination instead uses a signal-only claim released on arrival. It cannot claim multiple intersections or future segments.
+- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal; a terminal-intersection destination instead uses a signal-only claim released on arrival. An emergency already spawned at the entry intersection holds a signal-less downstream-segment reservation and does not preempt that signal. It cannot claim multiple intersections or future segments.
 - **Web-based real-time visualization** of the grid, vehicles, and traffic light states
 - **Simulation controls**: pause/resume, tick speed adjustment (1–10 ticks/second)
 - **Performance metric**: track and display the percentage difference in travel ticks between emergency vehicles and normal vehicles over the same or comparable routes
@@ -193,8 +193,26 @@ capacity, then no admissible entry; stop after the first applicable check.
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
 - A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
 - The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
-- Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. A committed crossing into that segment blocks a conflicting emergency reservation until the crossing vehicle reaches its first road cell or its grant is invalidated. Vehicles already ahead of the emergency may drain through the reserved segment; no new normal entry or spawn placement is permitted anywhere in it. A terminal-intersection emergency uses a signal-only preemption claim, released on arrival, because no downstream segment exists. At each intersection, select at most one eligible emergency preemption claim across segment reservations and terminal claims, ordered by claim creation tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`, then `vehicle.id`; all other emergency vehicles wait. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
-- An emergency that loses an exclusive preemption claim waits with `preemption_claim_contention`, including when its terminal intersection would otherwise be permissive.
+- Emergency priority grants only the next safe segment access after opposing
+  occupants drain and coordinates only that segment's entry signal for an
+  approaching emergency. A committed crossing into that segment blocks a
+  conflicting emergency reservation until the crossing vehicle reaches its first
+  road cell or its grant is invalidated. Vehicles already ahead of the emergency
+  may drain through the reserved segment; no new normal entry or spawn placement
+  is permitted anywhere in it.
+- An emergency spawned at an intersection holds a signal-less reservation for its
+  first downstream segment and does not take a preemption claim for that origin
+  intersection. A terminal-intersection emergency uses a signal-only preemption
+  claim, released on arrival, because no downstream segment exists.
+- At each intersection, select at most one eligible emergency preemption claim
+  across approaching segment reservations and terminal claims, ordered by claim
+  creation tick, then the claimant's pre-intersection road-cell coordinate
+  `(row, column)`, then `vehicle.id`; all other emergency vehicles wait. A loser
+  records `preemption_claim_contention`, including when its terminal intersection
+  would otherwise be permissive.
+- Emergency priority does not permit overtaking, pass-through, or multiple future
+  reservations. Reconciliation releases a reservation when its holder clears the
+  segment, arrives, or otherwise leaves the active vehicle set.
 - Signal-preemption reconciliation runs after movement and after arrival cleanup,
   before the snapshot is broadcast. It releases any claim whose holder has
   cleared its associated entry intersection, arrived, or left the active vehicle

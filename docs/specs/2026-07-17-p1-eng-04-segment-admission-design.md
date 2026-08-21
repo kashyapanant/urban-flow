@@ -46,7 +46,8 @@ or form a cyclic wait while the engine continues ticking.
   the spawn is admitted only when that segment grants the vehicle's first movement
   direction and its first downstream road cell is available. The grant reserves
   that road cell atomically with intersection placement until the spawned vehicle
-  enters it.
+  enters it. An emergency spawned at an intersection holds a signal-less
+  reservation for this first segment and does not preempt its origin intersection.
 - A spawn candidate submits a transient segment request during the spawn phase.
   The request participates in a transactional arbitration with persistent
   requests under the same emergency-precedence and fairness rules. An empty,
@@ -114,13 +115,16 @@ or form a cyclic wait while the engine continues ticking.
   new normal entry or spawn placement is permitted anywhere in an
   emergency-reserved segment.
 - The reservation holder is the only emergency that may preempt the associated
-  entry signal. For a terminal intersection destination, an emergency holds a
-  signal-only preemption claim instead of a segment reservation; it releases
-  when the vehicle enters and arrives. At each intersection, select at most one
-  eligible emergency preemption claim across segment reservations and terminal
-  claims, ordered by claim creation tick, then the claimant's pre-intersection
-  road-cell coordinate `(row, column)`, then `vehicle.id`; all losing emergency
-  claimants wait and record `preemption_claim_contention`.
+  entry signal when it approaches from a pre-intersection road cell. An emergency
+  spawned at that entry intersection holds a signal-less downstream-segment
+  reservation and has no preemption claim there. For a terminal intersection
+  destination, an emergency holds a signal-only preemption claim instead of a
+  segment reservation; it releases when the vehicle enters and arrives. At each
+  intersection, select at most one eligible emergency preemption claim across
+  approaching segment reservations and terminal claims, ordered by claim creation
+  tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`,
+  then `vehicle.id`; all losing emergency claimants wait and record
+  `preemption_claim_contention`.
 - Signal-preemption reconciliation runs after movement and after arrival cleanup,
   before the snapshot is broadcast. It releases any claim whose holder has
   cleared its associated entry intersection, arrived, or left the active vehicle
