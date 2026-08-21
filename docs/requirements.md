@@ -183,7 +183,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - Capacity admission excludes vehicles marked `arrived` during the movement phase, even though arrival collection occurs after spawning.
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
 - A spawn candidate submits one transient segment request after movement reconciliation. It is arbitrated with persistent requests and may switch an empty unreserved segment when it wins. A road-origin candidate commits direction admission and origin placement atomically, without a crossing grant or downstream-cell reservation; an intersection-origin candidate also reserves its first downstream road cell. Candidate-only state is discarded if spawning fails.
-- A normal candidate may not spawn into an intersection with an active emergency preemption claim; it tries another eligible origin or the demand is rejected.
+- No candidate may spawn into an intersection with an active emergency preemption claim; it tries another eligible origin or the demand is rejected.
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
 - After direction selection, select one claimant by vehicle type (emergency before normal),
   then request creation tick, then arbitration coordinate (row, column): the

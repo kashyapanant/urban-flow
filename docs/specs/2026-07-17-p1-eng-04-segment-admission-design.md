@@ -43,7 +43,7 @@ or form a cyclic wait while the engine continues ticking.
 - If active vehicles exist and no vehicle moved during the movement phase,
   spawning is rejected for that tick. An empty grid may still spawn.
 - An intersection may be selected as a spawn origin only when it is not occupied
-  and, for a normal candidate, has no active emergency preemption claim. Its
+  and has no active emergency preemption claim. Its
   admission target is the first downstream road segment on the vehicle's path;
   the spawn is admitted only when that segment grants the vehicle's first movement
   direction and its first downstream road cell is available. The grant reserves
