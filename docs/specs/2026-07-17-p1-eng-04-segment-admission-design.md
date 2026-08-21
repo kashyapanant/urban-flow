@@ -181,6 +181,10 @@ is_draining, accepting_entries
 emergency_reserved_by, committed_entry_cells, occupant_count
 waiting_counts: {direction: {normal, emergency}}
 ```
+Directions serialize as lowercase cardinal strings: `north`, `south`, `east`, or
+`west`; `active_direction` and `pending_direction` may instead be `null`.
+`waiting_counts` includes all four direction keys, with zero counts for directions
+that have no requests or are incompatible with the segment orientation.
 
 Vehicle snapshots add `wait_reasons`. Existing REST and WebSocket fields remain
 compatible; the new fields are additive.

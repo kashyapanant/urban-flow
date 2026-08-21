@@ -99,14 +99,14 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | start | (x, y) | First road-cell coordinate in the deterministic segment order |
 | end | (x, y) | Last road-cell coordinate in the deterministic segment order |
 | cells | (x, y)[] | Straight road cells controlled as one admission segment |
-| activeDirection | enum? | Current admitted travel direction |
-| pendingDirection | enum? | Direction waiting for the segment to drain |
+| activeDirection | enum? | Current admitted travel direction: `north`, `south`, `east`, `west`, or `null` |
+| pendingDirection | enum? | Direction waiting for the segment to drain: `north`, `south`, `east`, `west`, or `null` |
 | isDraining | boolean | Whether new entries are closed while occupants clear |
 | acceptingEntries | boolean | Whether the segment currently admits new entries |
 | emergencyReservedBy | string? | Emergency vehicle holding the reservation |
 | committedEntryCells | (x, y)[] | First downstream road cells reserved for vehicles crossing an intersection on a committed grant |
 | occupantCount | integer | Current active vehicles occupying the segment |
-| waitingCounts | object | Waiting requests by direction and vehicle type: `{direction: {normal, emergency}}` |
+| waitingCounts | object | Requests by lowercase cardinal direction: all `north`, `south`, `east`, and `west` keys map to `{normal, emergency}` counts; absent or orientation-incompatible demand is zero |
 
 ### Simulation
 
