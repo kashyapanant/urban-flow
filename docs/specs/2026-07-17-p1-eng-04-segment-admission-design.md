@@ -102,9 +102,13 @@ or form a cyclic wait while the engine continues ticking.
 ### Emergency priority
 
 - An emergency reserves only its next segment within the existing three-cell
-  lookahead.
+  lookahead. At the final road cell before a non-terminal intersection, it may
+  temporarily hold its current reservation and a granted reservation for the
+  immediately following segment, obtained through the usual arbitration. This
+  handoff lasts until it enters the intersection, when the current reservation
+  releases; it cannot reserve any further segment or intersection.
 - The first granted emergency reservation is non-preemptible until the vehicle
-  clears the segment.
+  clears the segment or releases it through this handoff.
 - Reconciliation releases an emergency reservation when its holder clears the
   segment, arrives anywhere within the reserved segment, or otherwise leaves
   the active vehicle set.

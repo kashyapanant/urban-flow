@@ -18,7 +18,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 - **Pathfinding**: A\* shortest-path for normal vehicles; fastest-path (factoring current light states) for emergency vehicles
 - **Emergency vehicle path**: fixed pre-computed path, no mid-journey rerouting
 - **Traffic lights** at intersections with a full four-phase cycle (green, yellow, red, left-turn arrow), each phase lasting 3 ticks (configurable)
-- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal; a terminal-intersection destination instead uses a signal-only claim released on arrival. An emergency already spawned at the entry intersection holds a signal-less downstream-segment reservation and does not preempt that signal. It cannot claim multiple intersections or future segments.
+- **Emergency vehicle signal preemption**: an emergency scans 3 cells ahead but may reserve and preempt only its next road segment and associated entry signal. At the final road cell before a non-terminal intersection, it may temporarily hold that current reservation and a granted reservation for the immediately following segment until it enters the intersection, then releases the current reservation. A terminal-intersection destination instead uses a signal-only claim released on arrival. An emergency already spawned at the entry intersection holds a signal-less downstream-segment reservation and does not preempt that signal. It cannot claim any further segment or intersection.
 - **Web-based real-time visualization** of the grid, vehicles, and traffic light states
 - **Simulation controls**: pause/resume, tick speed adjustment (1–10 ticks/second)
 - **Performance metric**: track and display the percentage difference in travel ticks between emergency vehicles and normal vehicles over the same or comparable routes
@@ -197,11 +197,14 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
 - Emergency priority grants only the next safe segment access after opposing
   occupants drain and coordinates only that segment's entry signal for an
-  approaching emergency. A committed crossing into that segment blocks a
-  conflicting emergency reservation until the crossing vehicle reaches its first
-  road cell or its grant is invalidated. Vehicles already ahead of the emergency
-  may drain through the reserved segment; no new normal entry or spawn placement
-  is permitted anywhere in it.
+  approaching emergency. At the final road cell before a non-terminal
+  intersection, normal arbitration may temporarily grant the immediately
+  following segment while the current reservation remains held; the current
+  reservation releases when the emergency enters the intersection. A committed
+  crossing into that segment blocks a conflicting emergency reservation until the
+  crossing vehicle reaches its first road cell or its grant is invalidated.
+  Vehicles already ahead of the emergency may drain through the reserved segment;
+  no new normal entry or spawn placement is permitted anywhere in it.
 - An emergency spawned at an intersection holds a signal-less reservation for its
   first downstream segment and does not take a preemption claim for that origin
   intersection. A terminal-intersection emergency uses a signal-only preemption
