@@ -186,7 +186,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - No candidate may spawn into an intersection with an active emergency preemption claim; it tries another eligible origin or the demand is rejected.
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
 - After direction selection, select one claimant by vehicle type (emergency before normal),
-  then request creation tick, then arbitration coordinate (row, column): the
+  then request creation tick, then arbitration coordinate (x, y): the
   pre-intersection road-cell coordinate for an on-grid claimant or the origin coordinate for
   a spawn candidate, then `vehicle.id`. An intersection-crossing claimant receives the
   committed grant and reserves the downstream entry cell; a road-origin spawn claimant
@@ -212,7 +212,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - At each intersection, select at most one eligible emergency preemption claim
   across approaching segment reservations and terminal claims, ordered by claim
   creation tick, then the claimant's pre-intersection road-cell coordinate
-  `(row, column)`, then `vehicle.id`; all other emergency vehicles wait. A loser
+  `(x, y)`, then `vehicle.id`; all other emergency vehicles wait. A loser
   records `preemption_claim_contention`, including when its terminal intersection
   would otherwise be permissive.
 - Emergency priority does not permit overtaking, pass-through, or multiple future

@@ -70,7 +70,7 @@ or form a cyclic wait while the engine continues ticking.
 - Requests from vehicles already on the grid persist until fulfilled or
   invalidated. Only the lead normal vehicle at an approach requests access.
 - After direction selection, select one claimant by vehicle type—emergency before
-  normal—then request creation tick, arbitration coordinate (row, column)—the
+  normal—then request creation tick, arbitration coordinate (x, y)—the
   pre-intersection road-cell coordinate for an on-grid claimant or the origin
   coordinate for a spawn candidate—then `vehicle.id`. An intersection-crossing
   claimant receives a committed grant and reserves the downstream entry cell; a
@@ -128,7 +128,7 @@ or form a cyclic wait while the engine continues ticking.
   segment reservation; it releases when the vehicle enters and arrives. At each
   intersection, select at most one eligible emergency preemption claim across
   approaching segment reservations and terminal claims, ordered by claim creation
-  tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`,
+  tick, then the claimant's pre-intersection road-cell coordinate `(x, y)`,
   then `vehicle.id`; all losing emergency claimants wait and record
   `preemption_claim_contention`.
 - Signal-preemption reconciliation runs after movement and after arrival cleanup,
