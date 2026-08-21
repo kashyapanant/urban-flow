@@ -102,7 +102,7 @@ from the default traversable-cell ratio for other grid sizes.
 2. Apply emergency signal preemption, then advance traffic lights.
 3. Sort vehicles by the existing priority order and move sequentially.
 4. A vehicle may enter a non-terminal intersection only when the signal, empty intersection, downstream segment grant, and downstream space permit the move. A terminal intersection destination requires only the permissive signal and empty intersection; it bypasses segment admission and downstream-space checks.
-5. Record every applicable blocker in the vehicle wait_reasons list.
+5. Record every applicable blocker in the vehicle wait_reasons list, including `preemption_claim_contention` when an emergency loses an exclusive preemption claim.
 6. Reconcile segment occupancy and reservations after movement, preserving each grant committed during arbitration and its reserved downstream entry cell until its vehicle reaches that cell, and releasing reservations whose holders arrived or left the active vehicle set.
 
 ### 3.3 RoadSegmentManager
@@ -140,7 +140,7 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 3. For each intersection, select at most one eligible emergency preemption claim across segment reservations and terminal signal-only claims, ordered by claim creation tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`, then `vehicle.id`. Call `request_preemption(intersection, vehicle)` only for that selected claim, after the RoadSegmentManager grants its next-segment reservation or after a terminal signal-only claim is issued.
 4. If the intersection is already serving the emergency vehicle's axis, no change.
 5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
-6. The `preemptedBy` field is set to the reservation-holding emergency vehicle, or to a terminal-bound emergency's signal-only claim. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
+6. The `preemptedBy` field is set to the reservation-holding emergency vehicle, or to a terminal-bound emergency's signal-only claim. A second emergency vehicle approaching the same intersection waits and records `preemption_claim_contention` (first-come-first-served per edge case #2).
 7. Vehicles already ahead of the reservation holder may continue through the reserved segment. No new normal entry or spawn placement is permitted anywhere in an emergency-reserved segment.
 8. When the emergency vehicle clears the intersection or arrives before doing so, `release_preemption` is called and normal cycling resumes from the current axis's green phase. A terminal signal-only claim releases when its vehicle enters and arrives. Segment reconciliation separately releases a reservation when its holder clears the segment, arrives, or leaves the active vehicle set. Signal-preemption reconciliation runs after movement and after arrival cleanup, before the snapshot is broadcast.
 

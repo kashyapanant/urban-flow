@@ -119,8 +119,8 @@ or form a cyclic wait while the engine continues ticking.
   when the vehicle enters and arrives. At each intersection, select at most one
   eligible emergency preemption claim across segment reservations and terminal
   claims, ordered by claim creation tick, then the claimant's pre-intersection
-  road-cell coordinate `(row, column)`, then `vehicle.id`; all other emergency
-  vehicles wait.
+  road-cell coordinate `(row, column)`, then `vehicle.id`; all losing emergency
+  claimants wait and record `preemption_claim_contention`.
 - Signal-preemption reconciliation runs after movement and after arrival cleanup,
   before the snapshot is broadcast. It releases any claim whose holder has
   cleared its associated entry intersection, arrived, or left the active vehicle
@@ -132,8 +132,9 @@ or form a cyclic wait while the engine continues ticking.
 
 - Movement remains sequential in the existing priority order after admission.
 - Vehicles expose an ordered `wait_reasons` list containing every applicable
-  blocker in this canonical order: `next_cell_occupied`, `traffic_light`,
-  `segment_admission`, and `downstream_cell_occupied`.
+  blocker in this canonical order: `next_cell_occupied`,
+  `preemption_claim_contention`, `traffic_light`, `segment_admission`, and
+  `downstream_cell_occupied`.
 - Metrics add spawn outcomes, movement progress, active/waiting counts, capacity
   values, and `gridlock_suspected`.
 - `gridlock_suspected` becomes true after
