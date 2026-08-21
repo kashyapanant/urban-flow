@@ -38,6 +38,8 @@ or form a cyclic wait while the engine continues ticking.
   ```
 - Normal admission stops at `active_cap - emergency_reserve`. Emergency
   admission may use the reserved slots, but never exceeds `active_cap`.
+- Capacity admission counts only vehicles not marked `arrived` after movement,
+  even though arrival collection runs later in the tick.
 - If active vehicles exist and no vehicle moved during the movement phase,
   spawning is rejected for that tick. An empty grid may still spawn.
 - An intersection may be selected as a spawn origin only when it is not occupied
@@ -159,7 +161,7 @@ apply emergency signal preemption
 advance traffic lights
 move vehicles and count successful moves
 reconcile segment occupancy, reservations, and signal preemption
-attempt spawning using movement/capacity admission and transactional arbitration
+attempt spawning using movement/capacity admission (excluding vehicles marked arrived) and transactional arbitration
 collect arrivals and update metrics
 reconcile segment occupancy, reservations, and signal preemption after arrival cleanup
 increment tick and broadcast snapshot

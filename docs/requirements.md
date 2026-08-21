@@ -144,6 +144,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 Each spawn attempt increments exactly one outcome counter: `spawnAdmitted` or one
 rejection counter. Evaluate rejection checks in this order: network stalled,
 capacity, then no admissible entry; stop after the first applicable check.
+Capacity admission counts only vehicles not marked `arrived` after movement, even though arrival collection runs later in the tick.
 
 ## Edge Cases
 
@@ -179,6 +180,7 @@ capacity, then no admissible entry; stop after the first applicable check.
 ### P1-ENG-04 through P1-ENG-07 Congestion and Admission Requirements
 
 - The public spawn-rate range remains 0.0-1.0, but each tick performs at most one demand attempt.
+- Capacity admission excludes vehicles marked `arrived` during the movement phase, even though arrival collection occurs after spawning.
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
 - A spawn candidate submits one transient segment request after movement reconciliation. It is arbitrated with persistent requests and may switch an empty unreserved segment when it wins. A road-origin candidate commits direction admission and origin placement atomically, without a crossing grant or downstream-cell reservation; an intersection-origin candidate also reserves its first downstream road cell. Candidate-only state is discarded if spawning fails.
 - A normal candidate may not spawn into an intersection with an active emergency preemption claim; it tries another eligible origin or the demand is rejected.
