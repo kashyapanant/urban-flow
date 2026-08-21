@@ -46,8 +46,8 @@ or form a cyclic wait while the engine continues ticking.
   The request participates in a transactional arbitration with persistent
   requests under the same emergency-precedence and fairness rules. An empty,
   unreserved segment may switch direction immediately when the candidate wins.
-  For an intersection-origin candidate, use its origin intersection coordinate
-  as its virtual pre-intersection coordinate during arbitration.
+  Use every spawn candidate's origin coordinate as its virtual
+  pre-intersection coordinate during arbitration.
   Candidate-only admission state and the request commit atomically with vehicle
   placement; both are discarded if admission or placement fails.
 
@@ -62,9 +62,9 @@ or form a cyclic wait while the engine continues ticking.
   invalidated. Only the lead normal vehicle at an approach requests access.
 - After direction selection, select one claimant by request creation tick, then
   arbitration coordinate (row, column)—the pre-intersection road-cell coordinate
-  for an on-grid claimant or the origin intersection coordinate for an
-  intersection-origin spawn candidate—then `vehicle.id`. Only that claimant
-  receives the committed grant and reserves the downstream entry cell.
+  for an on-grid claimant or the origin coordinate for a spawn candidate—then
+  `vehicle.id`. Only that claimant receives the committed grant and reserves the
+  downstream entry cell.
 - Emergency requests take precedence over all normal requests on an empty
   segment. Emergencies are served first-come-first-served. When only normal
   requests contend, same-tick ties use the direction not served last, with a
