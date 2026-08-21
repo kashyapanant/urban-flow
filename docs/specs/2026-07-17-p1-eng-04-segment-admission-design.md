@@ -52,9 +52,10 @@ or form a cyclic wait while the engine continues ticking.
   requests under the same emergency-precedence and fairness rules. An empty,
   unreserved segment may switch direction immediately when the candidate wins.
   Use every spawn candidate's origin coordinate as its virtual
-  pre-intersection coordinate during arbitration.
-  Candidate-only admission state and the request commit atomically with vehicle
-  placement; both are discarded if admission or placement fails.
+  pre-intersection coordinate during arbitration. A road-origin candidate commits
+  direction admission and origin placement atomically; it does not create a
+  crossing grant or reserve a downstream entry cell. Candidate-only admission
+  state and placement are discarded if admission or placement fails.
 
 ### Road segments
 
@@ -68,8 +69,9 @@ or form a cyclic wait while the engine continues ticking.
 - After direction selection, select one claimant by vehicle type—emergency before
   normal—then request creation tick, arbitration coordinate (row, column)—the
   pre-intersection road-cell coordinate for an on-grid claimant or the origin
-  coordinate for a spawn candidate—then `vehicle.id`. Only that claimant receives
-  the committed grant and reserves the downstream entry cell.
+  coordinate for a spawn candidate—then `vehicle.id`. An intersection-crossing
+  claimant receives a committed grant and reserves the downstream entry cell; a
+  road-origin spawn claimant receives direction admission and atomic origin placement.
 - Emergency requests take precedence over all normal requests on an empty
   segment. Emergencies are served first-come-first-served. When only normal
   requests contend, select the direction holding the oldest request. If the
@@ -84,14 +86,14 @@ or form a cyclic wait while the engine continues ticking.
   A terminal intersection destination requires only the permissive signal and
   empty intersection; it bypasses segment admission and downstream-cell checks
   and completes the vehicle upon entry.
-- A selected vehicle's grant becomes committed during arbitration, before it
-  enters the intersection. The grant survives arbitration and reconciliation
-  until the vehicle reaches the downstream segment's first road cell or its
-  request is invalidated.
-- A committed grant also reserves that first downstream road cell from spawn
-  admission. The reservation releases when the vehicle reaches the cell or the
-  grant is invalidated; spawn candidates must choose another eligible origin or
-  be rejected for that demand attempt.
+- A selected intersection-crossing grant becomes committed during arbitration,
+  before its vehicle enters the intersection. The grant survives arbitration and
+  reconciliation until the vehicle reaches the downstream segment's first road
+  cell or its request is invalidated.
+- A committed intersection-crossing grant also reserves that first downstream
+  road cell from spawn admission. The reservation releases when the vehicle
+  reaches the cell or the grant is invalidated; spawn candidates must choose
+  another eligible origin or be rejected for that demand attempt.
 - Pathfinding remains fixed and does not inspect live segment locks or occupancy.
 
 ### Emergency priority
