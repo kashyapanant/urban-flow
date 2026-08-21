@@ -111,7 +111,7 @@ The RoadSegmentManager owns dynamic admission state for maximal straight road ru
 
 After direction selection, select one claimant by request creation tick, then arbitration coordinate (row, column): the pre-intersection road-cell coordinate for an on-grid claimant or the origin coordinate for a spawn candidate, then vehicle.id. Only that claimant receives the committed grant and reserves the downstream entry cell.
 
-A persistent segment request is scheduler metadata for a lead vehicle already on the grid, not an external spawn queue. Spawn candidates submit transient requests that participate once in transactional arbitration and are discarded if spawning fails. On an empty segment, emergency requests take precedence over normal requests, emergencies retain first-come-first-served order, and normal-only opposing requests use deterministic last-served fairness.
+A persistent segment request is scheduler metadata for a lead vehicle already on the grid, not an external spawn queue. Spawn candidates submit transient requests that participate once in transactional arbitration and are discarded if spawning fails. On an empty segment, emergency requests take precedence over normal requests and emergencies retain first-come-first-served order. Normal-only opposing requests choose the direction holding the oldest request; equal creation ticks use deterministic last-served fairness.
 
 ### 3.4 TrafficLight & TrafficLightManager (`simulation/traffic_light.py`)
 

@@ -67,10 +67,11 @@ or form a cyclic wait while the engine continues ticking.
   downstream entry cell.
 - Emergency requests take precedence over all normal requests on an empty
   segment. Emergencies are served first-come-first-served. When only normal
-  requests contend, same-tick ties use the direction not served last, with a
-  deterministic lower-coordinate-to-higher-coordinate initial tie. Simultaneous
-  emergency requests use that same lower-coordinate-to-higher-coordinate
-  direction tie-break after first-come-first-served ordering.
+  requests contend, select the direction holding the oldest request. If the
+  oldest requests have the same creation tick, choose the direction not served
+  last, with a deterministic lower-coordinate-to-higher-coordinate initial tie.
+  Simultaneous emergency requests use that same lower-coordinate-to-higher-
+  coordinate direction tie-break after first-come-first-served ordering.
 - Normal requests begin before the light turns green, but do not alter signal
   timing.
 - Non-terminal intersection entry requires a permissive signal, an empty
