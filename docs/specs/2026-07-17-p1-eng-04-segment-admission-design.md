@@ -117,6 +117,10 @@ or form a cyclic wait while the engine continues ticking.
   claims, ordered by claim creation tick, then the claimant's pre-intersection
   road-cell coordinate `(row, column)`, then `vehicle.id`; all other emergency
   vehicles wait.
+- Signal-preemption reconciliation runs after movement and after arrival cleanup,
+  before the snapshot is broadcast. It releases any claim whose holder has
+  cleared its associated entry intersection, arrived, or left the active vehicle
+  set.
 - Emergency vehicles cannot overtake vehicles ahead in the one-cell geometry.
 - Urgency levels are a future extension; Phase 1 treats all emergencies equally.
 
@@ -145,10 +149,10 @@ arbitrate segment direction and reservations
 apply emergency signal preemption
 advance traffic lights
 move vehicles and count successful moves
-reconcile segment occupancy and reservations
+reconcile segment occupancy, reservations, and signal preemption
 attempt spawning using movement/capacity admission and transactional arbitration
 collect arrivals and update metrics
-reconcile segment occupancy and reservations after arrival cleanup
+reconcile segment occupancy, reservations, and signal preemption after arrival cleanup
 increment tick and broadcast snapshot
 ```
 

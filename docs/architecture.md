@@ -142,7 +142,7 @@ A vehicle approaching an intersection from direction D is on axis A (NS if trave
 5. If the intersection is serving the cross axis, it immediately transitions to **yellow** (2 ticks), then **red** (instant), then flips the active axis to **green** for the emergency direction.
 6. The `preemptedBy` field is set to the reservation-holding emergency vehicle, or to a terminal-bound emergency's signal-only claim. A second emergency vehicle approaching the same intersection waits (first-come-first-served per edge case #2).
 7. Vehicles already ahead of the reservation holder may continue through the reserved segment. No new normal entry or spawn placement is permitted anywhere in an emergency-reserved segment.
-8. When the emergency vehicle clears the intersection or arrives before doing so, `release_preemption` is called and normal cycling resumes from the current axis's green phase. A terminal signal-only claim releases when its vehicle enters and arrives. Segment reconciliation separately releases a reservation when its holder clears the segment, arrives, or leaves the active vehicle set.
+8. When the emergency vehicle clears the intersection or arrives before doing so, `release_preemption` is called and normal cycling resumes from the current axis's green phase. A terminal signal-only claim releases when its vehicle enters and arrives. Segment reconciliation separately releases a reservation when its holder clears the segment, arrives, or leaves the active vehicle set. Signal-preemption reconciliation runs after movement and after arrival cleanup, before the snapshot is broadcast.
 
 ### 3.5 Pathfinder (`simulation/pathfinder.py`)
 
@@ -167,10 +167,10 @@ The orchestrator. Owns the Grid, VehicleManager, RoadSegmentManager, TrafficLigh
 ```
 refresh segment requests -> arbitrate segment reservations
 -> apply emergency preemption -> advance lights
--> move vehicles and count progress -> reconcile segments
+-> move vehicles and count progress -> reconcile segments and signal preemption
 -> attempt spawning with transactional arbitration
 -> collect arrivals and update metrics
--> reconcile segments after arrival cleanup
+-> reconcile segments and signal preemption after arrival cleanup
 -> increment tick and broadcast
 ```
 

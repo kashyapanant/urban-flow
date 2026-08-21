@@ -191,6 +191,10 @@ capacity, then no admissible entry; stop after the first applicable check.
 - A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
 - The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
 - Emergency priority grants only the next safe segment access after opposing occupants drain and coordinates only that segment's entry signal. A committed crossing into that segment blocks a conflicting emergency reservation until the crossing vehicle reaches its first road cell or its grant is invalidated. Vehicles already ahead of the emergency may drain through the reserved segment; no new normal entry or spawn placement is permitted anywhere in it. A terminal-intersection emergency uses a signal-only preemption claim, released on arrival, because no downstream segment exists. At each intersection, select at most one eligible emergency preemption claim across segment reservations and terminal claims, ordered by claim creation tick, then the claimant's pre-intersection road-cell coordinate `(row, column)`, then `vehicle.id`; all other emergency vehicles wait. Emergency priority does not permit overtaking, pass-through, or multiple future reservations. Reconciliation releases a reservation when its holder clears the segment, arrives, or otherwise leaves the active vehicle set.
+- Signal-preemption reconciliation runs after movement and after arrival cleanup,
+  before the snapshot is broadcast. It releases any claim whose holder has
+  cleared its associated entry intersection, arrived, or left the active vehicle
+  set.
 - Vehicle snapshots expose all applicable movement blockers through a stable wait-reasons list.
 - Metrics expose active and waiting counts, movement progress, spawn rejection causes, capacity, and suspected gridlock.
 - A full simulation reset rebuilds segment state and clears requests, reservations, liveness counters, and metrics; a config reset does not rebuild world state.
