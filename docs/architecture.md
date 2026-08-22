@@ -111,6 +111,8 @@ The RoadSegmentManager owns dynamic admission state for maximal straight road ru
 
 After direction selection, select one claimant by vehicle type (emergency before normal), then request creation tick, then arbitration coordinate (x, y): the pre-intersection road-cell coordinate for an on-grid claimant or the origin coordinate for a spawn candidate, then vehicle.id. An intersection-crossing claimant receives the committed grant and reserves the downstream entry cell; a road-origin spawn claimant receives direction admission and atomic origin placement.
 
+Within the selected direction, enforce no-overtake approach order before vehicle-type priority: an on-grid claimant is eligible only when no vehicle already on that approach is closer to the entry intersection. The front vehicle receives or retains the next grant before any follower, regardless of vehicle type; spawn candidates rank behind all on-grid occupants of their approach.
+
 A persistent segment request is scheduler metadata for a lead vehicle already on the grid, not an external spawn queue. Spawn candidates submit transient requests that participate once in transactional arbitration and are discarded if spawning fails. On an empty segment, emergency requests take precedence over normal requests and emergencies retain first-come-first-served order. Normal-only opposing requests choose the direction holding the oldest request; equal creation ticks use deterministic last-served fairness.
 
 ### 3.4 TrafficLight & TrafficLightManager (`simulation/traffic_light.py`)

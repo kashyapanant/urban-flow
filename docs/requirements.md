@@ -191,6 +191,12 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
   a spawn candidate, then `vehicle.id`. An intersection-crossing claimant receives the
   committed grant and reserves the downstream entry cell; a road-origin spawn claimant
   receives direction admission and atomic origin placement.
+- Within the selected direction, enforce no-overtake approach order before
+  vehicle-type priority: an on-grid claimant is eligible only when no vehicle
+  already on that approach is closer to the entry intersection. The front
+  vehicle receives or retains the next grant before any follower, regardless of
+  vehicle type; spawn candidates rank behind all on-grid occupants of their
+  approach.
 - Emergency requests take precedence over normal requests on an empty segment, with first-come-first-served ordering among emergencies. When only normal requests contend, select the direction holding the oldest request; if their oldest requests have the same creation tick, choose the direction not served most recently, using a deterministic lower-coordinate-to-higher-coordinate direction when neither direction has service history.
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
 - A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
