@@ -212,8 +212,8 @@ Directions serialize as lowercase cardinal strings: `north`, `south`, `east`, or
 `waiting_counts` includes all four direction keys, with zero counts for directions
 that have no requests or are incompatible with the segment orientation.
 
-Vehicle snapshots add `wait_reasons`. Existing REST and WebSocket fields remain
-compatible; the new fields are additive.
+Vehicle snapshots add `creation_ordinal` and `wait_reasons`. Existing REST and
+WebSocket fields remain compatible; the new fields are additive.
 
 ## Validation
 
