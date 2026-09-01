@@ -42,8 +42,9 @@ or form a cyclic wait while the engine continues ticking.
   even though arrival collection runs later in the tick.
 - If active vehicles exist and no vehicle moved during the movement phase,
   spawning is rejected for that tick. An empty grid may still spawn.
-- An intersection may be selected as a spawn origin only when it is not occupied
-  and has no active emergency preemption claim. Its
+- An intersection may be selected as a spawn origin only when it is not occupied,
+  is not a committed crossing's reserved entry intersection, and has no active
+  emergency preemption claim. Its
   admission target is the first downstream road segment on the vehicle's path;
   the spawn is admitted only when that segment grants the vehicle's first movement
   direction and its first downstream road cell is available. The grant reserves
@@ -99,10 +100,11 @@ or form a cyclic wait while the engine continues ticking.
   before its vehicle enters the intersection. The grant survives arbitration and
   reconciliation until the vehicle reaches the downstream segment's first road
   cell or its request is invalidated.
-- A committed intersection-crossing grant also reserves that first downstream
-  road cell from spawn admission. The reservation releases when the vehicle
-  reaches the cell or the grant is invalidated; spawn candidates must choose
-  another eligible origin or be rejected for that demand attempt.
+- A committed intersection-crossing grant reserves its entry intersection from
+  spawn admission until its vehicle enters it or the grant is invalidated. It
+  also reserves that first downstream road cell; that reservation releases when
+  the vehicle reaches the cell or the grant is invalidated. Spawn candidates
+  must choose another eligible origin or be rejected for that demand attempt.
 - Pathfinding remains fixed and does not inspect live segment locks or occupancy.
 
 ### Emergency priority
@@ -223,8 +225,8 @@ compatible; the new fields are additive.
 - Construct a whole-network standstill separately and assert detection, spawn
   pause, continued engine operation, and no vehicle removal or rerouting.
 - Construct a committed non-terminal intersection crossing and assert that spawn
-  admission cannot place a vehicle in its reserved downstream road cell before
-  the crossing completes.
+  admission cannot place a vehicle in its reserved entry intersection or
+  downstream road cell before the crossing completes.
 
 ## Non-Goals
 

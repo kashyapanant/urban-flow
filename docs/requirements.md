@@ -104,6 +104,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | isDraining | boolean | Whether new entries are closed while occupants clear |
 | acceptingEntries | boolean | Whether the segment currently admits new entries |
 | emergencyReservedBy | string? | Emergency vehicle holding the reservation |
+| committedEntryIntersections | (x, y)[] | Entry intersections reserved from spawn placement until their grant holders enter |
 | committedEntryCells | (x, y)[] | First downstream road cells reserved for vehicles crossing an intersection on a committed grant |
 | occupantCount | integer | Current active vehicles occupying the segment |
 | waitingCounts | object | Requests by lowercase cardinal direction: all `north`, `south`, `east`, and `west` keys map to `{normal, emergency}` counts; absent or orientation-incompatible demand is zero |
@@ -162,7 +163,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 | 10 | All vehicles have arrived and no new ones are spawning | Simulation continues running (lights still cycle) but nothing moves. User can adjust spawn rate or pause. |
 | 11 | A vehicle's destination is an intersection with no downstream segment | The vehicle may enter on a permissive signal when the intersection is empty, bypasses segment admission and downstream-cell checks, and arrives on entry. |
 | 12 | A spawn candidate requests the opposite direction on an empty origin segment | The candidate participates once in transactional arbitration; if it wins, the segment switch and placement commit atomically, otherwise its request is discarded. |
-| 13 | A spawn candidate selects a road cell reserved by a committed intersection crossing | That origin is unavailable until the crossing vehicle reaches its owed downstream cell or its grant is invalidated; the candidate tries another eligible origin or the demand is rejected. |
+| 13 | A spawn candidate selects an entry intersection or road cell reserved by a committed crossing | The intersection is unavailable until the holder enters it; the road cell is unavailable until the holder reaches it. Either reservation releases if the grant is invalidated; the candidate tries another eligible origin or the demand is rejected. |
 | 14 | A spawn candidate begins at an intersection | It requires both its first downstream segment grant and an available first downstream road cell; placement atomically reserves that cell until the candidate enters it. |
 
 ## Success Criteria
@@ -183,7 +184,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - Capacity admission excludes vehicles marked `arrived` during the movement phase, even though arrival collection occurs after spawning.
 - The default 10x10 grid admits at most 30 active vehicles and reserves three admission slots for emergency arrivals.
 - A spawn candidate submits one transient segment request after movement reconciliation. It is arbitrated with persistent requests and may switch an empty unreserved segment when it wins. A road-origin candidate commits direction admission and origin placement atomically, without a crossing grant or downstream-cell reservation; an intersection-origin candidate also reserves its first downstream road cell. Candidate-only state is discarded if spawning fails.
-- No candidate may spawn into an intersection with an active emergency preemption claim; it tries another eligible origin or the demand is rejected.
+- No candidate may spawn into an intersection with an active emergency preemption claim or a committed crossing's entry-intersection reservation; it tries another eligible origin or the demand is rejected.
 - A road segment admits one travel direction at a time and drains current occupants before switching to an opposing request.
 - Before direction selection, exclude no-overtake-ineligible requests from
   arbitration. An on-grid request is ineligible while any vehicle already on
@@ -200,7 +201,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - Emergency requests take precedence over normal requests on an empty segment, with first-come-first-served ordering among emergencies. When only normal requests contend, select the direction holding the oldest request; if their oldest requests have the same creation tick, choose the direction not served most recently, using a deterministic lower-coordinate-to-higher-coordinate direction when neither direction has service history.
 - Non-terminal intersection entry requires a permissive light, an empty intersection, segment admission, and downstream space. A terminal intersection destination requires only the permissive light and empty intersection, bypasses segment admission and downstream-space checks, and completes upon entry.
 - A selected segment grant becomes committed during arbitration and cannot be revoked by later arbitration until its vehicle reaches the downstream segment's first road cell or the request is invalidated.
-- The first downstream road cell of a committed crossing is unavailable to spawn admission until the vehicle reaches it or the grant is invalidated.
+- A committed crossing's entry intersection is unavailable to spawn admission until its vehicle enters it or the grant is invalidated. Its first downstream road cell remains unavailable until the vehicle reaches it or the grant is invalidated.
 - Emergency priority grants only the next safe segment access after opposing
   occupants drain and coordinates only that segment's entry signal for an
   approaching emergency. At the final road cell before a non-terminal
