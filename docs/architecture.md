@@ -270,6 +270,7 @@ class Cell:
 ```
 class Vehicle:
     id: str
+    creation_ordinal: int
     type: VehicleType        # normal | emergency
     position: tuple[int, int]
     origin: tuple[int, int]

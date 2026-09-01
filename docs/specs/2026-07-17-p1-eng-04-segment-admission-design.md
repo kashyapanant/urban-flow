@@ -204,7 +204,7 @@ Snapshots add a top-level `road_segments` collection. Records expose:
 id, orientation, start, end, cells
 active_direction, pending_direction
 is_draining, accepting_entries
-emergency_reserved_by, committed_entry_cells, occupant_count
+emergency_reserved_by, committed_entry_intersections, committed_entry_cells, occupant_count
 waiting_counts: {direction: {normal, emergency}}
 ```
 Directions serialize as lowercase cardinal strings: `north`, `south`, `east`, or
