@@ -70,6 +70,9 @@ or form a cyclic wait while the engine continues ticking.
   drains current occupants, and then switches direction.
 - Requests from vehicles already on the grid persist until fulfilled or
   invalidated. Only the lead normal vehicle at an approach requests access.
+- Each vehicle receives a run-local, monotonically increasing
+  `creation_ordinal` when it is created. A full simulation reset restarts the
+  counter; opaque UUID vehicle IDs have no behavioral role in arbitration.
 - Before direction selection, exclude no-overtake-ineligible requests from
   arbitration. An on-grid request is ineligible while any vehicle already on
   its approach is closer to the entry intersection, regardless of that lead
@@ -79,7 +82,7 @@ or form a cyclic wait while the engine continues ticking.
 - After direction selection, select one claimant by vehicle type—emergency before
   normal—then request creation tick, arbitration coordinate (x, y)—the
   pre-intersection road-cell coordinate for an on-grid claimant or the origin
-  coordinate for a spawn candidate—then `vehicle.id`. An intersection-crossing
+  coordinate for a spawn candidate—then `vehicle.creation_ordinal`. An intersection-crossing
   claimant receives a committed grant and reserves the downstream entry cell; a
   road-origin spawn claimant receives direction admission and atomic origin placement.
 - Emergency requests take precedence over all normal requests on an empty
@@ -137,7 +140,7 @@ or form a cyclic wait while the engine continues ticking.
   intersection, select at most one eligible emergency preemption claim across
   approaching segment reservations and terminal claims, ordered by claim creation
   tick, then the claimant's pre-intersection road-cell coordinate `(x, y)`,
-  then `vehicle.id`; all losing emergency claimants wait and record
+  then `vehicle.creation_ordinal`; all losing emergency claimants wait and record
   `preemption_claim_contention`.
 - Signal-preemption reconciliation runs after movement and after arrival cleanup,
   before the snapshot is broadcast. It releases any claim whose holder has

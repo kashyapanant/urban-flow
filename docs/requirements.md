@@ -70,6 +70,7 @@ This project builds a traffic simulation starting with a minimal 10x10 grid and 
 | Property | Type | Description |
 |----------|------|-------------|
 | id | string | Unique identifier |
+| creationOrdinal | integer | Run-local monotonic creation order, reset with a full simulation reset and used as the final deterministic arbitration key |
 | type | enum | `normal`, `emergency` |
 | position | (x, y) | Current cell coordinates |
 | origin | (x, y) | Spawn point (grid edge) |
@@ -195,7 +196,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - After direction selection, select one claimant by vehicle type (emergency before normal),
   then request creation tick, then arbitration coordinate (x, y): the
   pre-intersection road-cell coordinate for an on-grid claimant or the origin coordinate for
-  a spawn candidate, then `vehicle.id`. An intersection-crossing claimant receives the
+  a spawn candidate, then `vehicle.creationOrdinal`. An intersection-crossing claimant receives the
   committed grant and reserves the downstream entry cell; a road-origin spawn claimant
   receives direction admission and atomic origin placement.
 - Emergency requests take precedence over normal requests on an empty segment, with first-come-first-served ordering among emergencies. When only normal requests contend, select the direction holding the oldest request; if their oldest requests have the same creation tick, choose the direction not served most recently, using a deterministic lower-coordinate-to-higher-coordinate direction when neither direction has service history.
@@ -219,7 +220,7 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
 - At each intersection, select at most one eligible emergency preemption claim
   across approaching segment reservations and terminal claims, ordered by claim
   creation tick, then the claimant's pre-intersection road-cell coordinate
-  `(x, y)`, then `vehicle.id`; all other emergency vehicles wait. A loser
+  `(x, y)`, then `vehicle.creationOrdinal`; all other emergency vehicles wait. A loser
   records `preemption_claim_contention`, including when its terminal intersection
   would otherwise be permissive.
 - Emergency priority does not permit overtaking, pass-through, or multiple future
