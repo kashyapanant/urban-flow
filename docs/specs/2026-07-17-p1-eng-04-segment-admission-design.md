@@ -69,12 +69,12 @@ or form a cyclic wait while the engine continues ticking.
   drains current occupants, and then switches direction.
 - Requests from vehicles already on the grid persist until fulfilled or
   invalidated. Only the lead normal vehicle at an approach requests access.
-- Within the selected direction, enforce no-overtake approach order before
-  vehicle-type priority: an on-grid claimant is eligible only when no vehicle
-  already on that approach is closer to the entry intersection. The front
-  vehicle receives or retains the next grant before any follower, regardless of
-  vehicle type; spawn candidates rank behind all on-grid occupants of their
-  approach.
+- Before direction selection, exclude no-overtake-ineligible requests from
+  arbitration. An on-grid request is ineligible while any vehicle already on
+  its approach is closer to the entry intersection, regardless of that lead
+  vehicle's intended downstream segment. A spawn candidate is ineligible while
+  an on-grid occupant is ahead on its approach. Direction selection and
+  claimant priority consider only the remaining eligible requests.
 - After direction selection, select one claimant by vehicle type—emergency before
   normal—then request creation tick, arbitration coordinate (x, y)—the
   pre-intersection road-cell coordinate for an on-grid claimant or the origin
