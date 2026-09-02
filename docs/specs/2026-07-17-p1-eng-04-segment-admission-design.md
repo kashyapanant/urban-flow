@@ -123,7 +123,9 @@ or form a cyclic wait while the engine continues ticking.
 - Reconciliation releases an emergency reservation when its holder clears the
   segment, arrives anywhere within the reserved segment, or otherwise leaves
   the active vehicle set.
-- A committed crossing into a segment blocks a conflicting emergency reservation
+- A committed crossing blocks an emergency reservation whenever the crossing
+  still requires that reservation's entry intersection or first downstream road
+  cell, regardless of approach axis or segment direction. It remains blocking
   until the crossing vehicle reaches that segment's first road cell or its grant
   is invalidated. The committed crossing finishes before emergency-reservation
   entry restrictions take effect.

@@ -209,8 +209,10 @@ Capacity admission counts only vehicles not marked `arrived` after movement, eve
   intersection, normal arbitration may temporarily grant the immediately
   following segment while the current reservation remains held; the current
   reservation releases when the emergency enters the intersection. A committed
-  crossing into that segment blocks a conflicting emergency reservation until the
-  crossing vehicle reaches its first road cell or its grant is invalidated.
+  crossing blocks an emergency reservation whenever it still requires that
+  reservation's entry intersection or first downstream road cell, regardless of
+  approach axis or segment direction. It remains blocking until the crossing
+  vehicle reaches its first road cell or its grant is invalidated.
   Vehicles already ahead of the emergency may drain through the reserved segment;
   no new normal entry or spawn placement is permitted anywhere in it.
 - An emergency spawned at an intersection holds a signal-less reservation for its
