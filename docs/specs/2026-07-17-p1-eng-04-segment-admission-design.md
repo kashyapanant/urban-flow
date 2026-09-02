@@ -43,8 +43,9 @@ or form a cyclic wait while the engine continues ticking.
 - If active vehicles exist and no vehicle moved during the movement phase,
   spawning is rejected for that tick. An empty grid may still spawn.
 - An intersection may be selected as a spawn origin only when it is not occupied,
-  is not a committed crossing's reserved entry intersection, and has no active
-  emergency preemption claim. Its
+  is not a committed crossing's reserved entry intersection or a terminal
+  entry's reserved destination intersection, and has no active emergency
+  preemption claim. Its
   admission target is the first downstream road segment on the vehicle's path;
   the spawn is admitted only when that segment grants the vehicle's first movement
   direction and its first downstream road cell is available. The grant reserves
@@ -70,6 +71,10 @@ or form a cyclic wait while the engine continues ticking.
   drains current occupants, and then switches direction.
 - Requests from vehicles already on the grid persist until fulfilled or
   invalidated. Only the lead normal vehicle at an approach requests access.
+- A vehicle whose next path cell is a terminal destination intersection registers
+  a terminal-entry reservation for that intersection during request refresh. The
+  reservation has no downstream segment grant; it prevents spawn placement only
+  and releases when its holder enters and arrives or is invalidated.
 - Each vehicle receives a run-local, monotonically increasing
   `creation_ordinal` when it is created. A full simulation reset restarts the
   counter; opaque UUID vehicle IDs have no behavioral role in arbitration.
@@ -206,7 +211,8 @@ Snapshots add a top-level `road_segments` collection. Records expose:
 id, orientation, start, end, cells
 active_direction, pending_direction
 is_draining, accepting_entries
-emergency_reserved_by, committed_entry_intersections, committed_entry_cells, occupant_count
+emergency_reserved_by, committed_entry_intersections, terminal_entry_intersections,
+committed_entry_cells, occupant_count
 waiting_counts: {direction: {normal, emergency}}
 ```
 Directions serialize as lowercase cardinal strings: `north`, `south`, `east`, or
@@ -232,6 +238,9 @@ WebSocket fields remain compatible; the new fields are additive.
 - Construct a committed non-terminal intersection crossing and assert that spawn
   admission cannot place a vehicle in its reserved entry intersection or
   downstream road cell before the crossing completes.
+- Construct a vehicle waiting to enter a terminal destination intersection and
+  assert that spawn admission cannot place another vehicle in that intersection
+  until the terminal vehicle enters or its reservation is invalidated.
 
 ## Non-Goals
 

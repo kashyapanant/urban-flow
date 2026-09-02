@@ -88,7 +88,7 @@ A Vehicle is an entity with an opaque id, a run-local monotonically increasing c
 1. Roll spawn_rate once per tick; a successful roll creates at most one demand attempt.
 2. Choose vehicle type before admission so emergency reserve capacity applies.
 3. Count each demand attempt once: reject an active network that made no movement; otherwise reject at the type-specific active cap, counting only vehicles not marked `arrived` after movement; otherwise proceed to origin, path, and transactional-admission checks. A failure of those checks is a no-admissible-entry rejection.
-4. Search shuffled edge origins and destinations for a valid fixed path and derive the applicable origin segment. Exclude occupied origins, entry intersections and first downstream road cells reserved by committed crossings, and intersections with active emergency preemption claims.
+4. Search shuffled edge origins and destinations for a valid fixed path and derive the applicable origin segment. Exclude occupied origins, entry intersections and first downstream road cells reserved by committed crossings, terminal-entry destination intersections reserved by waiting vehicles, and intersections with active emergency preemption claims.
 5. For an intersection origin, use the first downstream road segment as the origin admission target and require its first road cell to be available. An emergency spawned there holds a signal-less reservation for that segment and does not preempt its origin intersection.
 6. Submit the candidate as a transient request in transactional spawn arbitration. An empty, unreserved segment may switch direction when the candidate wins; commit direction admission and placement atomically. For an intersection origin, also commit and reserve the candidate's first downstream road cell until it enters that cell. A road-origin candidate has no crossing grant or downstream-cell reservation. Discard all candidate-only state if placement fails.
 
@@ -98,16 +98,16 @@ emergency arrivals. Normal traffic stops at 27 active vehicles. The cap scales
 from the default traversable-cell ratio for other grid sizes.
 
 **Movement (per tick):**
-1. Refresh persistent segment requests and arbitrate direction/reservations.
+1. Refresh persistent segment requests and terminal-entry reservations, then arbitrate direction/reservations.
 2. Apply emergency signal preemption, then advance traffic lights.
 3. Sort vehicles by the existing priority order and move sequentially.
-4. A vehicle may enter a non-terminal intersection only when the signal, empty intersection, downstream segment grant, and downstream space permit the move. A terminal intersection destination requires only the permissive signal and empty intersection; it bypasses segment admission and downstream-space checks.
+4. A vehicle may enter a non-terminal intersection only when the signal, empty intersection, downstream segment grant, and downstream space permit the move. A terminal intersection destination requires only the permissive signal and empty intersection; it bypasses segment admission and downstream-space checks, but its waiting vehicle holds an intersection-only reservation against spawn placement until it enters or is invalidated.
 5. Record every applicable blocker in the vehicle wait_reasons list, including `preemption_claim_contention` when an emergency loses an exclusive preemption claim.
-6. Reconcile segment occupancy and reservations after movement, preserving each grant committed during arbitration, its reserved entry intersection until its vehicle enters it, and its reserved downstream entry cell until its vehicle reaches that cell; release these reservations if the grant is invalidated.
+6. Reconcile segment occupancy and reservations after movement, preserving each grant committed during arbitration, its reserved entry intersection until its vehicle enters it, and its reserved downstream entry cell until its vehicle reaches that cell; release these reservations if the grant is invalidated. Release a terminal-entry reservation when its holder enters and arrives or is invalidated.
 
 ### 3.3 RoadSegmentManager
 
-The RoadSegmentManager owns dynamic admission state for maximal straight road runs. It derives deterministic segment geometry from the Grid, persists normal and emergency requests, controls one active direction per segment, retains committed crossing grants with their reserved entry intersections and downstream entry cells, and exposes additive snapshot records. It does not change pathfinding or mutate traffic lights directly; the SimulationEngine coordinates segment grants with signal preemption.
+The RoadSegmentManager owns dynamic admission state for maximal straight road runs. It derives deterministic segment geometry from the Grid, persists normal and emergency requests, controls one active direction per segment, retains committed crossing grants with their reserved entry intersections and downstream entry cells, retains terminal-entry reservations for waiting terminal vehicles, and exposes additive snapshot records. It does not change pathfinding or mutate traffic lights directly; the SimulationEngine coordinates segment grants with signal preemption.
 
 Before direction selection, exclude no-overtake-ineligible requests from arbitration. An on-grid request is ineligible while any vehicle already on its approach is closer to the entry intersection, regardless of that lead vehicle's intended downstream segment. A spawn candidate is ineligible while an on-grid occupant is ahead on its approach. Direction selection and claimant priority consider only the remaining eligible requests.
 
