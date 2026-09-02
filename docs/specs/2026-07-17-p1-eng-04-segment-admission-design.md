@@ -183,6 +183,9 @@ apply emergency signal preemption
 advance traffic lights
 move vehicles and count successful moves
 reconcile segment occupancy, reservations, and signal preemption
+refresh persistent segment and terminal-entry requests
+arbitrate changed persistent demand and reservations
+apply emergency signal preemption for newly granted claims
 attempt spawning using movement/capacity admission (excluding vehicles marked arrived) and transactional arbitration
 collect arrivals and update metrics
 reconcile segment occupancy, reservations, and signal preemption after arrival cleanup
@@ -241,6 +244,9 @@ WebSocket fields remain compatible; the new fields are additive.
 - Construct a vehicle waiting to enter a terminal destination intersection and
   assert that spawn admission cannot place another vehicle in that intersection
   until the terminal vehicle enters or its reservation is invalidated.
+- Move an emergency vehicle into its three-cell request range, then assert that
+  the post-movement refresh and arbitration grants its eligible empty segment
+  before a normal transient spawn candidate can claim it.
 
 ## Non-Goals
 

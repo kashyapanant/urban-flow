@@ -170,16 +170,22 @@ The orchestrator. Owns the Grid, VehicleManager, RoadSegmentManager, TrafficLigh
 refresh segment requests -> arbitrate segment reservations
 -> apply emergency preemption -> advance lights
 -> move vehicles and count progress -> reconcile segments and signal preemption
+-> refresh persistent segment and terminal-entry requests
+-> arbitrate changed persistent demand and reservations
+-> apply emergency preemption for newly granted claims
 -> attempt spawning with transactional arbitration
 -> collect arrivals and update metrics
 -> reconcile segments and signal preemption after arrival cleanup
 -> increment tick and broadcast
 ```
 
-Persistent segment requests are resolved before movement. Spawning observes the
-current movement result, so an active network with zero movement does not
-receive new vehicles, then performs one transactional arbitration for its
-candidate. Spawn admission excludes every entry intersection and downstream
+Persistent segment requests are resolved before movement, then refreshed and
+re-arbitrated after movement before spawning. This ensures vehicles that become
+eligible during movement, including emergencies entering the three-cell request
+range, participate in arbitration before a transient candidate. Spawning
+observes the current movement result, so an active network with zero movement
+does not receive new vehicles, then performs one transactional arbitration for
+its candidate. Spawn admission excludes every entry intersection and downstream
 entry cell reserved by a committed crossing. The complete operation remains
 atomic from the snapshot consumer perspective.
 
