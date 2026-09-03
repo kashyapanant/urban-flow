@@ -77,7 +77,7 @@ Run the local FastAPI app with REST endpoints and the WebSocket stream:
 uv run python main.py
 ```
 
-The browser frontend files are still part of the remaining Phase 1 work. Before that, `P1-ENG-04` tracks congestion backpressure so long-running demo simulations do not saturate into permanent gridlock.
+The browser frontend files are still part of the remaining Phase 1 work. Before that, the `P1-ENG-04` through `P1-ENG-07` congestion-stabilization sequence reduces avoidable congestion and detects whole-network standstill in long-running demo simulations.
 
 ## Project Structure
 

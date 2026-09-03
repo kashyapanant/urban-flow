@@ -23,7 +23,7 @@ This document records design decisions made during the implementation of the bac
 **Context:** The architecture mentions configurable parameters but doesn't specify validation ranges.
 **Decision:** 
 - `tick_speed`: 1-10 ticks per second
-- `spawn_rate`: 0.0-1.0 probability per edge cell per tick
+- `spawn_rate`: 0.0-1.0 demand probability per tick
 - `phase_duration`: 1-20 ticks per phase
 - `emergency_probability`: 0.0-1.0 (default 0.1)
 
@@ -301,6 +301,7 @@ bound it by the configured `phase_duration` before requesting preemption.
 ## Decision: Deadlock Resolution Strategy(Task: P1-ENG-04)
 
 **Date:** 2026-07-05
+**Status:** Superseded on 2026-07-17 by the segment-admission decision below.
 **Context:** One-cell bidirectional roads cause permanent gridlock when 
 opposing vehicles fill a road segment. This halts all arrivals and 
 makes metrics appear frozen.
@@ -311,8 +312,8 @@ inspection showed all active vehicles in `waiting` status, and each vehicle's
 next position was occupied by another vehicle. Offline reproduction confirmed
 that the current 10x10 single-lane, bidirectional grid eventually saturates into
 all-waiting gridlock under sustained spawning, especially at high spawn rates.
-**Decision:** Do not patch this inside the API/backend wiring branch. Track it
-as `P1-ENG-04`, a focused simulation stabilization task before the browser MVP.
+**Decision:** Do not patch this inside the API/backend wiring branch. This historical decision is superseded by the segment-admission design linked below. Track it
+as the `P1-ENG-04` through `P1-ENG-07` simulation-stabilization sequence before the browser MVP.
 1. spawn_rate semantics changed from "probability per edge cell" to 
    "expected vehicles per tick" to prevent saturation.
 2. Vehicles stuck waiting > max_wait_ticks are removed from the grid 
@@ -352,3 +353,23 @@ For future implementation decisions, use this format and link to task ID from do
 **Decision:** [What you chose]
 **Rationale:** [Why this choice]
 ```
+
+## Decision: Segment Admission and Congestion (Tasks: P1-ENG-04 through P1-ENG-07)
+
+**Date:** 2026-07-17
+**Status:** Accepted for implementation planning
+**Context:** The original removal-based P1-ENG-04 proposal did not satisfy the requirement that vehicles remain in the simulation. The one-cell bidirectional grid also needs a model-level admission rule so emergency priority remains safe.
+**Decision:** Preserve one-cell geometry and fixed routes. Redefine spawn_rate as one demand roll per tick, cap active vehicles at a derived 30-of-64 default with a three-slot emergency reserve, and add a RoadSegmentManager that controls whole-segment direction, persistent and transactional spawn requests, non-terminal intersection exit admission, emergency-first arbitration, committed downstream entry cells, reservation cleanup, and whole-network standstill telemetry. Implement the scheduler before emergency policy, then use the completed scheduler for spawn transactions before end-to-end engine integration.
+**Rationale:**
+- Backpressure limits inflow before the network saturates.
+- Segment direction control prevents opposing vehicles from entering the same narrow road stretch.
+- Emergency reservations coordinate physical segment access with signal preemption.
+- Detection and metrics make whole-network standstill explicit without hiding it through removal or teleportation.
+**Consequences:**
+- (+) The Phase 1 demo remains bounded, deterministic, and explainable.
+- (+) Emergency priority remains meaningful without allowing unsafe pass-through.
+- (+) Snapshot and metrics contracts make congestion visible to the future frontend.
+- (-) Progress is not guaranteed from every reachable state; arbitrary blocked cycles may remain undetected while traffic moves elsewhere, and whole-network standstill is not automatically recovered.
+- (-) The single-lane model remains a Phase 1 approximation; lanes, rerouting, and urgency levels are deferred.
+
+The canonical implementation-planning specification is [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).

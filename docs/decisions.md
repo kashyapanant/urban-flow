@@ -30,7 +30,7 @@
 
 **Context:** The simulation needs a temporal model. Requirements specify tick-based timing: vehicles move 1 cell per tick, traffic light phases last N ticks, tick speed is configurable.
 
-**Decision:** Use a synchronous tick-based loop where one call to `tick()` advances the entire world by one discrete time step.
+**Decision:** Use a synchronous tick-based loop where one call to `tick()` advances the entire world by one discrete time step. The P1-ENG-04 through P1-ENG-07 congestion sequence adds admission and reconciliation phases within that atomic tick.
 
 **Alternatives considered:**
 - **Event-driven (discrete event simulation with priority queue):** Each event (vehicle arrives at cell, light changes phase) is scheduled at a future time. The engine processes events in chronological order. Better for heterogeneous timing (e.g., vehicles with different speeds, variable-duration events).
@@ -185,18 +185,21 @@
 
 **Context:** Within a single tick, multiple systems must update (traffic lights, vehicles, spawning, metrics). The order affects correctness — e.g., should a vehicle see the light state *before* or *after* lights tick?
 
-**Decision:** Fixed six-phase order: (1) preemption scan → (2) traffic light update → (3) vehicle movement → (4) spawning → (5) cleanup & metrics → (6) broadcast.
+**Decision:** Fixed six-phase order (superseded by the P1-ENG-04 admission-aware order): (1) preemption scan → (2) traffic light update → (3) vehicle movement → (4) spawning → (5) cleanup & metrics → (6) broadcast.
 
 **Alternatives considered:**
 - **Simultaneous resolution:** All vehicles compute their desired next cell, then resolve conflicts in a separate pass. More physically realistic but significantly more complex.
 - **Random order:** Process vehicles in random order each tick. Avoids systematic bias but makes the simulation non-deterministic.
 
-**Consequences:**
+**Historical consequences of the superseded order:**
 - (+) Deterministic and easy to reason about.
 - (+) Preemption scan before light update ensures that an emergency vehicle's preemption request takes effect in the same tick.
 - (+) Light update before vehicle movement ensures vehicles see the current tick's light state (not the previous tick's).
 - (+) Spawning after movement ensures newly spawned vehicles don't block existing vehicles that want to exit the grid edge.
 - (−) Priority-ordered movement gives a systematic advantage to emergency vehicles and vehicles closer to their destination. This is by design (requirements specify this priority), but means two normal vehicles in a head-on conflict will always resolve the same way.
+
+These statements describe the historical six-phase implementation only. The current
+ordering is defined by the [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).
 
 ---
 
@@ -223,3 +226,24 @@
 ---
 
 **Phase 2–5 decisions** are documented separately in [`phase-decisions.md`](phase-decisions.md).
+
+## Decision: Segment Admission and Congestion Control (P1-ENG-04 through P1-ENG-07)
+
+**Date:** 2026-07-17
+**Status:** Accepted for implementation planning
+
+**Context:** Sustained spawning can fill the one-cell bidirectional grid into opposing waits and cyclic occupancy. Removing vehicles is not acceptable, and multi-lane geometry is outside Phase 1.
+
+**Decision:** Add a dedicated RoadSegmentManager. It derives deterministic road runs, admits one direction at a time, gives emergency requests precedence before applying normal fairness, transactionally arbitrates spawn candidates, gates non-terminal intersection entry on downstream availability, retains the downstream entry cell promised to a committed crossing, and coordinates emergency reservations with signal preemption. Keep fixed paths and sequential movement. Use spawn/capacity backpressure plus whole-network standstill detection without claiming universal liveness. Implement the scheduler before emergency policy, then use the completed scheduler for spawn transactions before end-to-end engine integration.
+
+**Alternatives considered:**
+- Vehicle removal or teleportation: rejected because it hides failed journeys.
+- Multi-lane or static one-way roads: deferred to a later road-network model.
+- Live rerouting or reversing: deferred because they change the fixed-route Phase 1 model.
+
+**Consequences:**
+- Segment state becomes dynamic simulation state and is exposed additively in snapshots.
+- Normal traffic waits for ordinary signals; only the granted emergency reservation preempts a signal.
+- Whole-network standstill can be detected but is not automatically repaired in Phase 1; arbitrary blocked cycles may remain undetected while traffic moves elsewhere.
+
+See the canonical [P1-ENG-04 Segment Admission and Congestion Design](specs/2026-07-17-p1-eng-04-segment-admission-design.md).
